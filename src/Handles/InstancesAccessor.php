@@ -12,8 +12,6 @@ use Illuminate\Support\Str;
 use RoundlyConsulting\PackageToolkit\Enums\KeyType;
 use RoundlyConsulting\Workflows\Actions\Instances\CancelInstanceAction;
 use RoundlyConsulting\Workflows\Actions\Instances\RetryInstanceAction;
-use RoundlyConsulting\Workflows\DataTransferObjects\PruneReport;
-use RoundlyConsulting\Workflows\DataTransferObjects\WakeReport;
 use RoundlyConsulting\Workflows\Enums\EscalationStatus;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\WaitStatus;
@@ -25,7 +23,7 @@ use RoundlyConsulting\Workflows\Support\WorkflowModels;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
- * Instances: find, retry a failed one, cancel, read the step log, wake and prune. Retry and
+ * Instances: find, list the newest, retry a failed one, cancel, read the step log and the detail. Retry and
  * cancel run inside the instance's owner context; host controllers authorize them first.
  */
 final readonly class InstancesAccessor
@@ -132,15 +130,5 @@ final readonly class InstancesAccessor
         $model = WorkflowModels::stepRun();
 
         return $model::query()->where('instance_id', $instance->getKey())->orderBy('id')->get();
-    }
-
-    public function wake(): WakeReport
-    {
-        return $this->manager->wake();
-    }
-
-    public function prune(): PruneReport
-    {
-        return $this->manager->prune();
     }
 }

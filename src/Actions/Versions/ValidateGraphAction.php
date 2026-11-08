@@ -6,18 +6,15 @@ namespace RoundlyConsulting\Workflows\Actions\Versions;
 
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Calendars\CalendarRegistry;
-use RoundlyConsulting\Workflows\DataTransferObjects\EdgeReference;
 use RoundlyConsulting\Workflows\DataTransferObjects\ReviewFlag;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationReport;
-use RoundlyConsulting\Workflows\Enums\Severity;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Graph\CycleFinder;
 use RoundlyConsulting\Workflows\Graph\Graph;
 use RoundlyConsulting\Workflows\Graph\GraphParser;
 use RoundlyConsulting\Workflows\Graph\Node;
 use RoundlyConsulting\Workflows\Graph\Reachability;
-use RoundlyConsulting\Workflows\Steps\Outcome;
 use RoundlyConsulting\Workflows\Steps\StepType;
 use RoundlyConsulting\Workflows\Steps\ValidationScope;
 use RoundlyConsulting\Workflows\Support\Durations;
@@ -415,21 +412,5 @@ final readonly class ValidateGraphAction
         return is_int($attempts) && $attempts >= 1 && $attempts <= WorkflowsConfig::maxAttemptsCap()
             && is_array($backoff) && array_is_list($backoff)
             && array_filter($backoff, static fn (mixed $seconds): bool => ! is_int($seconds) || $seconds < 0) === [];
-    }
-
-    /**
-     * @internal
-     */
-    public static function warning(ValidationCode $code, string $node, ?EdgeReference $edge = null): ValidationError
-    {
-        return ValidationError::make($code, node: $node, edge: $edge, severity: Severity::Warning);
-    }
-
-    /**
-     * @return list<Outcome>
-     */
-    public static function outcomesOf(StepType $type, Node $node): array
-    {
-        return $type->outcomes($node->config);
     }
 }

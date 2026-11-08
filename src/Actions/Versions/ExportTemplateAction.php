@@ -40,7 +40,7 @@ final readonly class ExportTemplateAction
             graph: $version->graph,
             exportedAt: Clock::now()->toIso8601String(),
             checksum: $version->checksum,
-            review: $scanned['flags'],
+            review: $scanned->flags,
         );
     }
 }

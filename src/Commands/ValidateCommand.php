@@ -6,7 +6,7 @@ namespace RoundlyConsulting\Workflows\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
-use RoundlyConsulting\Workflows\Actions\Versions\ImportTemplateAction;
+use RoundlyConsulting\Workflows\DataTransferObjects\TemplatePayload;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationReport;
 use RoundlyConsulting\Workflows\Exceptions\WorkflowsException;
@@ -48,7 +48,7 @@ final class ValidateCommand extends Command
         try {
             if (is_string($file)) {
                 $decoded = is_file($file) ? json_decode((string) file_get_contents($file), true) : null;
-                $template = ImportTemplateAction::parse(is_array($decoded) ? GraphParser::stringKeyed($decoded) : []);
+                $template = TemplatePayload::fromArray(is_array($decoded) ? GraphParser::stringKeyed($decoded) : []);
                 $report = $workflows->versions()->validate($template->graph, $template->subjectType, $owner);
 
                 return $this->print($report);

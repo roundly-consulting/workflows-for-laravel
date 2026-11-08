@@ -18,9 +18,8 @@ final class IdRemapper
     /**
      * @param  array<string, mixed>  $graph
      * @param  array<string, array<string, mixed>>  $schemas  node type => config schema
-     * @return array{graph: array<string, mixed>, map: array<string, string>}
      */
-    public static function remap(array $graph, array $schemas = []): array
+    public static function remap(array $graph, array $schemas = []): RemappedGraph
     {
         $nodes = is_array($graph['nodes'] ?? null) ? $graph['nodes'] : [];
         $map = [];
@@ -71,7 +70,7 @@ final class IdRemapper
         $graph['nodes'] = $remapped;
         $graph['edges'] = $edges;
 
-        return ['graph' => $graph, 'map' => $map];
+        return new RemappedGraph($graph, $map);
     }
 
     /**

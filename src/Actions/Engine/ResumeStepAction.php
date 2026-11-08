@@ -20,6 +20,7 @@ use RoundlyConsulting\Workflows\Models\WorkflowWait;
 use RoundlyConsulting\Workflows\Support\Clock;
 use RoundlyConsulting\Workflows\Support\Conditions\Evaluator;
 use RoundlyConsulting\Workflows\Support\Engine\Attempts;
+use RoundlyConsulting\Workflows\Support\Engine\ClaimedStep;
 use RoundlyConsulting\Workflows\Support\Engine\Runtime;
 use RoundlyConsulting\Workflows\Support\Events;
 use RoundlyConsulting\Workflows\Support\Keys;
@@ -67,26 +68,25 @@ final readonly class ResumeStepAction
             return;
         }
 
-        [$instance, $run, $token, $signal] = $claim;
+        $instance = $claim->instance;
+        $run = $claim->run;
+        $signal = $claim->signal ?? new Signal(SignalKind::Probe);
 
         Events::dispatch(new InstanceResumed($instance, $run, $signal->kind, $instance, Runtime::actor($instance)));
 
-        [$result, $transactional] = $this->attempts->run($instance, $run, $signal);
+        $outcome = $this->attempts->run($instance, $run, $signal);
 
-        $this->record->execute(Keys::of($instance), Keys::of($run), $token, $result, $transactional, $signal);
+        $this->record->execute(Keys::of($instance), Keys::of($run), $claim->token, $outcome->result, $outcome->transactional, $signal);
     }
 
-    /**
-     * @return array{0: WorkflowInstance, 1: StepRun, 2: string, 3: Signal}|null
-     */
-    private function claim(int|string $instanceId, int|string $runId, int|string|null $waitId, SignalKind $kind): ?array
+    private function claim(int|string $instanceId, int|string $runId, int|string|null $waitId, SignalKind $kind): ?ClaimedStep
     {
         $instanceModel = WorkflowModels::instance();
         $runModel = WorkflowModels::stepRun();
         $waitModel = WorkflowModels::wait();
         $connection = (new $instanceModel)->getConnection();
 
-        return $connection->transaction(function () use ($instanceModel, $runModel, $waitModel, $instanceId, $runId, $waitId, $kind): ?array {
+        return $connection->transaction(function () use ($instanceModel, $runModel, $waitModel, $instanceId, $runId, $waitId, $kind): ?ClaimedStep {
             $instance = $instanceModel::query()->lockForUpdate()->find($instanceId);
             $run = $runModel::query()->lockForUpdate()->find($runId);
             $wait = $waitId === null ? null : $waitModel::query()->lockForUpdate()->find($waitId);
@@ -158,7 +158,7 @@ final readonly class ResumeStepAction
             $instance->lock_version++;
             $instance->save();
 
-            return [$instance, $run, $token, $signal];
+            return new ClaimedStep($instance, $run, $token, $signal);
         });
     }
 

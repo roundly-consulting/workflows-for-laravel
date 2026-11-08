@@ -38,17 +38,14 @@ final readonly class Attempts
         private Authorization $authorization,
     ) {}
 
-    /**
-     * @return array{0: StepResult|StepFailure|null, 1: (Closure(): (StepResult|StepFailure))|null}
-     */
-    public function run(WorkflowInstance $instance, StepRun $run, ?Signal $signal = null): array
+    public function run(WorkflowInstance $instance, StepRun $run, ?Signal $signal = null): AttemptOutcome
     {
         $version = $instance->version;
 
         if (! $version instanceof WorkflowVersion) {
             $this->recordInput($run, $signal, StepInputs::unresolved(null));
 
-            return [StepFailure::permanent(FailureCode::VersionMissing, Messages::get('failures.version_missing')), null];
+            return new AttemptOutcome(StepFailure::permanent(FailureCode::VersionMissing, Messages::get('failures.version_missing')));
         }
 
         $graph = $version->parsedGraph();
@@ -59,9 +56,9 @@ final readonly class Attempts
             $this->recordInput($run, $signal, StepInputs::unresolved($node));
             $package = $node === null ? null : $this->catalogue->missingAdapter($node->type);
 
-            return [$package === null
+            return new AttemptOutcome($package === null
                 ? StepFailure::permanent(FailureCode::UnknownStepType, Messages::get('failures.unknown_step_type', ['type' => $node->type ?? $run->node_type]))
-                : StepFailure::permanent(FailureCode::AdapterMissing, Messages::get('failures.adapter_missing', ['package' => $package])), null];
+                : StepFailure::permanent(FailureCode::AdapterMissing, Messages::get('failures.adapter_missing', ['package' => $package])));
         }
 
         $owner = Runtime::owner($instance);
@@ -73,13 +70,13 @@ final readonly class Attempts
             if ($subject === null) {
                 $this->recordInput($run, $signal, StepInputs::unresolved($node));
 
-                return [StepFailure::permanent(FailureCode::SubjectMissing, Messages::get('failures.subject_missing')), null];
+                return new AttemptOutcome(StepFailure::permanent(FailureCode::SubjectMissing, Messages::get('failures.subject_missing')));
             }
 
             if ($instance->owner_type !== null && ! Owners::same($owner, $this->owners->ownerOf($subject))) {
                 $this->recordInput($run, $signal, StepInputs::unresolved($node));
 
-                return [StepFailure::permanent(FailureCode::OwnerMismatch, Messages::get('failures.owner_mismatch')), null];
+                return new AttemptOutcome(StepFailure::permanent(FailureCode::OwnerMismatch, Messages::get('failures.owner_mismatch')));
             }
         }
 
@@ -91,15 +88,15 @@ final readonly class Attempts
                 $ability = $type->abilityFor($context);
                 $this->authorization->check($context->actor(), $ability, $subject, $node, $instance);
             } catch (Throwable $exception) {
-                return [$this->exceptions->map($exception), null];
+                return new AttemptOutcome($this->exceptions->map($exception));
             }
         }
 
         if ($type->transactional()) {
-            return [null, fn (): StepResult|StepFailure => $this->transactional($type, $context, $signal)];
+            return new AttemptOutcome(null, fn (): StepResult|StepFailure => $this->transactional($type, $context, $signal));
         }
 
-        return [$this->invoke($type, $context, $signal), null];
+        return new AttemptOutcome($this->invoke($type, $context, $signal));
     }
 
     /**

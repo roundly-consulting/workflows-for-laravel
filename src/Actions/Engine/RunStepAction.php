@@ -13,6 +13,7 @@ use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Support\Clock;
 use RoundlyConsulting\Workflows\Support\Engine\Attempts;
+use RoundlyConsulting\Workflows\Support\Engine\ClaimedStep;
 use RoundlyConsulting\Workflows\Support\Engine\Runtime;
 use RoundlyConsulting\Workflows\Support\Events;
 use RoundlyConsulting\Workflows\Support\Keys;
@@ -57,25 +58,23 @@ final readonly class RunStepAction
             return;
         }
 
-        [$instance, $run, $token] = $claim;
+        $instance = $claim->instance;
+        $run = $claim->run;
 
         Events::dispatch(new StepStarted($instance, $run, $instance, Runtime::actor($instance)));
 
-        [$result, $transactional] = $this->attempts->run($instance, $run);
+        $outcome = $this->attempts->run($instance, $run);
 
-        $this->record->execute(Keys::of($instance), Keys::of($run), $token, $result, $transactional);
+        $this->record->execute(Keys::of($instance), Keys::of($run), $claim->token, $outcome->result, $outcome->transactional);
     }
 
-    /**
-     * @return array{0: WorkflowInstance, 1: StepRun, 2: string}|null
-     */
-    private function claim(int|string $instanceId, int|string $runId): ?array
+    private function claim(int|string $instanceId, int|string $runId): ?ClaimedStep
     {
         $instanceModel = WorkflowModels::instance();
         $runModel = WorkflowModels::stepRun();
         $connection = (new $instanceModel)->getConnection();
 
-        return $connection->transaction(static function () use ($instanceModel, $runModel, $instanceId, $runId): ?array {
+        return $connection->transaction(static function () use ($instanceModel, $runModel, $instanceId, $runId): ?ClaimedStep {
             $instance = $instanceModel::query()->lockForUpdate()->find($instanceId);
 
             if (! $instance instanceof WorkflowInstance || ! $instance->status->isActive()) {
@@ -107,7 +106,7 @@ final readonly class RunStepAction
             $instance->lock_version++;
             $instance->save();
 
-            return [$instance, $run, $token];
+            return new ClaimedStep($instance, $run, $token);
         });
     }
 }

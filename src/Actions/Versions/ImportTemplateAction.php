@@ -39,7 +39,7 @@ final readonly class ImportTemplateAction
      */
     public function execute(TemplatePayload|array $payload, ?Model $owner = null, ?string $key = null): ImportResult
     {
-        $template = $payload instanceof TemplatePayload ? $payload : self::parse($payload);
+        $template = $payload instanceof TemplatePayload ? $payload : TemplatePayload::fromArray($payload);
 
         if ($template->subjectType !== null && $this->subjects->find($template->subjectType) === null) {
             throw InvalidTemplateException::because('subject_type');
@@ -55,8 +55,11 @@ final readonly class ImportTemplateAction
             $schemas[$typeKey] = $type->configSchema();
         }
 
-        ['graph' => $graph, 'map' => $map] = IdRemapper::remap($template->graph, $schemas);
-        ['graph' => $graph, 'flags' => $flags] = $this->ownerSpecific->process($graph, clear: true, owner: $owner);
+        $remapped = IdRemapper::remap($template->graph, $schemas);
+        $map = $remapped->map;
+        $cleared = $this->ownerSpecific->process($remapped->graph, clear: true, owner: $owner);
+        $graph = $cleared->graph;
+        $flags = $cleared->flags;
 
         $definition = $this->create->execute(new CreateDefinitionData(
             key: $this->freeKey($key ?? $template->key, $owner),
@@ -77,33 +80,6 @@ final readonly class ImportTemplateAction
         $version->save();
 
         return new ImportResult($definition, $version, $flags, $map);
-    }
-
-    /**
-     * @param  array<string, mixed>  $payload
-     */
-    public static function parse(array $payload): TemplatePayload
-    {
-        $definition = $payload['definition'] ?? null;
-
-        if (($payload['schema'] ?? null) !== TemplatePayload::SCHEMA || ! is_array($definition)
-            || ! is_string($definition['key'] ?? null) || ! is_string($definition['name'] ?? null) || ! is_array($payload['graph'] ?? null)) {
-            throw InvalidTemplateException::because('schema');
-        }
-
-        $subjectType = $definition['subject_type'] ?? null;
-        $description = $definition['description'] ?? null;
-        $checksum = is_array($payload['source'] ?? null) ? ($payload['source']['checksum'] ?? '') : '';
-
-        return new TemplatePayload(
-            key: $definition['key'],
-            name: $definition['name'],
-            subjectType: is_string($subjectType) ? $subjectType : null,
-            description: is_string($description) ? $description : null,
-            graph: GraphParser::stringKeyed($payload['graph']),
-            exportedAt: is_string($payload['exported_at'] ?? null) ? $payload['exported_at'] : '',
-            checksum: is_string($checksum) ? $checksum : '',
-        );
     }
 
     private function freeKey(string $key, ?Model $owner): string

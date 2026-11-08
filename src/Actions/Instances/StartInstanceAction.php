@@ -24,7 +24,6 @@ use RoundlyConsulting\Workflows\Exceptions\MissingTriggeringUserException;
 use RoundlyConsulting\Workflows\Exceptions\SubjectOwnerMismatchException;
 use RoundlyConsulting\Workflows\Exceptions\SubjectTypeMismatchException;
 use RoundlyConsulting\Workflows\Exceptions\TriggerMismatchException;
-use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowIdempotencyKey;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
@@ -379,16 +378,5 @@ final readonly class StartInstanceAction
         }
 
         $this->advancer->advance($instance, $graph, $edge->to, $after);
-    }
-
-    /**
-     * @internal
-     */
-    public static function triggerRun(WorkflowInstance $instance): ?StepRun
-    {
-        $model = WorkflowModels::stepRun();
-        $run = $model::query()->where('instance_id', Keys::of($instance))->where('node_type', 'trigger')->first();
-
-        return $run instanceof StepRun ? $run : null;
     }
 }

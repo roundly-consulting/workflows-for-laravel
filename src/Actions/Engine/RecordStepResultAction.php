@@ -24,6 +24,7 @@ use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Support\Clock;
 use RoundlyConsulting\Workflows\Support\Engine\Advancer;
 use RoundlyConsulting\Workflows\Support\Engine\EngineQueue;
+use RoundlyConsulting\Workflows\Support\Engine\LockedRun;
 use RoundlyConsulting\Workflows\Support\Engine\Output;
 use RoundlyConsulting\Workflows\Support\Engine\RetryPolicies;
 use RoundlyConsulting\Workflows\Support\Engine\Runtime;
@@ -62,7 +63,9 @@ final readonly class RecordStepResultAction
         $connection = (new $model)->getConnection();
 
         $connection->transaction(function () use ($instanceId, $runId, $token, $result, $transactional, $signal, &$after): void {
-            [$instance, $run] = $this->lock($instanceId, $runId);
+            $lock = $this->lock($instanceId, $runId);
+            $instance = $lock->instance;
+            $run = $lock->run;
 
             if ($instance === null || $run === null) {
                 return;
@@ -114,7 +117,9 @@ final readonly class RecordStepResultAction
         $connection = (new $model)->getConnection();
 
         $connection->transaction(function () use ($run, $failure, &$after, &$failed): void {
-            [$instance, $locked] = $this->lock($run->instance_id, Keys::of($run));
+            $lock = $this->lock($run->instance_id, Keys::of($run));
+            $instance = $lock->instance;
+            $locked = $lock->run;
 
             if ($instance === null || $locked === null || $locked->status !== StepRunStatus::Running
                 || $locked->lease_until === null || $locked->lease_until->greaterThanOrEqualTo(Clock::now())) {
@@ -302,10 +307,8 @@ final readonly class RecordStepResultAction
 
     /**
      * Instance first, then the step run: the global lock order.
-     *
-     * @return array{0: WorkflowInstance|null, 1: StepRun|null}
      */
-    private function lock(int|string $instanceId, int|string $runId): array
+    private function lock(int|string $instanceId, int|string $runId): LockedRun
     {
         $instanceModel = WorkflowModels::instance();
         $runModel = WorkflowModels::stepRun();
@@ -313,9 +316,9 @@ final readonly class RecordStepResultAction
         $instance = $instanceModel::query()->lockForUpdate()->find($instanceId);
         $run = $runModel::query()->lockForUpdate()->find($runId);
 
-        return [
+        return new LockedRun(
             $instance instanceof WorkflowInstance ? $instance : null,
             $run instanceof StepRun ? $run : null,
-        ];
+        );
     }
 }

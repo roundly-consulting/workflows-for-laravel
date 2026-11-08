@@ -6,7 +6,6 @@ namespace RoundlyConsulting\Workflows\Actions\Definitions;
 
 use Illuminate\Database\Eloquent\Model;
 use JsonException;
-use RoundlyConsulting\Workflows\Actions\Versions\ImportTemplateAction;
 use RoundlyConsulting\Workflows\Actions\Versions\ValidateGraphAction;
 use RoundlyConsulting\Workflows\DataTransferObjects\CreateDefinitionData;
 use RoundlyConsulting\Workflows\DataTransferObjects\SyncedDefinition;
@@ -67,7 +66,7 @@ final readonly class SyncDefinitionsAction
 
         try {
             $decoded = json_decode((string) file_get_contents($file), true, 64, JSON_THROW_ON_ERROR);
-            $template = ImportTemplateAction::parse(is_array($decoded) ? GraphParser::stringKeyed($decoded) : []);
+            $template = TemplatePayload::fromArray(is_array($decoded) ? GraphParser::stringKeyed($decoded) : []);
         } catch (JsonException|WorkflowsException $exception) {
             return new SyncedDefinition($name, null, SyncStatus::Invalid, message: $exception->getMessage());
         }

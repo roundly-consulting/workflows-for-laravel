@@ -24,9 +24,8 @@ final readonly class OwnerSpecific
 
     /**
      * @param  array<string, mixed>  $graph
-     * @return array{graph: array<string, mixed>, flags: list<ReviewFlag>}
      */
-    public function process(array $graph, bool $clear, ?Model $owner = null): array
+    public function process(array $graph, bool $clear, ?Model $owner = null): ClearedGraph
     {
         $flags = [];
 
@@ -84,7 +83,7 @@ final readonly class OwnerSpecific
 
         $graph['nodes'] = $nodes;
 
-        return ['graph' => $graph, 'flags' => $flags];
+        return new ClearedGraph($graph, $flags);
     }
 
     /**

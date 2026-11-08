@@ -14,6 +14,7 @@ use RoundlyConsulting\Workflows\DataTransferObjects\DryRunData;
 use RoundlyConsulting\Workflows\DataTransferObjects\DryRunResult;
 use RoundlyConsulting\Workflows\DataTransferObjects\DryRunStep;
 use RoundlyConsulting\Workflows\DataTransferObjects\SideEffect;
+use RoundlyConsulting\Workflows\DataTransferObjects\SimulatedStep;
 use RoundlyConsulting\Workflows\DataTransferObjects\SubjectTypeDefinition;
 use RoundlyConsulting\Workflows\DataTransferObjects\WouldBeAction;
 use RoundlyConsulting\Workflows\Enums\ActorMode;
@@ -156,9 +157,10 @@ final readonly class DryRunAction
             $context = $this->context($instance, $version, $graph, $node, $visits[$node->id], $scope->at($now));
 
             $stepInput = $context->resolvedConfig();
-            [$outcome, $assumed, $output, $step] = $this->step($type, $node, $context, $data->assume);
-            $actions = [...$actions, ...$step];
-            $outputs->set($node->id, $output);
+            $simulated = $this->step($type, $node, $context, $data->assume);
+            $outcome = $simulated->outcome;
+            $actions = [...$actions, ...$simulated->actions];
+            $outputs->set($node->id, $simulated->output);
 
             foreach ($node->escalations as $level => $escalation) {
                 $after = Durations::parse($escalation['after'] ?? null);
@@ -166,11 +168,11 @@ final readonly class DryRunAction
                 $actions[] = new WouldBeAction($node->id, 'escalation', 'would_run', 'escalation level '.($level + 1), ['due_at' => $at?->toIso8601String()]);
             }
 
-            if (is_string($output['due_at'] ?? null)) {
-                $now = CarbonImmutable::parse($output['due_at'])->utc();
+            if (is_string($simulated->output['due_at'] ?? null)) {
+                $now = CarbonImmutable::parse($simulated->output['due_at'])->utc();
             }
 
-            $path[] = new DryRunStep($node->id, $node->type, $node->type === 'end' ? null : $outcome, $assumed, $now->toIso8601String(), $stepInput);
+            $path[] = new DryRunStep($node->id, $node->type, $node->type === 'end' ? null : $outcome, $simulated->assumed, $now->toIso8601String(), $stepInput);
 
             if ($node->type === 'end') {
                 return new DryRunResult(true, true, $path, $actions, $node->id, 'end', $report);
@@ -184,9 +186,8 @@ final readonly class DryRunAction
 
     /**
      * @param  array<string, string>  $assume
-     * @return array{0: string, 1: bool, 2: array<string, mixed>, 3: list<WouldBeAction>}
      */
-    private function step(StepType $type, Node $node, StepContext $context, array $assume): array
+    private function step(StepType $type, Node $node, StepContext $context, array $assume): SimulatedStep
     {
         $required = null;
 
@@ -216,12 +217,12 @@ final readonly class DryRunAction
 
             $assumed = $node->type === 'wait' && ! is_array($node->config['condition'] ?? null);
 
-            return [$simulated->outcome, $assumed, $simulated->output, $actions];
+            return new SimulatedStep($simulated->outcome, $assumed, $simulated->output, $actions);
         }
 
         $actions = $type->hasSideEffects() ? [new WouldBeAction($node->id, $node->type, 'would_run', $type->label())] : [];
 
-        return [$assume[$node->id] ?? $required ?? 'next', true, [], $actions];
+        return new SimulatedStep($assume[$node->id] ?? $required ?? 'next', true, [], $actions);
     }
 
     private function context(WorkflowInstance $instance, WorkflowVersion $version, Graph $graph, Node $node, int $visit, ValueScope $scope): StepContext

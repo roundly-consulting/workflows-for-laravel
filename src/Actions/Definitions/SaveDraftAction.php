@@ -89,7 +89,7 @@ final readonly class SaveDraftAction
      *
      * @param  array<string, mixed>  $graph
      */
-    public static function at(array $graph, string $node, string $path): mixed
+    private static function at(array $graph, string $node, string $path): mixed
     {
         $dotted = str_replace('/', '.', trim($path, '/'));
 

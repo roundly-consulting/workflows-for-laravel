@@ -126,8 +126,8 @@ it('reads history, starts and dry runs through the definition handle', function 
         ->and(Workflows::definition('flow')->instances(InstanceStatus::Failed)->items())->toBe([])
         ->and($document->workflows()->instances()->items())->toHaveCount(2)
         ->and($document->workflows()->emit('doc.nothing')->started)->toBe([])
-        ->and(Workflows::instances()->wake()->timers)->toBe(0)
-        ->and(Workflows::instances()->prune()->instances)->toBe(0)
+        ->and(Workflows::wake()->timers)->toBe(0)
+        ->and(Workflows::prune()->instances)->toBe(0)
         ->and(Workflows::instances()->find('nope'))->toBeNull()
         ->and(Workflows::instances()->find('01J00000000000000000000000'))->toBeNull()
         ->and(Workflows::instances()->find(999999))->toBeNull();
@@ -386,4 +386,23 @@ it('names the package a bridged step type needs', function (): void {
 it('adds the error code and key to the log context', function (): void {
     expect(UnknownDefinitionException::key('flow', company())->context())->toBe(['code' => 'unknown_definition', 'key' => 'flow'])
         ->and(InvalidGraphException::report(new ValidationReport)->context())->toBe(['code' => 'invalid_graph']);
+});
+
+// W-26: an action's only public method is execute() (the recorder's reclaim entry is the one
+// documented exception — it shares the result transaction).
+it('exposes only execute() publicly on actions', function (): void {
+    $extra = [];
+    $root = (string) realpath(__DIR__.'/../../src/Actions');
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)) as $file) {
+        $class = 'RoundlyConsulting\\Workflows\\Actions\\'.str_replace(['/', '.php'], ['\\', ''], substr($file->getPathname(), strlen($root) + 1));
+
+        foreach ((new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+            if (! in_array($method->name, ['__construct', 'execute'], true)) {
+                $extra[] = class_basename($class).'::'.$method->name;
+            }
+        }
+    }
+
+    expect($extra)->toBe(['RecordStepResultAction::failExpired']);
 });
