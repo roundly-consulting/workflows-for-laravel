@@ -4,31 +4,34 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Graph;
 
+use Closure;
+
 /**
- * Finds the cycles that no breaker node interrupts. Breakers are removed first and the rest is
- * searched with an iterative white/grey/black DFS, so a strongly connected component holding one
- * guarded and one unguarded cycle is still reported.
+ * Finds the cycles that no guarded edge interrupts. The guarded edges (a loop's `continue`, a
+ * positive delay's way out) are removed first and the rest is searched with an iterative
+ * white/grey/black DFS, so a strongly connected component holding one guarded and one unguarded
+ * cycle is still reported.
  *
  * @internal
  */
 final class CycleFinder
 {
     /**
-     * @param  list<string>  $breakerTypes
+     * @param  Closure(Edge, Node): bool  $guarded  whether taking this edge out of that node bounds a cycle
      * @return list<list<string>> each cycle's node ids in order (starting at the first one found)
      */
-    public static function unguarded(Graph $graph, array $breakerTypes): array
+    public static function unguarded(Graph $graph, Closure $guarded): array
     {
-        $nodes = array_filter($graph->nodes, static fn (Node $node): bool => ! in_array($node->type, $breakerTypes, true));
-
         $adjacency = [];
 
-        foreach ($nodes as $id => $node) {
+        foreach (array_keys($graph->nodes) as $id) {
             $adjacency[$id] = [];
         }
 
         foreach ($graph->edges as $edge) {
-            if (isset($adjacency[$edge->from], $adjacency[$edge->to])) {
+            $from = $graph->nodes[$edge->from] ?? null;
+
+            if ($from !== null && isset($adjacency[$edge->to]) && ! $guarded($edge, $from)) {
                 $adjacency[$edge->from][] = $edge->to;
             }
         }

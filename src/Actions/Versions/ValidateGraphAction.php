@@ -11,6 +11,7 @@ use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationReport;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Graph\CycleFinder;
+use RoundlyConsulting\Workflows\Graph\Edge;
 use RoundlyConsulting\Workflows\Graph\Graph;
 use RoundlyConsulting\Workflows\Graph\GraphParser;
 use RoundlyConsulting\Workflows\Graph\Node;
@@ -35,11 +36,6 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  */
 final readonly class ValidateGraphAction
 {
-    /**
-     * Node types that make a cycle legal (OQ-11): a delay or a loop counter.
-     */
-    public const array BREAKERS = ['delay', 'loop'];
-
     public function __construct(
         private StepCatalogue $catalogue,
         private SubjectRegistry $subjects,
@@ -119,7 +115,7 @@ final readonly class ValidateGraphAction
             }
         }
 
-        foreach (CycleFinder::unguarded($parsed, self::BREAKERS) as $cycle) {
+        foreach (CycleFinder::unguarded($parsed, self::guards(...)) as $cycle) {
             $errors[] = ValidationError::make(ValidationCode::CycleWithoutBreaker, node: $cycle[0], params: ['nodes' => $cycle]);
         }
 
@@ -319,6 +315,20 @@ final readonly class ValidateGraphAction
         }
 
         return $errors;
+    }
+
+    /**
+     * What makes a cycle legal (OQ-11): a loop counter's `continue` edge (its `exhausted` edge is
+     * the way out, never a guard), or the way out of a delay that waits a positive `for`. A delay
+     * until an instant or a field waits once at most — on the next round the date has passed.
+     */
+    private static function guards(Edge $edge, Node $from): bool
+    {
+        return match ($from->type) {
+            'loop' => $edge->outcome === 'continue',
+            'delay' => Durations::parse($from->config['for'] ?? null)?->isPositive() === true,
+            default => false,
+        };
     }
 
     /**

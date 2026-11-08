@@ -24,7 +24,8 @@ use RoundlyConsulting\Workflows\Support\Read;
 /**
  * Waits for a duration (`for`, calendar or business time), until an instant (`until`), or until
  * a subject date field plus an optional signed offset (`until_field`). A persisted timer, never
- * a sleeping process; a due time already past proceeds at once. A cycle breaker.
+ * a sleeping process; a due time already past proceeds at once. A cycle breaker only with a
+ * positive `for` (an instant or a field date has passed on the next round).
  *
  * @internal
  */

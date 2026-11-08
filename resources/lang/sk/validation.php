@@ -21,7 +21,7 @@ return [
     'duplicate_outcome' => 'Uzol „:node“ má viac hrán pre výsledok „:outcome“.',
     'outcome_label_required' => 'Hrana z uzla „:node“ musí mať pomenovaný výsledok („:outcome“): hrana bez označenia znamená iba „next“.',
     'unreachable_node' => 'Uzol „:node“ sa zo spúšťača nedá nikdy dosiahnuť.',
-    'cycle_without_breaker' => 'Uzly :nodes tvoria slučku bez oneskorenia alebo počítadla opakovaní.',
+    'cycle_without_breaker' => 'Uzly :nodes tvoria slučku, ktorú nič neobmedzuje: potrebuje oneskorenie s kladným trvaním alebo hranu „continue“ počítadla opakovaní.',
     'unknown_field' => 'Uzol „:node“ odkazuje na neznáme pole „:field“.',
     'operator_not_allowed' => 'Operátor „:op“ sa nedá použiť s poľom „:field“ typu :type.',
     'invalid_value' => 'Uzol „:node“ má pre „:field“ hodnotu nesprávneho typu.',

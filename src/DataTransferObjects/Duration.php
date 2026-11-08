@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\DataTransferObjects;
 
 use RoundlyConsulting\Workflows\Enums\DurationUnit;
+use RoundlyConsulting\Workflows\Support\Durations;
 
 /**
  * A graph duration: an ISO 8601 calendar interval (`P2D`, `PT4H`) or an amount of a unit,
@@ -27,5 +28,19 @@ final readonly class Duration
     public function isNegative(): bool
     {
         return $this->iso !== null ? str_starts_with($this->iso, '-') : $this->amount < 0;
+    }
+
+    /**
+     * Longer than zero: `PT0S` and `{amount: 0}` are not.
+     */
+    public function isPositive(): bool
+    {
+        if ($this->iso === null) {
+            return $this->amount > 0;
+        }
+
+        $interval = Durations::iso($this->iso);
+
+        return $interval !== null && $interval->invert === 0 && $interval->totalSeconds > 0;
     }
 }

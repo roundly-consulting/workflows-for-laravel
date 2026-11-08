@@ -21,7 +21,7 @@ return [
     'duplicate_outcome' => 'The node ":node" has more than one edge for the outcome ":outcome".',
     'outcome_label_required' => 'An edge from the node ":node" needs its outcome named (":outcome"): an unlabelled edge only stands for "next".',
     'unreachable_node' => 'The node ":node" can never be reached from the trigger.',
-    'cycle_without_breaker' => 'The nodes :nodes form a loop without a delay or a loop counter.',
+    'cycle_without_breaker' => 'The nodes :nodes form a loop that nothing bounds: it needs a delay of a positive duration or a loop counter\'s "continue" edge.',
     'unknown_field' => 'The node ":node" refers to an unknown field ":field".',
     'operator_not_allowed' => 'The operator ":op" cannot be used with the :type field ":field".',
     'invalid_value' => 'The node ":node" has a value of the wrong type for ":field".',
