@@ -16,7 +16,8 @@ use RoundlyConsulting\Workflows\Steps\ValidationScope;
  * schema, outcomes, side effects, ability and escalation support — so validation, authorization,
  * waits and escalations run for real — and only `handle()` returns the scripted result. A type
  * that is not registered (a bridged one whose package is not installed) takes the outcomes the
- * test declares, accepts any config and has no side effects.
+ * test declares, accepts any config (and the reassign escalation, as a no-op) and has no side
+ * effects.
  *
  * @internal
  */
@@ -84,6 +85,16 @@ final class ScriptedStepType extends StepType
     public function supportsEscalations(): bool
     {
         return $this->original?->supportsEscalations() ?? true;
+    }
+
+    public function supportsReassign(): bool
+    {
+        return $this->original?->supportsReassign() ?? true;
+    }
+
+    public function reassign(StepContext $context, array $to): ?StepResult
+    {
+        return $this->original?->reassign($context, $to);
     }
 
     public function validateConfig(array $config, ValidationScope $scope): array

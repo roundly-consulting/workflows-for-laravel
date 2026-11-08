@@ -1,0 +1,44 @@
+{
+  "schema": "roundly.workflows.template/v1",
+  "definition": {
+    "key": "nightly",
+    "name": "Nightly clean-up",
+    "subject_type": null,
+    "description": null
+  },
+  "graph": {
+    "schema": "roundly.workflows.graph/v1",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger",
+        "config": {
+          "trigger": "schedule",
+          "cron": "0 2 * * *",
+          "timezone": "Europe/Bratislava"
+        }
+      },
+      {
+        "id": "report",
+        "type": "acme.create_task",
+        "config": {
+          "title": "Nightly report"
+        }
+      },
+      {
+        "id": "done",
+        "type": "end"
+      }
+    ],
+    "edges": [
+      {
+        "from": "start",
+        "to": "report"
+      },
+      {
+        "from": "report",
+        "to": "done"
+      }
+    ]
+  }
+}

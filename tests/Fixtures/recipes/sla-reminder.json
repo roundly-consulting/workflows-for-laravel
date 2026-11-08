@@ -1,0 +1,81 @@
+{
+  "schema": "roundly.workflows.template/v1",
+  "definition": {
+    "key": "sla-reminder",
+    "name": "SLA reminder",
+    "subject_type": "document",
+    "description": null
+  },
+  "graph": {
+    "schema": "roundly.workflows.graph/v1",
+    "settings": {
+      "timezone": "UTC",
+      "calendar": "weekdays"
+    },
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger",
+        "config": {
+          "trigger": "event",
+          "event": "ticket.opened"
+        }
+      },
+      {
+        "id": "resolved",
+        "type": "wait",
+        "config": {
+          "condition": {
+            "field": "subject.title",
+            "op": "equals",
+            "value": "Resolved"
+          },
+          "poll": "PT15M",
+          "timeout": "P5D"
+        },
+        "escalations": [
+          {
+            "after": {
+              "amount": 4,
+              "unit": "business_hours"
+            },
+            "actions": [
+              {
+                "type": "start_workflow",
+                "definition": "sla-chase"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "done",
+        "type": "end"
+      },
+      {
+        "id": "breached",
+        "type": "end",
+        "config": {
+          "status": "failed",
+          "reason": "SLA breached"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "start",
+        "to": "resolved"
+      },
+      {
+        "from": "resolved",
+        "to": "done",
+        "outcome": "met"
+      },
+      {
+        "from": "resolved",
+        "to": "breached",
+        "outcome": "timed_out"
+      }
+    ]
+  }
+}

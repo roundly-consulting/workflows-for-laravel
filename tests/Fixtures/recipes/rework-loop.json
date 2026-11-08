@@ -1,0 +1,103 @@
+{
+  "schema": "roundly.workflows.template/v1",
+  "definition": {
+    "key": "rework-loop",
+    "name": "Rework loop",
+    "subject_type": "document",
+    "description": null
+  },
+  "graph": {
+    "schema": "roundly.workflows.graph/v1",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger",
+        "config": {
+          "trigger": "event",
+          "event": "purchase_request.submitted"
+        }
+      },
+      {
+        "id": "round",
+        "type": "loop",
+        "config": {
+          "max": 3
+        }
+      },
+      {
+        "id": "approve",
+        "type": "approval",
+        "config": {
+          "approvers": [
+            {
+              "kind": "field",
+              "field": "subject.approver"
+            }
+          ],
+          "rule": "any"
+        }
+      },
+      {
+        "id": "rework",
+        "type": "wait",
+        "config": {
+          "event": "purchase_request.resubmitted",
+          "timeout": "P14D"
+        }
+      },
+      {
+        "id": "done",
+        "type": "end"
+      },
+      {
+        "id": "gave_up",
+        "type": "end",
+        "config": {
+          "status": "failed",
+          "reason": "too many rounds"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "start",
+        "to": "round"
+      },
+      {
+        "from": "round",
+        "to": "approve",
+        "outcome": "continue"
+      },
+      {
+        "from": "round",
+        "to": "gave_up",
+        "outcome": "exhausted"
+      },
+      {
+        "from": "approve",
+        "to": "done",
+        "outcome": "approved"
+      },
+      {
+        "from": "approve",
+        "to": "rework",
+        "outcome": "rejected"
+      },
+      {
+        "from": "approve",
+        "to": "gave_up",
+        "outcome": "expired"
+      },
+      {
+        "from": "rework",
+        "to": "round",
+        "outcome": "received"
+      },
+      {
+        "from": "rework",
+        "to": "gave_up",
+        "outcome": "timed_out"
+      }
+    ]
+  }
+}

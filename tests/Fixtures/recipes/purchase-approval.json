@@ -1,0 +1,137 @@
+{
+  "schema": "roundly.workflows.template/v1",
+  "definition": {
+    "key": "purchase-approval",
+    "name": "Purchase approval",
+    "subject_type": "document",
+    "description": null
+  },
+  "graph": {
+    "schema": "roundly.workflows.graph/v1",
+    "settings": {
+      "timezone": "Europe/Bratislava",
+      "calendar": "weekdays"
+    },
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger",
+        "config": {
+          "trigger": "event",
+          "event": "purchase_request.submitted"
+        }
+      },
+      {
+        "id": "big",
+        "type": "condition",
+        "config": {
+          "when": {
+            "field": "subject.amount",
+            "op": "gt",
+            "value": "5000"
+          }
+        }
+      },
+      {
+        "id": "approve",
+        "type": "approval",
+        "config": {
+          "approvers": [
+            {
+              "kind": "field",
+              "field": "subject.approver"
+            }
+          ],
+          "rule": "any",
+          "expires_in": {
+            "amount": 5,
+            "unit": "business_days"
+          }
+        },
+        "escalations": [
+          {
+            "after": {
+              "amount": 2,
+              "unit": "business_days"
+            },
+            "actions": [
+              {
+                "type": "reassign",
+                "to": [
+                  {
+                    "kind": "field",
+                    "field": "subject.approver_manager"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mark",
+        "type": "set_field",
+        "config": {
+          "field": "subject.priority",
+          "value": "approved"
+        }
+      },
+      {
+        "id": "tell",
+        "type": "notify",
+        "config": {
+          "notification": "purchase.rejected",
+          "recipients": [
+            {
+              "kind": "field",
+              "field": "subject.requester"
+            }
+          ]
+        }
+      },
+      {
+        "id": "done",
+        "type": "end"
+      }
+    ],
+    "edges": [
+      {
+        "from": "start",
+        "to": "big"
+      },
+      {
+        "from": "big",
+        "to": "approve",
+        "outcome": "true"
+      },
+      {
+        "from": "big",
+        "to": "mark",
+        "outcome": "false"
+      },
+      {
+        "from": "approve",
+        "to": "mark",
+        "outcome": "approved"
+      },
+      {
+        "from": "approve",
+        "to": "tell",
+        "outcome": "rejected"
+      },
+      {
+        "from": "approve",
+        "to": "tell",
+        "outcome": "expired"
+      },
+      {
+        "from": "mark",
+        "to": "done"
+      },
+      {
+        "from": "tell",
+        "to": "done"
+      }
+    ]
+  }
+}

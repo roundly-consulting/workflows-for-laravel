@@ -1,0 +1,88 @@
+{
+  "schema": "roundly.workflows.template/v1",
+  "definition": {
+    "key": "onboarding",
+    "name": "Onboarding checklist",
+    "subject_type": null,
+    "description": null
+  },
+  "graph": {
+    "schema": "roundly.workflows.graph/v1",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "trigger",
+        "config": {
+          "trigger": "manual",
+          "inputs": [
+            {
+              "name": "employee",
+              "type": "string",
+              "label": "Employee",
+              "required": true
+            }
+          ]
+        }
+      },
+      {
+        "id": "laptop",
+        "type": "acme.create_task",
+        "config": {
+          "title": "Order a laptop"
+        }
+      },
+      {
+        "id": "accounts",
+        "type": "acme.create_task",
+        "config": {
+          "title": "Create the accounts"
+        }
+      },
+      {
+        "id": "welcome",
+        "type": "start_workflow",
+        "config": {
+          "definition": "welcome",
+          "subject": null,
+          "wait": true
+        }
+      },
+      {
+        "id": "done",
+        "type": "end"
+      },
+      {
+        "id": "failed",
+        "type": "end",
+        "config": {
+          "status": "failed",
+          "reason": "The welcome did not finish"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "start",
+        "to": "laptop"
+      },
+      {
+        "from": "laptop",
+        "to": "accounts"
+      },
+      {
+        "from": "accounts",
+        "to": "welcome"
+      },
+      {
+        "from": "welcome",
+        "to": "done",
+        "outcome": "completed"
+      },
+      {
+        "from": "welcome",
+        "to": "failed",
+        "outcome": "failed"
+      }
+    ]
+  }
+}
