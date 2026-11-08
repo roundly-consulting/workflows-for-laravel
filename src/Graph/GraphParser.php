@@ -81,7 +81,7 @@ final class GraphParser
             $id = $node['id'] ?? null;
 
             if (! is_string($id) || preg_match(self::NODE_ID, $id) !== 1) {
-                $errors[] = ValidationError::make(ValidationCode::InvalidNodeId, path: $path.'/id', params: ['id' => is_scalar($id) ? (string) $id : '']);
+                $errors[] = ValidationError::make(ValidationCode::InvalidNodeId, path: $path.'/id');
 
                 continue;
             }

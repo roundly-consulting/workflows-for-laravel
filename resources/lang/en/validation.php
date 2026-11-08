@@ -5,7 +5,7 @@ declare(strict_types=1);
 return [
     'invalid_schema_version' => 'The graph must use the :expected schema.',
     'invalid_structure' => 'The graph has an invalid structure at :path (expected :expected).',
-    'invalid_node_id' => 'A node id must start with a lowercase letter and contain only a-z, 0-9 and _ (":id" given).',
+    'invalid_node_id' => 'A node id must start with a lowercase letter and contain only a-z, 0-9 and _ (at most 64 characters).',
     'duplicate_node' => 'The node id ":node" is used more than once.',
     'dangling_edge' => 'An edge points to or from a node that does not exist.',
     'graph_too_large' => 'The graph is too large (at most :max_nodes nodes, :max_edges edges and :max_bytes bytes).',

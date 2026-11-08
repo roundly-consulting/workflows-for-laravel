@@ -5,7 +5,7 @@ declare(strict_types=1);
 return [
     'invalid_schema_version' => 'Graf musí používať schému :expected.',
     'invalid_structure' => 'Graf má neplatnú štruktúru na :path (očakávané :expected).',
-    'invalid_node_id' => 'Id uzla musí začínať malým písmenom a obsahovať iba a-z, 0-9 a _ (zadané „:id“).',
+    'invalid_node_id' => 'Id uzla musí začínať malým písmenom a obsahovať iba a-z, 0-9 a _ (najviac 64 znakov).',
     'duplicate_node' => 'Id uzla „:node“ je použité viackrát.',
     'dangling_edge' => 'Hrana vedie do uzla alebo z uzla, ktorý neexistuje.',
     'graph_too_large' => 'Graf je príliš veľký (najviac :max_nodes uzlov, :max_edges hrán a :max_bytes bajtov).',
