@@ -58,9 +58,17 @@ final readonly class PartyResolver
 
     private function user(int|string|null $id): ?Model
     {
+        return self::userById($id);
+    }
+
+    /**
+     * The configured user model with that key (`parties.user_model`, else the auth provider's).
+     */
+    public static function userById(mixed $id): ?Model
+    {
         $class = WorkflowsConfig::partiesUserModel();
 
-        if ($id === null || $class === null || ! is_subclass_of($class, Model::class)) {
+        if ((! is_int($id) && ! is_string($id)) || $id === '' || $class === null || ! is_subclass_of($class, Model::class)) {
             return null;
         }
 

@@ -90,11 +90,25 @@ final class Values
         return match ($root) {
             'subject' => self::field($scope->subject !== null && $scope->subjectType !== null ? [$scope->subject, $scope->subjectType] : null, $rest, $scope),
             'owner' => self::field($scope->owner !== null && $scope->ownerType !== null ? [$scope->owner, $scope->ownerType] : null, $rest, $scope),
-            'input' => $rest === '' ? null : Arr::get($scope->input, $rest),
+            'input' => $rest === '' ? null : self::input($rest, $scope),
             'trigger' => $rest === '' ? null : Arr::get($scope->trigger, $rest),
             'steps' => self::step($rest, $scope),
             default => null,
         };
+    }
+
+    /**
+     * A trigger input; a `party` input (stored as the user's key) reads as that user.
+     */
+    private static function input(string $name, ValueScope $scope): mixed
+    {
+        $value = Arr::get($scope->input, $name);
+
+        if (($scope->inputTypes[$name] ?? null) !== FieldType::Party || $value instanceof Model) {
+            return $value;
+        }
+
+        return PartyResolver::userById($value);
     }
 
     /**

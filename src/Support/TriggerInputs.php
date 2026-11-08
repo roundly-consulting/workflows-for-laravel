@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Support;
 
+use Closure;
 use Illuminate\Contracts\Validation\Factory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use RoundlyConsulting\Workflows\Enums\FieldType;
 use RoundlyConsulting\Workflows\Exceptions\InvalidTriggerInputException;
@@ -69,16 +72,26 @@ final class TriggerInputs
             $type = is_string($definition['type'] ?? null) ? FieldType::tryFrom($definition['type']) : FieldType::String;
             $fieldRules = [($definition['required'] ?? false) === true ? 'required' : 'nullable'];
 
-            $fieldRules[] = match ($type) {
-                FieldType::Integer => 'integer',
-                FieldType::Decimal => 'numeric',
-                FieldType::Boolean => 'boolean',
-                FieldType::Date, FieldType::Datetime => 'date',
-                FieldType::List => 'array',
+            $options = is_array($definition['options'] ?? null) && $definition['options'] !== [];
+
+            $typeRule = match (true) {
+                $type === FieldType::Integer => 'integer',
+                $type === FieldType::Decimal => 'numeric',
+                $type === FieldType::Boolean => 'boolean',
+                $type === FieldType::Date, $type === FieldType::Datetime => 'date',
+                $type === FieldType::List => 'array',
+                // A person: a user's key (or the user), resolved to the user when it is read.
+                $type === FieldType::Party => self::partyRule(...),
+                // Options of any scalar type: `in` alone decides.
+                $type === FieldType::Enum && $options => null,
                 default => 'string',
             };
 
-            if (is_array($definition['options'] ?? null) && $definition['options'] !== []) {
+            if ($typeRule !== null) {
+                $fieldRules[] = $typeRule;
+            }
+
+            if ($options) {
                 // A rule object, never an `in:` string: Laravel splits that on commas.
                 $fieldRules[] = Rule::in(array_values(array_filter($definition['options'], is_scalar(...))));
             }
@@ -101,6 +114,27 @@ final class TriggerInputs
             throw InvalidTriggerInputException::withErrors($errors);
         }
 
-        return GraphParser::stringKeyed($validator->validated());
+        $validated = GraphParser::stringKeyed($validator->validated());
+
+        foreach ($validated as $name => $value) {
+            if ($value instanceof Model) {
+                $validated[$name] = $value->getKey();
+            }
+        }
+
+        return $validated;
+    }
+
+    /**
+     * @param  Closure(string): PotentiallyTranslatedString  $fail
+     */
+    private static function partyRule(string $attribute, mixed $value, Closure $fail): void
+    {
+        $user = $value instanceof Model ? $value : PartyResolver::userById($value);
+        $class = WorkflowsConfig::partiesUserModel();
+
+        if ($user === null || $class === null || ! $user instanceof $class) {
+            $fail('validation.exists')->translate();
+        }
     }
 }
