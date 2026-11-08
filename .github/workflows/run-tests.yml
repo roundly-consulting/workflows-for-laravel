@@ -7,7 +7,7 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest]
         php: [8.4, 8.5, 8.6]
@@ -41,104 +41,152 @@ jobs:
         run: composer show -D
 
       - name: Execute tests
-        run: vendor/bin/pest --coverage --min=90
+        run: vendor/bin/pest --coverage --min=95
 
-  # Real-engine legs: uncomment when the package ships migrations.
-  # test-pgsql:
-  #   runs-on: ubuntu-latest
-  #   name: P8.4 - pgsql real-engine
-  #
-  #   steps:
-  #     # Started first so the engine boots while PHP installs. tmpfs + durability off: the same
-  #     # planner, isolation levels, locks and limits — nothing a test leg proves needs fsync.
-  #     - name: Start postgres
-  #       run: >-
-  #         docker run -d --name postgres --tmpfs /var/lib/postgresql/data
-  #         -e POSTGRES_DB=testing -e POSTGRES_USER=testing -e POSTGRES_PASSWORD=secret
-  #         -p 5432:5432 postgres:16
-  #         -c fsync=off -c synchronous_commit=off -c full_page_writes=off
-  #
-  #     - name: Checkout code
-  #       uses: actions/checkout@v7
-  #
-  #     - name: Setup PHP
-  #       uses: shivammathur/setup-php@v2
-  #       with:
-  #         php-version: 8.4
-  #         extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, pgsql, pdo_pgsql, bcmath, intl, fileinfo
-  #         coverage: none
-  #
-  #     - name: Install dependencies
-  #       run: composer update --prefer-stable --prefer-dist --no-interaction
-  #
-  #     # The image's init server listens on the socket only, so a TCP answer means the real one is up.
-  #     - name: Wait for postgres
-  #       run: |
-  #         for _ in $(seq 1 90); do
-  #           docker exec postgres psql -h 127.0.0.1 -U testing -d testing -c 'select 1' >/dev/null 2>&1 && exit 0
-  #           sleep 1
-  #         done
-  #         docker logs postgres
-  #         exit 1
-  #
-  #     - name: Execute tests against postgres
-  #       env:
-  #         # TESTING_DB_DRIVER is what moves the suite off sqlite; the location vars alone only
-  #         # say where the engine is.
-  #         TESTING_DB_DRIVER: pgsql
-  #         TESTING_DB_HOST: 127.0.0.1
-  #         TESTING_DB_PORT: 5432
-  #         TESTING_DB_DATABASE: testing
-  #         TESTING_DB_USERNAME: testing
-  #         TESTING_DB_PASSWORD: secret
-  #       # Coverage is enforced on the sqlite matrix; this is a correctness leg. Parallel
-  #       # workers each get their own database (testing-for-laravel's DriverMatrix).
-  #       run: vendor/bin/pest --ci --parallel
-  #
-  # test-mysql:
-  #   runs-on: ubuntu-latest
-  #   name: P8.4 - mysql real-engine
-  #
-  #   steps:
-  #     # Started first, tmpfs datadir, binlog off and no flush per commit — the same InnoDB,
-  #     # isolation levels, locking and limits. performance_schema stays on: race tests read
-  #     # data_lock_waits.
-  #     - name: Start mysql
-  #       run: >-
-  #         docker run -d --name mysql --tmpfs /var/lib/mysql
-  #         -e MYSQL_DATABASE=testing -e MYSQL_ROOT_PASSWORD=secret
-  #         -p 3306:3306 mysql:8
-  #         --skip-log-bin --sync-binlog=0 --innodb-flush-log-at-trx-commit=0 --innodb-doublewrite=OFF
-  #
-  #     - name: Checkout code
-  #       uses: actions/checkout@v7
-  #
-  #     - name: Setup PHP
-  #       uses: shivammathur/setup-php@v2
-  #       with:
-  #         php-version: 8.4
-  #         extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, pdo_mysql, bcmath, intl, fileinfo
-  #         coverage: none
-  #
-  #     - name: Install dependencies
-  #       run: composer update --prefer-stable --prefer-dist --no-interaction
-  #
-  #     # The image's init server runs with networking off, so a TCP answer means the real one is up.
-  #     - name: Wait for mysql
-  #       run: |
-  #         for _ in $(seq 1 90); do
-  #           docker exec mysql mysql -h 127.0.0.1 -uroot -psecret -e 'select 1' testing >/dev/null 2>&1 && exit 0
-  #           sleep 1
-  #         done
-  #         docker logs mysql
-  #         exit 1
-  #
-  #     - name: Execute tests against mysql
-  #       env:
-  #         TESTING_DB_DRIVER: mysql
-  #         TESTING_DB_HOST: 127.0.0.1
-  #         TESTING_DB_PORT: 3306
-  #         TESTING_DB_DATABASE: testing
-  #         TESTING_DB_USERNAME: root
-  #         TESTING_DB_PASSWORD: secret
-  #       run: vendor/bin/pest --ci --parallel
+  # Real-engine legs: locks, unique-violation races, json and datetime precision.
+  test-pgsql:
+    runs-on: ubuntu-latest
+    name: P8.4 - pgsql real-engine
+
+    steps:
+      # Started first so the engine boots while PHP installs. tmpfs + durability off: the same
+      # planner, isolation levels, locks and limits — nothing a test leg proves needs fsync.
+      - name: Start postgres
+        run: >-
+          docker run -d --name postgres --tmpfs /var/lib/postgresql/data
+          -e POSTGRES_DB=testing -e POSTGRES_USER=testing -e POSTGRES_PASSWORD=secret
+          -p 5432:5432 postgres:16
+          -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, pgsql, pdo_pgsql, bcmath, intl, fileinfo
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-stable --prefer-dist --no-interaction
+
+      # The image's init server listens on the socket only, so a TCP answer means the real one is up.
+      - name: Wait for postgres
+        run: |
+          for _ in $(seq 1 90); do
+            docker exec postgres psql -h 127.0.0.1 -U testing -d testing -c 'select 1' >/dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          docker logs postgres
+          exit 1
+
+      - name: Execute tests against postgres
+        env:
+          # TESTING_DB_DRIVER is what moves the suite off sqlite; the location vars alone only
+          # say where the engine is.
+          TESTING_DB_DRIVER: pgsql
+          TESTING_DB_HOST: 127.0.0.1
+          TESTING_DB_PORT: 5432
+          TESTING_DB_DATABASE: testing
+          TESTING_DB_USERNAME: testing
+          TESTING_DB_PASSWORD: secret
+        # Coverage is enforced on the sqlite matrix; this is a correctness leg. Parallel
+        # workers each get their own database (testing-for-laravel's DriverMatrix).
+        run: vendor/bin/pest --ci --parallel
+
+  test-mysql:
+    runs-on: ubuntu-latest
+    name: P8.4 - mysql real-engine
+
+    steps:
+      # Started first, tmpfs datadir, binlog off and no flush per commit — the same InnoDB,
+      # isolation levels, locking and limits. performance_schema stays on: race tests read
+      # data_lock_waits.
+      - name: Start mysql
+        run: >-
+          docker run -d --name mysql --tmpfs /var/lib/mysql
+          -e MYSQL_DATABASE=testing -e MYSQL_ROOT_PASSWORD=secret
+          -p 3306:3306 mysql:8
+          --skip-log-bin --sync-binlog=0 --innodb-flush-log-at-trx-commit=0 --innodb-doublewrite=OFF
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, pdo_mysql, bcmath, intl, fileinfo
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-stable --prefer-dist --no-interaction
+
+      # The image's init server runs with networking off, so a TCP answer means the real one is up.
+      - name: Wait for mysql
+        run: |
+          for _ in $(seq 1 90); do
+            docker exec mysql mysql -h 127.0.0.1 -uroot -psecret -e 'select 1' testing >/dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          docker logs mysql
+          exit 1
+
+      - name: Execute tests against mysql
+        env:
+          TESTING_DB_DRIVER: mysql
+          TESTING_DB_HOST: 127.0.0.1
+          TESTING_DB_PORT: 3306
+          TESTING_DB_DATABASE: testing
+          TESTING_DB_USERNAME: root
+          TESTING_DB_PASSWORD: secret
+        run: vendor/bin/pest --ci --parallel
+
+  # The package installs, boots and runs every built-in flow with no bridge package at all:
+  # every bridge (and what only bridges pull in) is removed in one command — forms and teams
+  # both require approvals, so one at a time fails — then the core suite runs. Bridge and
+  # acceptance tests (group `bridges`) and real-engine racers (group `real-engine`) are out;
+  # the leg refuses to pass on zero tests or on a skip.
+  test-without-bridges:
+    runs-on: ubuntu-latest
+    name: P8.4 - no bridges installed
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, intl, fileinfo
+          coverage: none
+
+      - name: Remove every bridge package
+        run: |
+          composer remove --dev --no-interaction --no-update \
+            roundly-consulting/approvals-for-laravel \
+            roundly-consulting/forms-for-laravel \
+            roundly-consulting/lifecycle-for-laravel \
+            roundly-consulting/notifications-for-laravel \
+            roundly-consulting/opening-hours-for-laravel \
+            roundly-consulting/sentinel-for-laravel \
+            roundly-consulting/teams-for-laravel
+          composer update --prefer-stable --prefer-dist --no-interaction
+
+      - name: Prove no bridge package is installed
+        run: |
+          for package in approvals forms lifecycle notifications opening-hours sentinel teams; do
+            if [ -d "vendor/roundly-consulting/${package}-for-laravel" ]; then
+              echo "${package}-for-laravel is still installed"
+              exit 1
+            fi
+          done
+
+      - name: Execute the core suite
+        run: |
+          vendor/bin/pest --ci --exclude-group=bridges --exclude-group=real-engine --fail-on-skipped --log-junit junit.xml
+          tests=$(grep -o 'tests="[0-9]*"' junit.xml | head -1 | grep -o '[0-9]*')
+          echo "core tests: ${tests}"
+          [ "${tests}" -gt 0 ]

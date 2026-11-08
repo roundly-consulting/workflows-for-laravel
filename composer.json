@@ -1,11 +1,19 @@
 {
-    "name": "roundly-consulting/package-template-for-laravel",
-    "description": "TODO: replace with a one-line description of the new package.",
+    "name": "roundly-consulting/workflows-for-laravel",
+    "description": "Durable, versioned workflows for Laravel: JSON graphs run step by step on queues, with triggers, declarative conditions, approvals, durable waits, business-time delays, escalations, retries, dry-runs and templates.",
     "keywords": [
         "roundly-consulting",
-        "laravel"
+        "laravel",
+        "workflows",
+        "workflow-engine",
+        "automation",
+        "approvals",
+        "escalation",
+        "business-hours",
+        "durable",
+        "state-machine"
     ],
-    "homepage": "https://roundly-consulting.com/open-source/docs/package-template-for-laravel",
+    "homepage": "https://roundly-consulting.com/open-source/docs/workflows-for-laravel",
     "license": "MIT",
     "authors": [
         {
@@ -15,11 +23,27 @@
         }
     ],
     "support": {
-        "docs": "https://roundly-consulting.com/open-source/docs/package-template-for-laravel"
+        "docs": "https://roundly-consulting.com/open-source/docs/workflows-for-laravel"
     },
     "require": {
         "php": "^8.4",
+        "illuminate/auth": "^13.0",
+        "illuminate/bus": "^13.0",
+        "illuminate/cache": "^13.0",
+        "illuminate/console": "^13.0",
+        "illuminate/container": "^13.0",
         "illuminate/contracts": "^13.0",
+        "illuminate/database": "^13.0",
+        "illuminate/events": "^13.0",
+        "illuminate/http": "^13.0",
+        "illuminate/pagination": "^13.0",
+        "illuminate/queue": "^13.0",
+        "illuminate/routing": "^13.0",
+        "illuminate/support": "^13.0",
+        "illuminate/translation": "^13.0",
+        "illuminate/validation": "^13.0",
+        "roundly-consulting/crypto-for-laravel": "^2.0",
+        "roundly-consulting/enums-for-laravel": "^2.0",
         "roundly-consulting/package-toolkit-for-laravel": "^2.0"
     },
     "require-dev": {
@@ -31,24 +55,42 @@
         "pestphp/pest-plugin-arch": "^5.0",
         "pestphp/pest-plugin-laravel": "^5.0",
         "phpstan/extension-installer": "^1.4",
+        "roundly-consulting/approvals-for-laravel": "^2.0",
+        "roundly-consulting/forms-for-laravel": "^2.0",
+        "roundly-consulting/lifecycle-for-laravel": "^2.0",
+        "roundly-consulting/notifications-for-laravel": "^1.1",
+        "roundly-consulting/opening-hours-for-laravel": "^2.0",
+        "roundly-consulting/sentinel-for-laravel": "^2.0",
+        "roundly-consulting/teams-for-laravel": "^2.0",
         "roundly-consulting/testing-for-laravel": "^2.0"
+    },
+    "suggest": {
+        "roundly-consulting/approvals-for-laravel": "Approval steps: rules, stages, delegation, expiry; outcomes approved / rejected / expired.",
+        "roundly-consulting/forms-for-laravel": "Input forms for manual triggers.",
+        "roundly-consulting/lifecycle-for-laravel": "Transition steps that request a lifecycle transition; the guard decides.",
+        "roundly-consulting/notifications-for-laravel": "Notify steps and notify escalations.",
+        "roundly-consulting/opening-hours-for-laravel": "Business-hours calendars for delays and escalations (\"2 business days\").",
+        "roundly-consulting/sentinel-for-laravel": "RFC 9421 signature checks on the inbound webhook route.",
+        "roundly-consulting/teams-for-laravel": "Team owners: context restored in every queued step, team roles as approvers.",
+        "roundly-consulting/webhooks-for-laravel": "Signed inbound webhooks that start workflows, and outbound webhook steps (bridge lands once the package is released)."
     },
     "autoload": {
         "psr-4": {
-            "RoundlyConsulting\\PackageTemplate\\": "src"
+            "RoundlyConsulting\\Workflows\\": "src",
+            "RoundlyConsulting\\Workflows\\Database\\Factories\\": "database/factories"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "RoundlyConsulting\\PackageTemplate\\Tests\\": "tests"
+            "RoundlyConsulting\\Workflows\\Tests\\": "tests"
         }
     },
     "scripts": {
         "post-autoload-dump": "@php ./vendor/bin/testbench package:discover --ansi",
         "format": "vendor/bin/pint",
-        "analyse": "vendor/bin/phpstan analyse --no-progress",
+        "analyse": "vendor/bin/phpstan analyse --no-progress --memory-limit=2G",
         "test": "vendor/bin/pest",
-        "test-coverage": "vendor/bin/pest --coverage --min=90"
+        "test-coverage": "vendor/bin/pest --coverage --min=95"
     },
     "config": {
         "sort-packages": true,
@@ -60,10 +102,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "RoundlyConsulting\\PackageTemplate\\PackageTemplateServiceProvider"
+                "RoundlyConsulting\\Workflows\\WorkflowsServiceProvider"
             ],
             "aliases": {
-                "PackageTemplate": "RoundlyConsulting\\PackageTemplate\\Facades\\PackageTemplate"
+                "Workflows": "RoundlyConsulting\\Workflows\\Facades\\Workflows"
             }
         }
     }
