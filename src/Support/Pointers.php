@@ -17,10 +17,10 @@ final class Pointers
      */
     public static function diff(mixed $a, mixed $b, string $prefix = ''): array
     {
-        if (is_array($a) && is_array($b) && array_is_list($a) === array_is_list($b) && ($a !== [] || $b !== [])) {
+        if (is_array($a) && is_array($b) && ($a === [] || $b === [] || array_is_list($a) === array_is_list($b)) && ($a !== [] || $b !== [])) {
             $keys = array_keys($a + $b);
 
-            if (! array_is_list($a)) {
+            if (! array_is_list($a + $b)) {
                 sort($keys);
             }
 
