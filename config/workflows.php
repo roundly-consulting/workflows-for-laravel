@@ -186,7 +186,8 @@ return [
     'adapters' => [
         // class-string<Contracts\TransitionAdapter>; null = the lifecycle bridge when installed.
         'transition' => null,
-        // class-string<Contracts\DeliversWebhooks>; null = no outbound webhook step.
+        // class-string<Contracts\DeliversWebhooks>; null = the webhooks-for-laravel bridge when
+        // installed, else no outbound webhook step.
         'webhooks' => null,
     ],
 
@@ -211,6 +212,12 @@ return [
         'lifecycle' => [
             // Emit `lifecycle.<lifecycle>.<transition>` for every lifecycle state change.
             'emit_transitions' => env('WORKFLOWS_LIFECYCLE_EMIT_TRANSITIONS', 'off'),
+        ],
+        'webhooks' => [
+            // The inbound handler alias registered with webhooks-for-laravel: point an inbound
+            // endpoint at it to start the workflow whose webhook trigger names that endpoint.
+            // null, false or 'off' registers none; a host's own `webhooks.handlers` entry wins.
+            'handler' => env('WORKFLOWS_WEBHOOKS_HANDLER', 'workflows'),
         ],
     ],
 

@@ -7,6 +7,7 @@ use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\ExpectationFailedException;
 use RoundlyConsulting\Workflows\DataTransferObjects\CreateDefinitionData;
 use RoundlyConsulting\Workflows\DataTransferObjects\ImportResult;
+use RoundlyConsulting\Workflows\DataTransferObjects\WebhookDelivery;
 use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\WaitKind;
@@ -247,6 +248,7 @@ function fakeAssertions(): array
         'assertWebhookRotated' => [fn () => Workflows::definition('flow')->rotateWebhook(), fn (WorkflowsFake $f) => $f->assertWebhookRotated('flow')],
         'assertImported' => [fn () => Workflows::versions()->import(['definition' => ['key' => 'tpl', 'name' => 'T'], 'graph' => []]), fn (WorkflowsFake $f) => $f->assertImported('tpl')],
         'assertWebhookReceived' => [fn () => Workflows::triggers()->webhook('wh_1', []), fn (WorkflowsFake $f) => $f->assertWebhookReceived('wh_1')],
+        'assertWebhookDeliveryReceived' => [fn () => Workflows::triggers()->delivery(new WebhookDelivery(7, null, 'evt_1')), fn (WorkflowsFake $f) => $f->assertWebhookDeliveryReceived(7)],
         'assertRetried' => [fn () => Workflows::instances()->retry(WorkflowInstance::query()->firstOrFail()), fn (WorkflowsFake $f) => $f->assertRetried(WorkflowInstance::query()->firstOrFail())],
         'assertCancelled' => [fn () => Workflows::instances()->cancel(WorkflowInstance::query()->firstOrFail()), fn (WorkflowsFake $f) => $f->assertCancelled(WorkflowInstance::query()->firstOrFail())],
         'assertWoken' => [fn () => Workflows::wake(), fn (WorkflowsFake $f) => $f->assertWoken(times: 1)],
@@ -277,6 +279,7 @@ function negativeFakeAssertions(): array
         'assertWebhookRotated' => fn (WorkflowsFake $f) => $f->assertWebhookNotRotated('flow'),
         'assertImported' => fn (WorkflowsFake $f) => $f->assertNothingImported(),
         'assertWebhookReceived' => fn (WorkflowsFake $f) => $f->assertWebhookNotReceived('wh_1'),
+        'assertWebhookDeliveryReceived' => fn (WorkflowsFake $f) => $f->assertWebhookDeliveryNotReceived('7'),
         'assertRetried' => fn (WorkflowsFake $f) => $f->assertNotRetried(WorkflowInstance::query()->firstOrFail()),
         'assertCancelled' => fn (WorkflowsFake $f) => $f->assertNotCancelled(WorkflowInstance::query()->firstOrFail()),
         'assertWoken' => fn (WorkflowsFake $f) => $f->assertNotWoken(),

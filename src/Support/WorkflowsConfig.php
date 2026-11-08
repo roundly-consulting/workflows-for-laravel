@@ -505,6 +505,37 @@ final class WorkflowsConfig
         return self::reader()->boolean('workflows.bridges.lifecycle.emit_transitions', false);
     }
 
+    /**
+     * The inbound handler alias the webhooks bridge registers, or null when it registers none.
+     * A host that published its config before this key existed (Laravel merges the top level
+     * only) keeps the default; null, false or `off` switches it off; a blank value is the default.
+     */
+    public static function webhooksHandlerAlias(): ?string
+    {
+        $bridges = config('workflows.bridges');
+
+        if (! is_array($bridges) || ! is_array($bridges['webhooks'] ?? null) || ! array_key_exists('handler', $bridges['webhooks'])) {
+            return 'workflows';
+        }
+
+        $alias = config('workflows.bridges.webhooks.handler');
+
+        if ($alias === null || $alias === false || (is_string($alias) && strtolower(trim($alias)) === 'off')) {
+            return null;
+        }
+
+        if ($alias === '') {
+            return 'workflows';
+        }
+
+        // The webhooks package's own alias rule (`HandlerRegistry::register()`).
+        if (! is_string($alias) || preg_match('/^[a-z0-9][a-z0-9_.-]{0,99}$/D', $alias) !== 1) {
+            throw InvalidWorkflowsConfigurationException::invalidMap('workflows.bridges.webhooks.handler', 'a handler alias (a-z, 0-9, _ . -), or null to register none');
+        }
+
+        return $alias;
+    }
+
     public static function dryRunLog(): bool
     {
         return self::reader()->boolean('workflows.dry_run.log', false);

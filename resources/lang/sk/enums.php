@@ -167,6 +167,8 @@ return [
         'unknown_transition' => 'Neznámy prechod',
         'unknown_notification_type' => 'Neznámy typ notifikácie',
         'unknown_form' => 'Neznámy formulár',
+        'unknown_webhook_event' => 'Neznáma webhooková udalosť',
+        'webhook_endpoint_taken' => 'Webhookový koncový bod je obsadený',
     ],
     'doctor_level' => [
         'ok' => 'V poriadku',

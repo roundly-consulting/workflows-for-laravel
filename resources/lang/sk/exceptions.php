@@ -41,6 +41,8 @@ return [
     'invalid_event_key' => '„:key“ nie je možné vyslať.',
     'unknown_definition_owned' => 'Pracovný postup „:key“ sa pre tohto vlastníka nenašiel.',
     'unknown_definition_app_wide' => 'Pracovný postup „:key“ sa medzi postupmi pre celú aplikáciu nenašiel.',
+    'unknown_definition_endpoint' => 'Z webhookového koncového bodu „:endpoint“ sa nespúšťa žiadny aktívny pracovný postup.',
+    'endpoint_owner_mismatch' => 'Webhookový koncový bod a pracovný postup patria rôznym vlastníkom.',
     'unknown_step_type_suggest' => 'Typ kroku „:key“ nie je zaregistrovaný. Mysleli ste „:suggestion“?',
     'unknown_step_type_package' => 'Typ kroku „:key“ potrebuje balík :package.',
     'unknown_subject_type_suggest' => 'Typ subjektu „:key“ nie je zaregistrovaný. Mysleli ste „:suggestion“?',

@@ -11,12 +11,14 @@ use RoundlyConsulting\Workflows\Exceptions\InvalidEventKeyException;
 use RoundlyConsulting\Workflows\Steps\StepContext;
 use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Steps\ValidationScope;
+use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Support\Conditions\ConditionValidator;
 use RoundlyConsulting\Workflows\Support\Schedule\CronExpression;
 use RoundlyConsulting\Workflows\Support\Schedule\InvalidCronException;
 use RoundlyConsulting\Workflows\Support\Schedule\Presets;
 use RoundlyConsulting\Workflows\Support\TriggerForms;
 use RoundlyConsulting\Workflows\Support\TriggerInputs;
+use RoundlyConsulting\Workflows\Support\WebhookEndpoints;
 
 /**
  * The one trigger node of a graph: manual (with optional input fields or a form), an app event,
@@ -136,9 +138,10 @@ final class TriggerStep extends BuiltinStep
         $node = $scope->node?->id;
         $trigger = $config['trigger'] ?? null;
 
+        // A trigger wired to a webhooks-package endpoint keys on the delivery id instead.
         $required = match ($trigger) {
             'event' => ['event'],
-            'webhook' => ['idempotency'],
+            'webhook' => array_key_exists('endpoint', $config) ? [] : ['idempotency'],
             default => [],
         };
 
@@ -150,6 +153,10 @@ final class TriggerStep extends BuiltinStep
 
         if ($trigger === 'event' && is_string($config['event'] ?? null) && preg_match(self::EVENT_KEY, $config['event']) !== 1) {
             $errors[] = ValidationError::make(ValidationCode::InvalidConfig, node: $node, path: '/event', params: ['keyword' => 'pattern', 'expected' => 'a dotted event key']);
+        }
+
+        if (array_key_exists('endpoint', $config)) {
+            $errors = [...$errors, ...$this->endpoint($config, $scope, $node)];
         }
 
         if ($trigger === 'schedule') {
@@ -239,6 +246,29 @@ final class TriggerStep extends BuiltinStep
         $where = is_array($config['for_each']) ? ($config['for_each']['where'] ?? null) : null;
 
         return $where === null ? [] : ConditionValidator::validate($where, $scope, '/for_each/where');
+    }
+
+    /**
+     * `endpoint`: a webhooks-for-laravel inbound endpoint, on a webhook trigger only, with that
+     * package installed, and named by one active definition per owner (a delivery starts one).
+     *
+     * @param  array<string, mixed>  $config
+     * @return list<ValidationError>
+     */
+    private function endpoint(array $config, ValidationScope $scope, ?string $node): array
+    {
+        if (($config['trigger'] ?? null) !== 'webhook') {
+            return [ValidationError::make(ValidationCode::InvalidConfig, node: $node, path: '/endpoint', params: ['keyword' => 'endpoint', 'expected' => 'a webhook trigger'])];
+        }
+
+        if (! Bridges::available('webhooks')) {
+            return [ValidationError::make(ValidationCode::AdapterMissing, node: $node, path: '/endpoint', params: ['type' => 'endpoint', 'package' => 'roundly-consulting/webhooks-for-laravel'])];
+        }
+
+        $endpoint = WebhookEndpoints::of($config);
+        $taken = $endpoint === null ? null : (WebhookEndpoints::definitions($endpoint, $scope->owner, $scope->definitionKey)[0] ?? null);
+
+        return $taken === null ? [] : [ValidationError::make(ValidationCode::WebhookEndpointTaken, node: $node, path: '/endpoint', params: ['endpoint' => $endpoint, 'definition' => $taken->key])];
     }
 
     /**

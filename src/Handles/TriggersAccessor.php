@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Handles;
 
 use RoundlyConsulting\Workflows\Actions\Instances\ReceiveWebhookAction;
+use RoundlyConsulting\Workflows\Actions\Instances\ReceiveWebhookDeliveryAction;
 use RoundlyConsulting\Workflows\Contracts\WorkflowEvent;
 use RoundlyConsulting\Workflows\DataTransferObjects\EventMapping;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartResult;
+use RoundlyConsulting\Workflows\DataTransferObjects\WebhookDelivery;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
 use RoundlyConsulting\Workflows\Support\EventMappings;
@@ -16,7 +18,8 @@ use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
  * Trigger entry points beyond manual starts and emits: the inbound webhook start call (the same
- * as the opt-in route, without HTTP), and Laravel events mapped to emits — in config or in code.
+ * as the opt-in route, without HTTP), a webhooks-for-laravel delivery (what the bridge's
+ * `workflows` handler calls), and Laravel events mapped to emits — in config or in code.
  */
 final readonly class TriggersAccessor
 {
@@ -36,6 +39,22 @@ final readonly class TriggersAccessor
             static fn (ReceiveWebhookAction $action): StartResult => $action->execute($hookId, $payload, $headers),
             static fn (): StartResult => new StartResult(null, false, skipped: 'faked'),
             ['hook' => $hookId, 'payload' => $payload],
+        );
+    }
+
+    /**
+     * Start the workflow an inbound webhooks-for-laravel endpoint is wired to (its webhook trigger
+     * names the endpoint). The delivery id is the idempotency key: a replay returns the first
+     * instance and never runs the workflow again.
+     */
+    public function delivery(WebhookDelivery $delivery): StartResult
+    {
+        return $this->manager->perform(
+            WorkflowOperation::Webhook,
+            ReceiveWebhookDeliveryAction::class,
+            static fn (ReceiveWebhookDeliveryAction $action): StartResult => $action->execute($delivery),
+            static fn (): StartResult => new StartResult(null, false, skipped: 'faked'),
+            ['endpoint' => (string) $delivery->endpoint, 'delivery' => $delivery->deliveryId, 'payload' => $delivery->payload],
         );
     }
 

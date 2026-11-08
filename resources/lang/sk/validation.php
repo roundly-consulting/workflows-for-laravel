@@ -43,4 +43,6 @@ return [
     'unknown_transition' => 'Prechod „:transition“ pri tomto subjekte neexistuje.',
     'unknown_notification_type' => 'Typ notifikácie „:notification“ nie je zaregistrovaný.',
     'unknown_form' => 'Formulár „:form“ neexistuje.',
+    'unknown_webhook_event' => 'Typ webhookovej udalosti „:event“ nie je medzi povolenými typmi udalostí.',
+    'webhook_endpoint_taken' => 'Webhookový koncový bod „:endpoint“ už spúšťa pracovný postup „:definition“.',
 ];

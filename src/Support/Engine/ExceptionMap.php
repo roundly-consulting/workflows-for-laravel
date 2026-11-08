@@ -8,6 +8,7 @@ use Closure;
 use RoundlyConsulting\Workflows\Bridges\Approvals\ApprovalsBridge;
 use RoundlyConsulting\Workflows\Bridges\Lifecycle\LifecycleBridge;
 use RoundlyConsulting\Workflows\Bridges\Notifications\NotificationsBridge;
+use RoundlyConsulting\Workflows\Bridges\Webhooks\WebhooksBridge;
 use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Exceptions\BusinessCalendarNeverOpenException;
 use RoundlyConsulting\Workflows\Exceptions\StepAuthorizationDeniedException;
@@ -61,6 +62,10 @@ final class ExceptionMap
 
         if (Bridges::available('notifications')) {
             $this->mappers[] = NotificationsBridge::exceptions();
+        }
+
+        if (Bridges::available('webhooks')) {
+            $this->mappers[] = WebhooksBridge::exceptions();
         }
     }
 

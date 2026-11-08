@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Steps\Builtin;
 
+use RoundlyConsulting\Workflows\Bridges\Webhooks\WebhooksBridge;
 use RoundlyConsulting\Workflows\Contracts\DeliversWebhooks;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
@@ -16,8 +17,9 @@ use RoundlyConsulting\Workflows\Support\Read;
 use RoundlyConsulting\Workflows\Support\Values;
 
 /**
- * `{endpoint, event, payload?}`: queues an outbound webhook through the bound DeliversWebhooks
- * implementation, once per visit. Registered only when `workflows.adapters.webhooks` names one.
+ * `{endpoint, event, payload?}`: queues an outbound webhook through the DeliversWebhooks
+ * implementation, once per visit (outcome `queued`). Registered when one is available: a host
+ * binding, `workflows.adapters.webhooks`, or the webhooks-for-laravel bridge.
  *
  * @internal
  */
@@ -58,7 +60,7 @@ final class WebhookStep extends BuiltinStep
             return [ValidationError::make(ValidationCode::InvalidConfig, node: $scope->node?->id, path: '/event', params: ['keyword' => 'pattern', 'expected' => 'a dotted event key'])];
         }
 
-        return [];
+        return WebhooksBridge::validateEvent($config['event'] ?? null, $scope->node?->id);
     }
 
     public function handle(StepContext $context): StepResult

@@ -7,9 +7,9 @@ namespace RoundlyConsulting\Workflows\Contracts;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Queues an outbound webhook for the `webhook` step. Only when a host binds an implementation
- * (config `workflows.adapters.webhooks`) is the step type registered; the webhooks-for-laravel
- * bridge provides one once that package is released. Must be idempotent on the key.
+ * Queues an outbound webhook for the `webhook` step, which is registered only when an
+ * implementation is available: a container binding, config `workflows.adapters.webhooks`, or the
+ * webhooks-for-laravel bridge when that package is installed. Must be idempotent on the key.
  *
  * @return int|string the delivery's id
  */

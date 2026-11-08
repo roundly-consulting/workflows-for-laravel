@@ -24,4 +24,12 @@ final class UnknownDefinitionException extends WorkflowsException
     {
         return self::make('unknown_definition', 404, ['key' => $hookId]);
     }
+
+    /**
+     * No active webhook-triggered definition of the endpoint's owner names that inbound endpoint.
+     */
+    public static function endpoint(int|string $endpoint): self
+    {
+        return self::make('unknown_definition', 404, ['endpoint' => (string) $endpoint], 'unknown_definition_endpoint');
+    }
 }

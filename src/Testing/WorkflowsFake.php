@@ -265,6 +265,19 @@ final class WorkflowsFake extends WorkflowsManager
         PHPUnit::assertEmpty($this->matching(WorkflowOperation::Webhook, 'hook', $hookId), sprintf('Expected webhook [%s] not to be received, but it was.', $hookId));
     }
 
+    /**
+     * A webhooks-for-laravel delivery on that inbound endpoint (`triggers()->delivery()`).
+     */
+    public function assertWebhookDeliveryReceived(int|string $endpoint): void
+    {
+        PHPUnit::assertNotEmpty($this->matching(WorkflowOperation::Webhook, 'endpoint', (string) $endpoint), sprintf('Expected a webhook delivery on endpoint [%s], but none was received.', $endpoint));
+    }
+
+    public function assertWebhookDeliveryNotReceived(int|string $endpoint): void
+    {
+        PHPUnit::assertEmpty($this->matching(WorkflowOperation::Webhook, 'endpoint', (string) $endpoint), sprintf('Expected no webhook delivery on endpoint [%s], but one was received.', $endpoint));
+    }
+
     public function assertRetried(WorkflowInstance $instance): void
     {
         PHPUnit::assertTrue($this->concerns(WorkflowOperation::Retry, $instance), sprintf('Expected instance [%s] to be retried, but it was not.', $instance->ulid));

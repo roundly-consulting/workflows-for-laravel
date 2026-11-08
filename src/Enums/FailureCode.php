@@ -9,9 +9,9 @@ use RoundlyConsulting\Workflows\Support\Messages;
 
 /**
  * Every failure code the engine, the built-in steps and the bridges write to
- * `workflow_instances.failure_code` / `workflow_step_runs.error_code`. Two families carry a detail
- * after a colon (`transition_denied:guard_failed`, `notification_refused:<code>`); a host step's
- * own codes stay plain strings. `fromStored()` reads either.
+ * `workflow_instances.failure_code` / `workflow_step_runs.error_code`. Three families carry a
+ * detail after a colon (`transition_denied:guard_failed`, `notification_refused:<code>`,
+ * `endpoint_not_accepting:disabled|not_subscribed`); a host step's own codes stay plain strings. `fromStored()` reads either.
  */
 enum FailureCode: string
 {
@@ -27,10 +27,13 @@ enum FailureCode: string
     case ChildNotStarted = 'child_not_started';
     case DelayFieldEmpty = 'delay_field_empty';
     case EndedByGraph = 'ended_by_graph';
+    case EndpointNotAccepting = 'endpoint_not_accepting';
+    case EndpointNotFound = 'endpoint_not_found';
     case Exception = 'exception';
     case FieldWriteRefused = 'field_write_refused';
     case IdempotencyConflict = 'idempotency_conflict';
     case InvalidApprovalRequest = 'invalid_approval_request';
+    case InvalidEventType = 'invalid_event_type';
     case InvalidOutput = 'invalid_output';
     case InvalidValue = 'invalid_value';
     case LeaseExpired = 'lease_expired';
@@ -42,6 +45,7 @@ enum FailureCode: string
     case NoResult = 'no_result';
     case NotificationRefused = 'notification_refused';
     case OwnerMismatch = 'owner_mismatch';
+    case PayloadTooLarge = 'payload_too_large';
     case ResumeUnsupported = 'resume_unsupported';
     case RolesUnavailable = 'roles_unavailable';
     case StartRateExceeded = 'start_rate_exceeded';
@@ -87,7 +91,7 @@ enum FailureCode: string
             self::Exception, self::LeaseExpired, self::WorkerTimeout, self::TransitionConflict,
             self::AdapterMissing, self::CalendarMissing, self::RolesUnavailable, self::AuthorizationDenied,
             self::NoApprovers, self::DelayFieldEmpty, self::SubjectMissing, self::OwnerMismatch,
-            self::UnknownStepType, self::ChildNotStarted,
+            self::UnknownStepType, self::ChildNotStarted, self::EndpointNotAccepting,
         ], true);
     }
 

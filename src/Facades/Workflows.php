@@ -57,6 +57,8 @@ use RoundlyConsulting\Workflows\WorkflowsManager;
  * @method static void assertNothingImported()
  * @method static void assertWebhookReceived(string $hookId)
  * @method static void assertWebhookNotReceived(string $hookId)
+ * @method static void assertWebhookDeliveryReceived(int|string $endpoint)
+ * @method static void assertWebhookDeliveryNotReceived(int|string $endpoint)
  * @method static void assertRetried(\RoundlyConsulting\Workflows\Models\WorkflowInstance $instance)
  * @method static void assertNotRetried(\RoundlyConsulting\Workflows\Models\WorkflowInstance $instance)
  * @method static void assertCancelled(\RoundlyConsulting\Workflows\Models\WorkflowInstance $instance)

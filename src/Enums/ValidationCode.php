@@ -56,4 +56,6 @@ enum ValidationCode: string
     case UnknownTransition = 'unknown_transition';
     case UnknownNotificationType = 'unknown_notification_type';
     case UnknownForm = 'unknown_form';
+    case UnknownWebhookEvent = 'unknown_webhook_event';
+    case WebhookEndpointTaken = 'webhook_endpoint_taken';
 }

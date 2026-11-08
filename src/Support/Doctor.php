@@ -205,6 +205,14 @@ final readonly class Doctor
                 }
             }
 
+            if ($version->trigger_type === TriggerType::Webhook && WebhookEndpoints::of($version->trigger) !== null) {
+                if (! Bridges::available('webhooks')) {
+                    $findings[] = new DoctorFinding(DoctorLevel::Fail, 'adapter', sprintf('[%s] starts from a webhook endpoint, which needs roundly-consulting/webhooks-for-laravel.', $definition->key));
+                } elseif (WorkflowsConfig::webhooksHandlerAlias() === null) {
+                    $findings[] = new DoctorFinding(DoctorLevel::Warn, 'webhooks', sprintf('[%s] starts from a webhook endpoint, but the workflows handler alias is off: its handler must call Workflows::triggers()->delivery().', $definition->key));
+                }
+            }
+
             $calendar = $version->settings['calendar'] ?? null;
 
             if (is_string($calendar) && str_starts_with($calendar, 'opening_hours:') && $owner !== null && Bridges::available('opening-hours') && ! OpeningHoursBridge::isOwner($owner)) {

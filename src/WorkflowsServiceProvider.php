@@ -13,6 +13,7 @@ use RoundlyConsulting\PackageToolkit\PackageServiceProvider;
 use RoundlyConsulting\Workflows\Bridges\Approvals\ApprovalsBridge;
 use RoundlyConsulting\Workflows\Bridges\Lifecycle\LifecycleBridge;
 use RoundlyConsulting\Workflows\Bridges\Teams\TeamsBridge;
+use RoundlyConsulting\Workflows\Bridges\Webhooks\WebhooksBridge;
 use RoundlyConsulting\Workflows\Calendars\CalendarRegistry;
 use RoundlyConsulting\Workflows\Commands\CancelCommand;
 use RoundlyConsulting\Workflows\Commands\CatalogueCommand;
@@ -136,6 +137,7 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
         // providers, which boot after this one: wire them once everything has booted.
         $this->app->booted(function (Application $app): void {
             ApprovalsBridge::register($app);
+            WebhooksBridge::register($app);
 
             if (Bridges::available('lifecycle')) {
                 LifecycleBridge::listen($app->make(Dispatcher::class));

@@ -20,6 +20,7 @@ final class Bridges
         'opening-hours' => 'RoundlyConsulting\\OpeningHours\\OpeningHoursManager',
         'forms' => 'RoundlyConsulting\\Forms\\FormsManager',
         'teams' => 'RoundlyConsulting\\Teams\\TeamsManager',
+        'webhooks' => 'RoundlyConsulting\\Webhooks\\WebhooksManager',
     ];
 
     /** @var array<string, true> */

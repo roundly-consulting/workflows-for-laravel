@@ -6,6 +6,7 @@ namespace RoundlyConsulting\Workflows\Support;
 
 use RoundlyConsulting\Workflows\Bridges\Lifecycle\LifecycleBridge;
 use RoundlyConsulting\Workflows\Bridges\Teams\TeamsBridge;
+use RoundlyConsulting\Workflows\Bridges\Webhooks\WebhooksBridge;
 use RoundlyConsulting\Workflows\Contracts\DeliversWebhooks;
 use RoundlyConsulting\Workflows\Contracts\ResolvesRoles;
 use RoundlyConsulting\Workflows\Contracts\TransitionAdapter;
@@ -35,7 +36,7 @@ final class Adapters
 
     public static function webhooks(): ?DeliversWebhooks
     {
-        $deliverer = self::resolve(DeliversWebhooks::class, WorkflowsConfig::webhooksAdapter(), null);
+        $deliverer = self::resolve(DeliversWebhooks::class, WorkflowsConfig::webhooksAdapter(), WebhooksBridge::defaultDeliverer());
 
         return $deliverer instanceof DeliversWebhooks ? $deliverer : null;
     }

@@ -327,6 +327,23 @@ final class GraphBuilder implements Arrayable, JsonSerializable, Stringable
         return $this->node($id, 'notify', $config);
     }
 
+    /**
+     * An outbound webhook (webhooks bridge, or a host `DeliversWebhooks` adapter): one delivery of
+     * `$event` to the owner's outbound endpoint, its payload a map of values or refs.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function webhook(string $id, int|string $endpoint, string $event, array $payload = []): static
+    {
+        $config = ['endpoint' => $endpoint, 'event' => $event];
+
+        if ($payload !== []) {
+            $config['payload'] = $payload;
+        }
+
+        return $this->node($id, 'webhook', $config);
+    }
+
     // Modifiers of the node added last -----------------------------------------------------
 
     /**

@@ -172,12 +172,13 @@ jobs:
             roundly-consulting/notifications-for-laravel \
             roundly-consulting/opening-hours-for-laravel \
             roundly-consulting/sentinel-for-laravel \
-            roundly-consulting/teams-for-laravel
+            roundly-consulting/teams-for-laravel \
+            roundly-consulting/webhooks-for-laravel
           composer update --prefer-stable --prefer-dist --no-interaction
 
       - name: Prove no bridge package is installed
         run: |
-          for package in approvals forms lifecycle notifications opening-hours sentinel teams; do
+          for package in approvals forms lifecycle notifications opening-hours sentinel teams webhooks; do
             if [ -d "vendor/roundly-consulting/${package}-for-laravel" ]; then
               echo "${package}-for-laravel is still installed"
               exit 1

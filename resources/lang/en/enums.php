@@ -167,6 +167,8 @@ return [
         'unknown_transition' => 'Unknown transition',
         'unknown_notification_type' => 'Unknown notification type',
         'unknown_form' => 'Unknown form',
+        'unknown_webhook_event' => 'Unknown webhook event',
+        'webhook_endpoint_taken' => 'Webhook endpoint taken',
     ],
     'doctor_level' => [
         'ok' => 'OK',

@@ -41,6 +41,8 @@ return [
     'invalid_event_key' => '":key" cannot be emitted.',
     'unknown_definition_owned' => 'The workflow ":key" was not found for this owner.',
     'unknown_definition_app_wide' => 'The workflow ":key" was not found among the app-wide workflows.',
+    'unknown_definition_endpoint' => 'No active workflow starts from the webhook endpoint ":endpoint".',
+    'endpoint_owner_mismatch' => 'The webhook endpoint and the workflow belong to different owners.',
     'unknown_step_type_suggest' => 'The step type ":key" is not registered. Did you mean ":suggestion"?',
     'unknown_step_type_package' => 'The step type ":key" needs :package.',
     'unknown_subject_type_suggest' => 'The subject type ":key" is not registered. Did you mean ":suggestion"?',

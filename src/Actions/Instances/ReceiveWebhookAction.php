@@ -11,13 +11,11 @@ use RoundlyConsulting\Workflows\DataTransferObjects\StartData;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartResult;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
 use RoundlyConsulting\Workflows\Exceptions\MissingIdempotencyKeyException;
-use RoundlyConsulting\Workflows\Exceptions\SubjectOwnerMismatchException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownDefinitionException;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
 use RoundlyConsulting\Workflows\Support\Definitions;
-use RoundlyConsulting\Workflows\Support\Owners;
-use RoundlyConsulting\Workflows\Support\SubjectRegistry;
+use RoundlyConsulting\Workflows\Support\WebhookSubjects;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 
 /**
@@ -29,9 +27,8 @@ final readonly class ReceiveWebhookAction
 {
     public function __construct(
         private StartInstanceAction $start,
-        private SubjectRegistry $subjects,
+        private WebhookSubjects $subjects,
         private RestoresOwnerContext $context,
-        private Owners $owners,
     ) {}
 
     /**
@@ -55,7 +52,7 @@ final readonly class ReceiveWebhookAction
         }
 
         $owner = Definitions::owner($definition);
-        $subject = $this->context->run($owner, fn (): ?Model => $this->subject($definition, $version->trigger, $payload));
+        $subject = $this->context->run($owner, fn (): ?Model => $this->subjects->find($definition, $version->trigger, $payload));
 
         return $this->start->execute(new StartData(
             key: $definition->key,
@@ -94,40 +91,5 @@ final readonly class ReceiveWebhookAction
         }
 
         return (is_string($value) && $value !== '') || is_int($value) ? (string) $value : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $trigger
-     * @param  array<string, mixed>  $payload
-     */
-    private function subject(WorkflowDefinition $definition, array $trigger, array $payload): ?Model
-    {
-        $lookup = is_array($trigger['subject'] ?? null) ? $trigger['subject'] : null;
-
-        if ($lookup === null || $definition->subject_key === null) {
-            return null;
-        }
-
-        $type = $this->subjects->get($definition->subject_key);
-        $field = is_string($lookup['lookup'] ?? null) ? $type->field($lookup['lookup']) : null;
-        $ref = is_array($lookup['value'] ?? null) ? ($lookup['value']['ref'] ?? null) : null;
-        $value = is_string($ref) && str_starts_with($ref, 'payload.') ? Arr::get($payload, substr($ref, 8)) : null;
-
-        if ($field === null || $field->isRelationPath() || ! is_scalar($value)) {
-            throw SubjectOwnerMismatchException::forSubject();
-        }
-
-        $model = $type->model;
-        $owner = Definitions::owner($definition);
-
-        // The owner's own record: another owner may hold the same value (an invoice number is
-        // unique per tenant, not across them), and without a global owner scope it may come first.
-        foreach ($model::query()->where($field->path(), $value)->lazyById(100) as $candidate) {
-            if ($owner === null || $this->owners->matches($owner, $candidate)) {
-                return $candidate;
-            }
-        }
-
-        throw SubjectOwnerMismatchException::forSubject();
     }
 }

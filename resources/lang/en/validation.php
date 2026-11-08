@@ -43,4 +43,6 @@ return [
     'unknown_transition' => 'The transition ":transition" does not exist on this subject.',
     'unknown_notification_type' => 'The notification type ":notification" is not registered.',
     'unknown_form' => 'The form ":form" does not exist.',
+    'unknown_webhook_event' => 'The webhook event type ":event" is not in the allowed event types.',
+    'webhook_endpoint_taken' => 'The webhook endpoint ":endpoint" already starts the workflow ":definition".',
 ];

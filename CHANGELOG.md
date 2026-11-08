@@ -6,6 +6,17 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 
 ## Unreleased
 
+### Added
+
+- A webhooks-for-laravel bridge, loaded when that package is installed:
+  - **Inbound.** A webhook trigger can name an inbound endpoint (`{trigger: "webhook", endpoint: <endpoint id>}`). Point that endpoint at the `workflows` handler (`Webhooks::for($team)->inbound()->create(handler: 'workflows')`) and every verified delivery starts the workflow, with the delivery id as its idempotency key — a sender retry or a webhooks replay returns the first instance and never runs the workflow again. The endpoint's owner must be the workflow's owner (both app-level counts too), else the delivery is refused as `owner_mismatch`. The trigger needs no `idempotency` setting, its `subject` lookup works as before, and one active workflow per owner may name an endpoint (`webhook_endpoint_taken`).
+  - The handler alias is registered at boot. Rename it, or switch it off with null, false or `off`, in the new `workflows.bridges.webhooks.handler` key (`WORKFLOWS_WEBHOOKS_HANDLER`). A host's own `webhooks.handlers.workflows` mapping wins.
+  - **Outbound.** The `webhook` step now delivers through webhooks-for-laravel when no `DeliversWebhooks` adapter is bound. It finds the endpoint in the workflow owner's scope (an app-level workflow finds owner-less endpoints only) and queues one delivery per visit, idempotent on the step key, so a retry never queues a second one. The step completes `queued` with the delivery's `msg_` id as output `delivery`. Publish checks the event against the webhooks event type rule and its `outbound.event_types` allow-list (`unknown_webhook_event`).
+  - Failure codes `endpoint_not_found` (missing, malformed or another owner's endpoint), `endpoint_not_accepting:disabled|not_subscribed`, `invalid_event_type` and `payload_too_large`, none retried automatically. An operator can retry `endpoint_not_accepting` after re-enabling the endpoint.
+  - The graph builder writes both: `Trigger::webhook(endpoint: $id)` and `->webhook($id, $endpoint, $event, $payload)`.
+  - `Workflows::triggers()->delivery(WebhookDelivery)` is the start call the handler makes. The fake records it, with `assertWebhookDeliveryReceived()` / `assertWebhookDeliveryNotReceived()`.
+  - `workflows:doctor` fails an endpoint trigger once webhooks-for-laravel is gone, and warns when the handler alias is off.
+
 ## 1.1.0 - 2026-11-08
 
 ### Changed

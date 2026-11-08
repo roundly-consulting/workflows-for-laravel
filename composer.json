@@ -63,7 +63,8 @@
         "roundly-consulting/opening-hours-for-laravel": "^2.1",
         "roundly-consulting/sentinel-for-laravel": "^2.0",
         "roundly-consulting/teams-for-laravel": "^2.0",
-        "roundly-consulting/testing-for-laravel": "^2.1"
+        "roundly-consulting/testing-for-laravel": "^2.1",
+        "roundly-consulting/webhooks-for-laravel": "^1.0"
     },
     "suggest": {
         "roundly-consulting/approvals-for-laravel": "Approval steps: rules, stages, delegation, expiry; outcomes approved / rejected / expired.",
@@ -73,7 +74,7 @@
         "roundly-consulting/opening-hours-for-laravel": "Business-hours calendars for delays and escalations (\"2 business days\").",
         "roundly-consulting/sentinel-for-laravel": "RFC 9421 signature checks on the inbound webhook route.",
         "roundly-consulting/teams-for-laravel": "Team owners: context restored in every queued step, team roles as approvers.",
-        "roundly-consulting/webhooks-for-laravel": "Signed inbound webhooks that start workflows, and outbound webhook steps (bridge lands once the package is released)."
+        "roundly-consulting/webhooks-for-laravel": "Signed inbound webhooks that start workflows (the `workflows` handler), and outbound `webhook` steps."
     },
     "conflict": {
         "roundly-consulting/approvals-for-laravel": "<2.1",

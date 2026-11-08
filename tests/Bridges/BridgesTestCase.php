@@ -34,8 +34,8 @@ use RoundlyConsulting\Workflows\WorkflowsServiceProvider;
 
 /**
  * The bridge test app: every optional package installed and booted (approvals, lifecycle,
- * notifications, teams, opening-hours, forms) next to the core fixtures. Group `bridges`: the
- * no-bridges CI leg leaves it out.
+ * notifications, teams, opening-hours, forms) next to the core fixtures; webhooks has its own
+ * app (tests/Webhooks). Group `bridges`: the no-bridges CI leg leaves it out.
  */
 abstract class BridgesTestCase extends TestCase
 {
@@ -49,6 +49,8 @@ abstract class BridgesTestCase extends TestCase
     protected function bridges(): void
     {
         Bridges::reset();
+        // Its provider isn't booted here; tests/Webhooks boots it.
+        Bridges::pretendMissing(['webhooks']);
     }
 
     /** @return list<class-string<ServiceProvider>> */

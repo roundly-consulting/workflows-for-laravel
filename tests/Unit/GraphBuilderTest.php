@@ -144,6 +144,7 @@ it('renders durations, parties, refs, triggers and inputs', function (): void {
         ->and(Trigger::schedule(preset: ['every' => 'weekday', 'at' => '09:00'])->toArray())->toBe(['trigger' => 'schedule', 'preset' => ['every' => 'weekday', 'at' => '09:00']])
         ->and(Trigger::webhook()->toArray())->toBe(['trigger' => 'webhook'])
         ->and(Trigger::webhook('header:X-Request-Id')->toArray())->toBe(['trigger' => 'webhook', 'idempotency' => ['from' => 'header:X-Request-Id']])
+        ->and(Trigger::webhook(endpoint: 12)->toArray())->toBe(['trigger' => 'webhook', 'endpoint' => 12])
         ->and(Stage::named('Board')->from(Party::role('board'))->quorum(3)->toArray())->toBe(['name' => 'Board', 'approvers' => [['kind' => 'role', 'role' => 'board']], 'rule' => 'quorum', 'quorum' => 3])
         ->and(Stage::named()->from(Party::role('cfo'))->weighted(5)->toArray())->toBe(['approvers' => [['kind' => 'role', 'role' => 'cfo']], 'rule' => 'weighted', 'required' => 5])
         ->and(Stage::named('All')->from(Party::role('a'), Party::role('b'))->unanimous()->toArray()['rule'])->toBe('unanimous')
@@ -166,6 +167,7 @@ it('writes every built-in step type', function (): void {
         ->startWorkflow('same', 'helper')
         ->approval('board', stages: [Stage::named('Board')->from(Party::role('board'))->any()], preset: 'board')
         ->notify('tell', 'doc.ready', Party::triggeredBy(), data: ['n' => 1])
+        ->webhook('send', 12, 'doc.ready', ['priority' => Ref::input('priority')])->webhook('ping', 'erp', 'doc.ping')
         ->end('fail', 'failed', 'No budget')
         ->toArray();
 
@@ -187,6 +189,8 @@ it('writes every built-in step type', function (): void {
             'same' => ['definition' => 'helper'],
             'board' => ['stages' => [['name' => 'Board', 'approvers' => [['kind' => 'role', 'role' => 'board']], 'rule' => 'any']], 'preset' => 'board'],
             'tell' => ['notification' => 'doc.ready', 'recipients' => [['kind' => 'triggered_by']], 'data' => ['n' => 1]],
+            'send' => ['endpoint' => 12, 'event' => 'doc.ready', 'payload' => ['priority' => ['ref' => 'input.priority']]],
+            'ping' => ['endpoint' => 'erp', 'event' => 'doc.ping'],
             'fail' => ['status' => 'failed', 'reason' => 'No budget'],
         ]);
 });

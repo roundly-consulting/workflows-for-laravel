@@ -67,11 +67,24 @@ final readonly class Trigger
         return new self($config);
     }
 
-    public static function webhook(?string $idempotencyFrom = null): self
+    /**
+     * An inbound webhook: through the hook-id route (`$idempotencyFrom`: `header:<name>` or
+     * `payload:<path>`), and/or a webhooks-for-laravel inbound endpoint (`$endpoint`: its id; the
+     * delivery id keys the start).
+     */
+    public static function webhook(?string $idempotencyFrom = null, int|string|null $endpoint = null): self
     {
-        return new self($idempotencyFrom === null
-            ? ['trigger' => 'webhook']
-            : ['trigger' => 'webhook', 'idempotency' => ['from' => $idempotencyFrom]]);
+        $config = ['trigger' => 'webhook'];
+
+        if ($idempotencyFrom !== null) {
+            $config['idempotency'] = ['from' => $idempotencyFrom];
+        }
+
+        if ($endpoint !== null) {
+            $config['endpoint'] = $endpoint;
+        }
+
+        return new self($config);
     }
 
     /**

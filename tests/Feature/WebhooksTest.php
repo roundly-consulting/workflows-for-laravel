@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use RoundlyConsulting\Workflows\DataTransferObjects\WebhookDelivery;
+use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Exceptions\MissingIdempotencyKeyException;
 use RoundlyConsulting\Workflows\Exceptions\SubjectOwnerMismatchException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownDefinitionException;
@@ -99,3 +101,14 @@ final class SignedTestMiddleware
         return $request->header('X-Signed') === 'yes' ? $next($request) : new JsonResponse(['code' => 'unsigned'], 401);
     }
 }
+
+it('needs webhooks-for-laravel for an endpoint-wired trigger', function (): void {
+    $report = Workflows::versions()->validate(graph([
+        node('start', 'trigger', ['trigger' => 'webhook', 'endpoint' => 5]),
+        node('done', 'end'),
+    ], [['start', 'done']]), null);
+
+    expect($report->find(ValidationCode::AdapterMissing, 'start')?->params)->toBe(['type' => 'endpoint', 'package' => 'roundly-consulting/webhooks-for-laravel'])
+        ->and(fn () => Workflows::triggers()->delivery(new WebhookDelivery(5, null, 'evt_1')))->toThrow(UnknownDefinitionException::class)
+        ->and(Workflows::catalogue()->has('webhook'))->toBeFalse();
+});

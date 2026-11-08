@@ -17,6 +17,7 @@ use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
 use RoundlyConsulting\Workflows\Tests\Readme\ReadmeTestCase;
 use RoundlyConsulting\Workflows\Tests\Sentinel\SentinelTestCase;
 use RoundlyConsulting\Workflows\Tests\TestCase;
+use RoundlyConsulting\Workflows\Tests\Webhooks\WebhooksTestCase;
 
 uses(TestCase::class)->in('Arch', 'Feature', 'Unit', 'RealEngine');
 uses(TestCase::class, UsesPublishSandbox::class)->in('Publish');
@@ -166,3 +167,4 @@ function workflowJson(string $name): array
 }
 
 uses(SentinelTestCase::class)->group('bridges')->in('Sentinel');
+uses(WebhooksTestCase::class)->group('bridges')->in('Webhooks');

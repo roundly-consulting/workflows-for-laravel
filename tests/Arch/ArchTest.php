@@ -65,6 +65,7 @@ foreach ([
     'RoundlyConsulting\OpeningHours' => 'OpeningHours',
     'RoundlyConsulting\Forms' => 'Forms',
     'RoundlyConsulting\Teams' => 'Teams',
+    'RoundlyConsulting\Webhooks' => 'Webhooks',
 ] as $namespace => $bridge) {
     ArchPresets::noVendorNamespace($namespace, __DIR__.'/../../src', ['RoundlyConsulting\Workflows\Bridges\\'.$bridge]);
 }
