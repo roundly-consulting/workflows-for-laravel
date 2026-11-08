@@ -16,6 +16,7 @@ use RoundlyConsulting\Workflows\Exceptions\UnknownDefinitionException;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
 use RoundlyConsulting\Workflows\Support\Definitions;
+use RoundlyConsulting\Workflows\Support\Owners;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 
@@ -30,6 +31,7 @@ final readonly class ReceiveWebhookAction
         private StartInstanceAction $start,
         private SubjectRegistry $subjects,
         private RestoresOwnerContext $context,
+        private Owners $owners,
     ) {}
 
     /**
@@ -116,8 +118,16 @@ final readonly class ReceiveWebhookAction
         }
 
         $model = $type->model;
-        $subject = $model::query()->where($field->path(), $value)->first();
+        $owner = Definitions::owner($definition);
 
-        return $subject instanceof Model ? $subject : throw SubjectOwnerMismatchException::forSubject();
+        // The owner's own record: another owner may hold the same value (an invoice number is
+        // unique per tenant, not across them), and without a global owner scope it may come first.
+        foreach ($model::query()->where($field->path(), $value)->lazyById(100) as $candidate) {
+            if ($candidate instanceof Model && ($owner === null || $this->owners->matches($owner, $candidate))) {
+                return $candidate;
+            }
+        }
+
+        throw SubjectOwnerMismatchException::forSubject();
     }
 }
