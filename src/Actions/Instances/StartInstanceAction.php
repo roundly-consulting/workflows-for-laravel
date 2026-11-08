@@ -55,6 +55,11 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  */
 final readonly class StartInstanceAction
 {
+    /**
+     * Re-reads after a version published between the first read and the definition lock.
+     */
+    private const int MAX_ATTEMPTS = 3;
+
     public function __construct(
         private RestoresOwnerContext $context,
         private SubjectRegistry $subjects,
@@ -72,7 +77,7 @@ final readonly class StartInstanceAction
         return $this->context->run($instanceOwner, fn (): StartResult => $this->start($definition, $data, $definitionOwner, $instanceOwner));
     }
 
-    private function start(WorkflowDefinition $definition, StartData $data, ?Model $definitionOwner, ?Model $instanceOwner): StartResult
+    private function start(WorkflowDefinition $definition, StartData $data, ?Model $definitionOwner, ?Model $instanceOwner, int $attempt = 1): StartResult
     {
         $version = $definition->currentVersion;
 
@@ -105,9 +110,19 @@ final readonly class StartInstanceAction
         $model = WorkflowModels::instance();
         $connection = (new $model)->getConnection();
 
-        $result = $connection->transaction(function () use ($definition, $version, $data, $instanceOwner, $input, $trigger, &$after): StartResult {
+        $result = $connection->transaction(function () use ($definition, $version, $data, $instanceOwner, $input, $trigger, $attempt, &$after): ?StartResult {
             $definitionModel = WorkflowModels::definition();
-            $definitionModel::query()->lockForUpdate()->find(Keys::of($definition));
+            $locked = $definitionModel::query()->lockForUpdate()->find(Keys::of($definition));
+
+            // What was read before the lock may be stale: a definition retired meanwhile starts
+            // nothing, and a version published meanwhile is the one this start runs on.
+            if (! $locked instanceof WorkflowDefinition || ! $locked->isActive()) {
+                throw DefinitionNotActiveException::key($definition->key);
+            }
+
+            if ((string) $locked->current_version_id !== (string) Keys::of($version) && $attempt < self::MAX_ATTEMPTS) {
+                return null;
+            }
 
             $digest = $data->idempotencyKey === null ? null : Crypto::digest()->hex(Keys::of($definition).'|'.$data->idempotencyKey);
 
@@ -136,6 +151,10 @@ final readonly class StartInstanceAction
 
             return new StartResult($instance, true, definition: $definition->key);
         });
+
+        if ($result === null) {
+            return $this->start($definition->refresh(), $data, $definitionOwner, $instanceOwner, $attempt + 1);
+        }
 
         foreach ($after as $callback) {
             $callback();
