@@ -275,6 +275,15 @@ final readonly class RecordStepResultAction
 
             $next = $this->advancer->createRun($instance, $node, $run->attempt + 1, $run->visit, $run->idempotency_key);
             $next->scheduled_for = $due;
+
+            // A failed resume is retried as a resume: the next attempt gets the same signal (an
+            // event's payload, a decision) and the state the step waited with, never a fresh handle().
+            if ($run->resume_signal !== null) {
+                $next->resume_signal = $run->resume_signal;
+                $next->input = $run->input;
+                $next->output = $run->output;
+            }
+
             $next->save();
 
             Waits::retry($instance, $next, $due);

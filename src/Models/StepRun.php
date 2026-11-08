@@ -33,6 +33,7 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  * @property string $idempotency_key
  * @property array<string, mixed>|null $input
  * @property array<string, mixed>|null $output
+ * @property array<string, mixed>|null $resume_signal
  * @property string|null $outcome
  * @property string|null $error_code
  * @property string|null $error_message
@@ -113,6 +114,7 @@ class StepRun extends Model
             'status' => StepRunStatus::class,
             'input' => 'array',
             'output' => 'array',
+            'resume_signal' => 'array',
             'error_retryable' => 'boolean',
             'lease_until' => UtcDateTime::class,
             'scheduled_for' => UtcDateTime::class,

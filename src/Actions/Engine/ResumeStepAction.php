@@ -150,6 +150,7 @@ final readonly class ResumeStepAction
             $token = (string) Str::ulid();
 
             $run->status = StepRunStatus::Running;
+            $run->resume_signal = $signal->toArray();
             $run->claim_token = $token;
             $run->lease_until = $now->add(WorkflowsConfig::lease());
             $run->save();

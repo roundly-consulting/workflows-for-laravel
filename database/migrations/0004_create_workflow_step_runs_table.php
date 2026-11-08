@@ -30,6 +30,8 @@ return new class extends Migration
             $table->string('idempotency_key', 100);
             $table->json('input')->nullable();
             $table->json('output')->nullable();
+            // The signal a resume claimed the step with; an automatic retry of that attempt resumes with it.
+            $table->json('resume_signal')->nullable();
             $table->string('outcome', 32)->nullable();
             $table->string('error_code', 64)->nullable();
             $table->text('error_message')->nullable();

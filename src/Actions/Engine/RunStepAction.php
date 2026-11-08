@@ -6,6 +6,7 @@ namespace RoundlyConsulting\Workflows\Actions\Engine;
 
 use Illuminate\Support\Str;
 use RoundlyConsulting\Workflows\Contracts\RestoresOwnerContext;
+use RoundlyConsulting\Workflows\DataTransferObjects\Signal;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
 use RoundlyConsulting\Workflows\Events\StepStarted;
@@ -63,9 +64,12 @@ final readonly class RunStepAction
 
         Events::dispatch(new StepStarted($instance, $run, $instance, Runtime::actor($instance)));
 
-        $outcome = $this->attempts->run($instance, $run);
+        // An automatic retry of a failed resume resumes with the signal that attempt received.
+        $signal = Signal::fromArray($run->resume_signal);
 
-        $this->record->execute(Keys::of($instance), Keys::of($run), $claim->token, $outcome->result, $outcome->transactional);
+        $outcome = $this->attempts->run($instance, $run, $signal);
+
+        $this->record->execute(Keys::of($instance), Keys::of($run), $claim->token, $outcome->result, $outcome->transactional, $signal);
     }
 
     private function claim(int|string $instanceId, int|string $runId): ?ClaimedStep
