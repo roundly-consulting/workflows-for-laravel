@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Actions\Wake;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Actions\Instances\StartInstanceAction;
+use RoundlyConsulting\Workflows\Contracts\RestoresOwnerContext;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartData;
 use RoundlyConsulting\Workflows\Enums\DefinitionStatus;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
@@ -32,7 +33,8 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  * latest one, keyed by the local wall-clock slot plus the IANA zone name — a repeated DST hour
  * runs once, a skipped one not at all, and a version published mid-minute never double-starts.
  * A `for_each` schedule starts one instance per matching subject of the definition's subject
- * type per slot (keyed by the slot and the subject), owner-scoped and bounded by `wake.batch`.
+ * type per slot (keyed by the slot and the subject), owner-scoped and bounded by `wake.batch`; the
+ * subjects are read, and `where` evaluated, inside the owner's context.
  *
  * @internal
  */
@@ -42,6 +44,7 @@ final readonly class EvaluateSchedulesAction
         private StartInstanceAction $start,
         private SubjectRegistry $subjects,
         private Owners $owners,
+        private RestoresOwnerContext $context,
     ) {}
 
     public function execute(CarbonImmutable $now): int
@@ -115,7 +118,10 @@ final readonly class EvaluateSchedulesAction
 
             $started = 0;
 
-            foreach ($this->subjects($locked, $version, $owner, $now, $timezone) as $subject) {
+            // Wake runs with no tenant context: the scan and its `where` see what the owner sees.
+            $subjects = $this->context->run($owner, fn (): array => $this->subjects($locked, $version, $owner, $now, $timezone));
+
+            foreach ($subjects as $subject) {
                 $started += $this->start($locked->key, $owner, $subject, $key.':'.Keys::string($subject), $payload);
             }
 
