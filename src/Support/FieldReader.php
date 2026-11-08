@@ -15,7 +15,8 @@ use Throwable;
 
 /**
  * Reads a registered field off a model: its registered path (an attribute or a dotted relation),
- * normalised by type — enums as their backed value, dates in the version timezone, decimals as
+ * normalised by type — enums as their backed value, dates in the version timezone (a date at
+ * midnight keeps its stored calendar day), decimals as
  * exact strings, parties as models. An unregistered path is never read.
  *
  * @internal
@@ -55,11 +56,35 @@ final class FieldReader
             FieldType::Decimal => Decimals::normalize($value),
             FieldType::Integer => is_numeric($value) ? (int) $value : null,
             FieldType::Boolean => is_bool($value) ? $value : (is_scalar($value) ? (bool) $value : null),
-            FieldType::Date, FieldType::Datetime => self::date($value, $timezone),
+            FieldType::Date => self::calendarDate($value, $timezone),
+            FieldType::Datetime => self::date($value, $timezone),
             FieldType::Party => $value instanceof Model ? $value : null,
             FieldType::List => $value instanceof Collection ? $value->values()->all() : (is_array($value) ? array_values($value) : null),
             default => is_scalar($value) ? (string) $value : null,
         };
+    }
+
+    /**
+     * A `date` field. Midnight — a DATE column, Laravel's `date` cast (midnight in the app
+     * timezone), a bare `Y-m-d` — is the calendar day it was stored as, at midnight in the version
+     * timezone: shifting that instant west would land on the previous day. A value with a time of
+     * day is an instant, read in the version timezone like a datetime.
+     */
+    public static function calendarDate(mixed $value, string $timezone): ?CarbonImmutable
+    {
+        $day = match (true) {
+            $value instanceof DateTimeInterface => $value->format('H:i:s.u') === '00:00:00.000000' ? $value->format('Y-m-d') : null,
+            is_string($value) && preg_match('/^(\d{4}-\d{2}-\d{2})(?:[T ]00:00(?::00(?:\.0+)?)?)?$/', $value, $match) === 1 => $match[1],
+            default => null,
+        };
+
+        if ($day === null) {
+            return self::date($value, $timezone);
+        }
+
+        $date = CarbonImmutable::createFromFormat('!Y-m-d', $day, $timezone);
+
+        return $date instanceof CarbonImmutable ? $date : null;
     }
 
     public static function date(mixed $value, string $timezone): ?CarbonImmutable

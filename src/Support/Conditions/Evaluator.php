@@ -183,7 +183,12 @@ final class Evaluator
 
     private static function compareDates(mixed $left, mixed $right, ValueScope $scope, bool $dateOnly): ?int
     {
-        $a = $left instanceof CarbonInterface ? CarbonImmutable::instance($left)->setTimezone($scope->timezone) : FieldReader::date($left, $scope->timezone);
+        $a = match (true) {
+            $left instanceof CarbonInterface => CarbonImmutable::instance($left)->setTimezone($scope->timezone),
+            // A raw date (a `date` input) is a calendar day, never an instant to shift.
+            $dateOnly => FieldReader::calendarDate($left, $scope->timezone),
+            default => FieldReader::date($left, $scope->timezone),
+        };
         $b = $right instanceof CarbonInterface ? CarbonImmutable::instance($right)->setTimezone($scope->timezone) : self::parseDate($right, $scope->timezone);
 
         if ($a === null || $b === null) {
