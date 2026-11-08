@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use RoundlyConsulting\Notifications\Models\InboxItem;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Support\Bridges;
 
 function notifyGraph(array $config): array
 {
@@ -84,4 +85,23 @@ it('simulates a notify step in a dry run', function (): void {
     $result = Workflows::definition('tell')->dryRun()->subject(document())->run();
 
     expect($result->actions[0]->description)->toBe('notify document.notice');
+});
+
+// W-07: party list validation.
+it('validates the recipient list of a notify step', function (array $recipients, ValidationCode $code): void {
+    $report = Workflows::versions()->validate(notifyGraph(['notification' => 'document.notice', 'recipients' => $recipients]), 'document');
+
+    expect($report->has($code, 'tell'))->toBeTrue();
+})->with([
+    'empty' => [[], ValidationCode::InvalidConfig],
+    'field of a non-party field' => [[['kind' => 'field', 'field' => 'subject.title']], ValidationCode::InvalidValue],
+    'not a party' => [['x'], ValidationCode::InvalidConfig],
+]);
+
+it('rejects a role party when no roles resolver is available', function (): void {
+    Bridges::pretendMissing(['teams']);
+
+    $report = Workflows::versions()->validate(notifyGraph(['notification' => 'document.notice', 'recipients' => [['kind' => 'role', 'role' => 'legal']]]), 'document');
+
+    expect($report->has(ValidationCode::RolesUnavailable, 'tell'))->toBeTrue();
 });

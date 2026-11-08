@@ -38,14 +38,6 @@ final readonly class ValueScope
         public array $inputTypes = [],
     ) {}
 
-    /**
-     * @param  array<string, mixed>  $input
-     */
-    public function withInput(array $input): self
-    {
-        return new self($this->subject, $this->subjectType, $this->owner, $this->ownerType, $input, $this->trigger, $this->outputs, $this->now, $this->timezone, $this->starter, $this->inputTypes);
-    }
-
     public function at(CarbonImmutable $now): self
     {
         return new self($this->subject, $this->subjectType, $this->owner, $this->ownerType, $this->input, $this->trigger, $this->outputs, $now, $this->timezone, $this->starter, $this->inputTypes);

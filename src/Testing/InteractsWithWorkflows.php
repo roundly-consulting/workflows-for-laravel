@@ -27,6 +27,9 @@ trait InteractsWithWorkflows
     /** @var array<string, ScriptedStepType> */
     private array $scriptedSteps = [];
 
+    /** @var list<Closure(): void> */
+    private array $stepRestores = [];
+
     /**
      * Script what every node of a step type returns: an outcome (a string), a StepResult, or a
      * closure building one from the StepContext. The real engine runs — locks, waits,
@@ -48,12 +51,25 @@ trait InteractsWithWorkflows
         }
 
         $scripted = new ScriptedStepType($type, $result, $original, $outcomes ?? ['next']);
-        $restore = $catalogue->swap($type, $scripted);
+        $this->stepRestores[] = $catalogue->swap($type, $scripted);
         $this->scriptedSteps[$type] = $scripted;
 
-        if (method_exists($this, 'beforeApplicationDestroyed')) {
-            $this->beforeApplicationDestroyed($restore);
+        if (count($this->stepRestores) === 1 && method_exists($this, 'beforeApplicationDestroyed')) {
+            $this->beforeApplicationDestroyed(fn () => $this->restoreSteps());
         }
+    }
+
+    /**
+     * Put the real step types back (runs on its own when the test ends).
+     */
+    protected function restoreSteps(): void
+    {
+        foreach (array_reverse($this->stepRestores) as $restore) {
+            $restore();
+        }
+
+        $this->stepRestores = [];
+        $this->scriptedSteps = [];
     }
 
     /**

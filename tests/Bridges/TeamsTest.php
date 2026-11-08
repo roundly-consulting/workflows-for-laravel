@@ -136,3 +136,9 @@ it('reports a subject without a team as owned by none', function (): void {
     expect(TeamsBridge::ownerOf($request))->toBeNull()
         ->and(TeamsBridge::ownerOf(document()))->toBeFalse();
 });
+
+// W-07
+it('resolves no role members outside a team owner', function (): void {
+    expect(app(TeamRoles::class)->members(company(), 'admin'))->toBe([])
+        ->and(app(TeamRoles::class)->members(null, 'admin'))->toBe([]);
+});

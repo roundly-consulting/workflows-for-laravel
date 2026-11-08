@@ -21,9 +21,4 @@ enum StepRunStatus: string
     case Completed = 'completed';
     case Failed = 'failed';
     case Cancelled = 'cancelled';
-
-    public function isFinished(): bool
-    {
-        return in_array($this, [self::Completed, self::Failed, self::Cancelled], true);
-    }
 }

@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Support\Engine;
 
 use Closure;
-use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\DataTransferObjects\Signal;
 use RoundlyConsulting\Workflows\Enums\FailureCode;
-use RoundlyConsulting\Workflows\Graph\Graph;
 use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
@@ -143,15 +141,5 @@ final readonly class Attempts
         } catch (Throwable $exception) {
             return $this->exceptions->map($exception);
         }
-    }
-
-    public static function graph(WorkflowInstance $instance): ?Graph
-    {
-        return $instance->version?->parsedGraph();
-    }
-
-    public static function owner(WorkflowInstance $instance): ?Model
-    {
-        return Runtime::owner($instance);
     }
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\ExpectationFailedException;
 use RoundlyConsulting\Workflows\DataTransferObjects\CreateDefinitionData;
@@ -436,7 +437,7 @@ it('restores the real step type after the test', function (): void {
         ->and(app(StepCatalogue::class)->find('acme.create_task'))->not->toBe($original)
         ->and(fn () => $this->fakeStep('acme.nothing', 'next'))->toThrow(LogicException::class, 'pass the outcomes');
 
-    $this->callBeforeApplicationDestroyedCallbacks();
+    $this->restoreSteps();
 
     expect(app(StepCatalogue::class)->find('acme.create_task'))->toBe($original)
         ->and(app(StepCatalogue::class)->find('acme.unknown'))->toBeNull();
@@ -465,4 +466,22 @@ it('asserts step runs with a where clause', function (): void {
         ->and($type->ability())->toBe('createTask')
         ->and($type->supportsEscalations())->toBeFalse()
         ->and($type->ownerSpecificPaths())->toBe([]);
+});
+
+it('travels to an absolute instant and wakes, then asserts where the instance stands', function (): void {
+    published('flow', graph([node('start', 'trigger', ['trigger' => 'manual']), node('pause', 'delay', ['for' => 'PT2H']), node('done', 'end')], [['start', 'pause'], ['pause', 'done']]), null, null);
+    $instance = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
+
+    $this->assertInstanceAt($instance, 'pause');
+    $this->assertInstanceStatus($instance, InstanceStatus::Waiting);
+
+    $this->travelAndWake(CarbonImmutable::now()->addHours(3));
+
+    $this->assertInstanceStatus($instance, InstanceStatus::Completed);
+    $this->assertPath($instance, ['start', 'pause', 'done']);
+
+    expect(fn () => $this->assertInstanceAt($instance, 'start'))->toThrow(ExpectationFailedException::class, 'Expected the instance at [start]');
+
+    Carbon\Carbon::setTestNow();
+    CarbonImmutable::setTestNow();
 });
