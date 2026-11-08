@@ -22,6 +22,7 @@ use RoundlyConsulting\Workflows\Support\Conditions\Evaluator;
 use RoundlyConsulting\Workflows\Support\Engine\Attempts;
 use RoundlyConsulting\Workflows\Support\Engine\ClaimedStep;
 use RoundlyConsulting\Workflows\Support\Engine\Runtime;
+use RoundlyConsulting\Workflows\Support\Engine\Waits;
 use RoundlyConsulting\Workflows\Support\Events;
 use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\Owners;
@@ -97,6 +98,13 @@ final readonly class ResumeStepAction
 
             $now = Clock::now();
 
+            // The step is busy (its probe or another resume is running): leave the wait claimed.
+            // The running attempt's record delivers it once the step waits again, and retires it
+            // with the step's other waits if the step moves on — a one-shot signal is never lost.
+            if ($instance->status->isActive() && $run->status === StepRunStatus::Running) {
+                return null;
+            }
+
             if (! $instance->status->isActive() || $run->status !== StepRunStatus::Waiting) {
                 if ($wait instanceof WorkflowWait && in_array($wait->status, [WaitStatus::Pending, WaitStatus::Claimed], true)) {
                     $wait->status = WaitStatus::Cancelled;
@@ -134,12 +142,7 @@ final readonly class ResumeStepAction
                     ->update(['status' => WaitStatus::Cancelled->value, 'updated_at' => Clock::format($now)]);
 
                 $signal = new Signal(
-                    kind: match ($wait->kind) {
-                        WaitKind::Event => SignalKind::Event,
-                        WaitKind::Condition => SignalKind::Condition,
-                        WaitKind::Timeout => SignalKind::Timeout,
-                        default => SignalKind::Timer,
-                    },
+                    kind: Waits::signalKind($wait->kind),
                     key: $wait->event_key,
                     payload: $wait->payload ?? [],
                     outcome: $wait->outcome,

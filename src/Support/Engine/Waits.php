@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Support\Engine;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Enums\EscalationStatus;
+use RoundlyConsulting\Workflows\Enums\SignalKind;
 use RoundlyConsulting\Workflows\Enums\WaitKind;
 use RoundlyConsulting\Workflows\Enums\WaitStatus;
 use RoundlyConsulting\Workflows\Graph\Graph;
@@ -188,6 +189,19 @@ final class Waits
             ->whereIn('status', [WaitStatus::Pending->value, WaitStatus::Claimed->value])
             ->get()
             ->all());
+    }
+
+    /**
+     * The signal a fired wait of this kind resumes its step with.
+     */
+    public static function signalKind(WaitKind $kind): SignalKind
+    {
+        return match ($kind) {
+            WaitKind::Event => SignalKind::Event,
+            WaitKind::Condition => SignalKind::Condition,
+            WaitKind::Timeout => SignalKind::Timeout,
+            default => SignalKind::Timer,
+        };
     }
 
     public static function forGraph(Graph $graph): ?string

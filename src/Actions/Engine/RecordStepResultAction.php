@@ -12,6 +12,7 @@ use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\SignalKind;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
+use RoundlyConsulting\Workflows\Enums\WaitStatus;
 use RoundlyConsulting\Workflows\Events\InstanceWaiting;
 use RoundlyConsulting\Workflows\Events\StepCompleted;
 use RoundlyConsulting\Workflows\Events\StepFailed;
@@ -229,6 +230,17 @@ final readonly class RecordStepResultAction
         $instance->save();
 
         $existing = Waits::pending($run);
+        $runId = Keys::of($run);
+
+        // A signal that claimed a wait while this attempt ran found the step busy and left the wait
+        // claimed: deliver it now that the step waits again.
+        foreach ($existing as $claimed) {
+            if ($claimed->status === WaitStatus::Claimed) {
+                $waitId = Keys::of($claimed);
+                $kind = Waits::signalKind($claimed->kind);
+                $after[] = fn () => $this->queue->resume($runId, $waitId, $kind);
+            }
+        }
 
         // A probe that finds the source still pending keeps the waits it already has.
         if ($signal?->kind === SignalKind::Probe && $existing !== []) {
@@ -251,7 +263,6 @@ final readonly class RecordStepResultAction
         Events::dispatch(new InstanceWaiting($instance, $run, $waits, $instance, Runtime::actor($instance)));
 
         if ($spec?->probe === true) {
-            $runId = Keys::of($run);
             $after[] = fn () => $this->queue->resume($runId, null, SignalKind::Probe);
         }
     }
