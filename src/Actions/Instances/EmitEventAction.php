@@ -14,7 +14,6 @@ use RoundlyConsulting\Workflows\DataTransferObjects\StartResult;
 use RoundlyConsulting\Workflows\Enums\DefinitionStatus;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
 use RoundlyConsulting\Workflows\Enums\VersionStatus;
-use RoundlyConsulting\Workflows\Exceptions\InvalidEventKeyException;
 use RoundlyConsulting\Workflows\Exceptions\SubjectOwnerMismatchException;
 use RoundlyConsulting\Workflows\Exceptions\WorkflowsException;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
@@ -42,7 +41,7 @@ final readonly class EmitEventAction
 
     public function execute(EmitData $data): EmitResult
     {
-        self::assertKey($data->event);
+        TriggerStep::assertEventKey($data->event);
 
         $owner = $data->owner;
 
@@ -73,19 +72,6 @@ final readonly class EmitEventAction
         $resumed = $this->context->run($owner, fn (): int => $this->signals->send($data->event, $data->subject, $data->payload, $owner));
 
         return new EmitResult($started, $resumed, $failed);
-    }
-
-    /**
-     * The one event-key check: the manager runs it before the fake records an emit, so the fake
-     * refuses exactly what this action refuses.
-     *
-     * @throws InvalidEventKeyException
-     */
-    public static function assertKey(string $event): void
-    {
-        if (str_starts_with($event, '@') || preg_match(TriggerStep::EVENT_KEY, $event) !== 1) {
-            throw InvalidEventKeyException::key($event);
-        }
     }
 
     private function start(WorkflowDefinition $definition, EmitData $data, ?Model $owner): StartResult

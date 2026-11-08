@@ -34,6 +34,7 @@ use RoundlyConsulting\Workflows\Handles\SubjectHandle;
 use RoundlyConsulting\Workflows\Handles\SubjectsAccessor;
 use RoundlyConsulting\Workflows\Handles\TriggersAccessor;
 use RoundlyConsulting\Workflows\Handles\VersionsAccessor;
+use RoundlyConsulting\Workflows\Steps\Builtin\TriggerStep;
 
 /**
  * The package's public API: the root behind the Workflows facade, injectable by its class-string.
@@ -82,7 +83,7 @@ class WorkflowsManager
     public function emitWith(EmitData $data): EmitResult
     {
         // Before perform(): the fake refuses the keys the real emit refuses.
-        EmitEventAction::assertKey($data->event);
+        TriggerStep::assertEventKey($data->event);
 
         return $this->perform(
             WorkflowOperation::Emit,

@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Steps\Builtin;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
 use RoundlyConsulting\Workflows\Enums\FieldType;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
+use RoundlyConsulting\Workflows\Exceptions\InvalidEventKeyException;
 use RoundlyConsulting\Workflows\Steps\StepContext;
 use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Steps\ValidationScope;
@@ -26,6 +27,19 @@ use RoundlyConsulting\Workflows\Support\TriggerInputs;
 final class TriggerStep extends BuiltinStep
 {
     public const string EVENT_KEY = '/^[a-z0-9_]+(\.[a-z0-9_]+)*$/';
+
+    /**
+     * The one check of an emitted event key (internal `@` keys refused): the manager runs it before
+     * the fake records an emit, and the emit action runs it too, so the two never disagree.
+     *
+     * @throws InvalidEventKeyException
+     */
+    public static function assertEventKey(string $event): void
+    {
+        if (str_starts_with($event, '@') || preg_match(self::EVENT_KEY, $event) !== 1) {
+            throw InvalidEventKeyException::key($event);
+        }
+    }
 
     public function key(): string
     {
