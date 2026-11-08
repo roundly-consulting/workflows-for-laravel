@@ -6,6 +6,9 @@ use Carbon\CarbonImmutable;
 use RoundlyConsulting\Workflows\Enums\DurationUnit;
 use RoundlyConsulting\Workflows\Support\Durations;
 
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(Durations::class);
+
 it('parses ISO and structured durations', function (): void {
     expect(Durations::parse('P2D')?->iso)->toBe('P2D')
         ->and(Durations::parse(['amount' => 2, 'unit' => 'business_days'])?->unit)->toBe(DurationUnit::BusinessDays)

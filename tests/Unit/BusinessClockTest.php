@@ -8,6 +8,9 @@ use RoundlyConsulting\Workflows\Contracts\BusinessCalendar;
 use RoundlyConsulting\Workflows\Exceptions\BusinessCalendarNeverOpenException;
 use RoundlyConsulting\Workflows\Support\BusinessClock;
 
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(BusinessClock::class);
+
 function weekdays(string $timezone = 'Europe/Bratislava'): BusinessClock
 {
     return new BusinessClock(new WeekdayCalendar($timezone));

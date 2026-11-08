@@ -11,6 +11,9 @@ use RoundlyConsulting\Workflows\Support\Conditions\Evaluator;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
 use RoundlyConsulting\Workflows\Support\ValueScope;
 
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(Evaluator::class);
+
 /**
  * @param  array<string, mixed>  $condition
  * @param  array<string, mixed>  $input

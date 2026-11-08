@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use RoundlyConsulting\Workflows\Support\Decimals;
 
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(Decimals::class);
+
 // C-17: exact decimal comparisons, no floats, no exponents.
 it('compares decimals exactly', function (mixed $a, mixed $b, ?int $result): void {
     expect(Decimals::compare($a, $b))->toBe($result);

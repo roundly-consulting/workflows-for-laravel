@@ -7,6 +7,9 @@ use RoundlyConsulting\Workflows\Support\Schedule\CronExpression;
 use RoundlyConsulting\Workflows\Support\Schedule\InvalidCronException;
 use RoundlyConsulting\Workflows\Support\Schedule\Presets;
 
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(CronExpression::class);
+
 // C-104: every supported token, the refused ones, the day-of-month / day-of-week OR rule, nextAfter.
 it('matches the documented subset', function (string $expression, string $at, bool $matches): void {
     expect(CronExpression::parse($expression)->matches(CarbonImmutable::parse($at)))->toBe($matches);

@@ -91,7 +91,8 @@
         "format": "vendor/bin/pint",
         "analyse": "vendor/bin/phpstan analyse --no-progress --memory-limit=2G",
         "test": "vendor/bin/pest",
-        "test-coverage": "vendor/bin/pest --coverage --min=95"
+        "test-coverage": "vendor/bin/pest --coverage --min=95",
+        "mutate": "vendor/bin/pest --mutate --parallel --min=85"
     },
     "config": {
         "sort-packages": true,
