@@ -67,6 +67,8 @@ use RoundlyConsulting\Workflows\WorkflowsManager;
  * @method static void assertNotPruned()
  * @method static void assertTouched(\Illuminate\Database\Eloquent\Model|null $subject = null)
  * @method static void assertNotTouched(\Illuminate\Database\Eloquent\Model|null $subject = null)
+ * @method static void assertSynced(string|null $path = null, bool|null $publish = null)
+ * @method static void assertNotSynced()
  * @method static void assertNothingRecorded()
  *
  * @see WorkflowsManager

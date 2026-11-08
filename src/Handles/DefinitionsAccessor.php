@@ -8,10 +8,13 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Actions\Definitions\CreateDefinitionAction;
 use RoundlyConsulting\Workflows\Actions\Definitions\RestoreDefinitionAction;
+use RoundlyConsulting\Workflows\Actions\Definitions\SyncDefinitionsAction;
 use RoundlyConsulting\Workflows\DataTransferObjects\CreateDefinitionData;
+use RoundlyConsulting\Workflows\DataTransferObjects\SyncReport;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Support\Definitions;
+use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 use RoundlyConsulting\Workflows\Testing\StandIns;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
@@ -59,6 +62,24 @@ final readonly class DefinitionsAccessor
     public function all(?Model $owner = null): Collection
     {
         return Definitions::query($owner)->orderBy('key')->get();
+    }
+
+    /**
+     * Create, draft and (with `publish`) publish definitions from `*.json` files in the template
+     * envelope — a directory or one file; unchanged files do nothing, nothing is ever retired.
+     * The path defaults to `workflows.sync.path`.
+     */
+    public function sync(?string $path = null, ?Model $owner = null, bool $publish = false, bool $dryRun = false): SyncReport
+    {
+        $path ??= WorkflowsConfig::syncPath();
+
+        return $this->manager->perform(
+            WorkflowOperation::Sync,
+            SyncDefinitionsAction::class,
+            static fn (SyncDefinitionsAction $action): SyncReport => $action->execute($path, $owner, $publish, $dryRun),
+            static fn (): SyncReport => new SyncReport(dryRun: $dryRun),
+            ['path' => $path, 'owner' => $owner, 'publish' => $publish, 'dry_run' => $dryRun],
+        );
     }
 
     /**

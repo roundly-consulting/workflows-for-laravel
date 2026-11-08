@@ -472,6 +472,17 @@ final class WorkflowsConfig
         return self::reader()->oneOf('workflows.subjects_on_deleted', ['cancel', 'keep'], 'cancel');
     }
 
+    /**
+     * Where `workflows:sync` and `workflows:export` read and write definition files: absolute, or
+     * relative to the app's base path.
+     */
+    public static function syncPath(): string
+    {
+        $path = self::reader()->string('workflows.sync.path', 'resources/workflows');
+
+        return str_starts_with($path, '/') ? $path : base_path($path);
+    }
+
     public static function dryRunLog(): bool
     {
         return self::reader()->boolean('workflows.dry_run.log', false);

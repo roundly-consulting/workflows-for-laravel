@@ -123,6 +123,7 @@ return [
         'wake' => 'Prebudenie',
         'prune' => 'Čistenie',
         'dry_run' => 'Skúšobný beh',
+        'sync' => 'Synchronizácia',
         'rotate_webhook' => 'Obnovenie webhooku',
     ],
     'validation_code' => [
@@ -170,5 +171,13 @@ return [
         'ok' => 'V poriadku',
         'warn' => 'Upozornenie',
         'fail' => 'Chyba',
+    ],
+    'sync_status' => [
+        'created' => 'Vytvorený',
+        'drafted' => 'Uložený koncept',
+        'published' => 'Zverejnený',
+        'unchanged' => 'Bez zmeny',
+        'invalid' => 'Neplatný',
+        'failed' => 'Zlyhal',
     ],
 ];

@@ -332,6 +332,27 @@ final class WorkflowsFake extends WorkflowsManager
     }
 
     /**
+     * @param  string|null  $path  this path (null = any sync)
+     */
+    public function assertSynced(?string $path = null, ?bool $publish = null): void
+    {
+        $syncs = array_filter(
+            $this->recorded(WorkflowOperation::Sync),
+            static fn (RecordedOperation $recorded): bool => ($path === null || ($recorded->context['path'] ?? null) === $path)
+                && ($publish === null || ($recorded->context['publish'] ?? null) === $publish),
+        );
+
+        PHPUnit::assertNotEmpty($syncs, $path === null ? 'Expected definitions to be synced, but sync() was not called.' : sprintf('Expected [%s] to be synced, but it was not.', $path));
+    }
+
+    public function assertNotSynced(): void
+    {
+        $syncs = $this->recorded(WorkflowOperation::Sync);
+
+        PHPUnit::assertEmpty($syncs, sprintf('Expected no sync, but sync() was called %d time(s).', count($syncs)));
+    }
+
+    /**
      * Nothing at all was recorded (dry runs never are).
      */
     public function assertNothingRecorded(): void

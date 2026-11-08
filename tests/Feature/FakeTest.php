@@ -251,6 +251,7 @@ function fakeAssertions(): array
         'assertWoken' => [fn () => Workflows::wake(), fn (WorkflowsFake $f) => $f->assertWoken(times: 1)],
         'assertPruned' => [fn () => Workflows::prune(), fn (WorkflowsFake $f) => $f->assertPruned()],
         'assertTouched' => [fn () => Workflows::for(Document::query()->firstOrFail())->touch(), fn (WorkflowsFake $f) => $f->assertTouched(Document::query()->firstOrFail())],
+        'assertSynced' => [fn () => Workflows::definitions()->sync('/definitions'), fn (WorkflowsFake $f) => $f->assertSynced('/definitions', publish: false)],
     ];
 }
 
@@ -280,6 +281,7 @@ function negativeFakeAssertions(): array
         'assertWoken' => fn (WorkflowsFake $f) => $f->assertNotWoken(),
         'assertPruned' => fn (WorkflowsFake $f) => $f->assertNotPruned(),
         'assertTouched' => fn (WorkflowsFake $f) => $f->assertNotTouched(Document::query()->firstOrFail()),
+        'assertSynced' => fn (WorkflowsFake $f) => $f->assertNotSynced(),
     ];
 }
 
@@ -355,6 +357,7 @@ it('covers every operation with an assertion', function (): void {
         'touch' => ['assertTouched', 'assertNotTouched'],
         'wake' => ['assertWoken', 'assertNotWoken'],
         'prune' => ['assertPruned', 'assertNotPruned'],
+        'sync' => ['assertSynced', 'assertNotSynced'],
     ];
     $operations = array_values(array_diff(WorkflowOperation::values()->all(), ['signal', 'dry_run']));
 

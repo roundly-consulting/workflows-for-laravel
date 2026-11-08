@@ -123,6 +123,7 @@ return [
         'wake' => 'Wake',
         'prune' => 'Prune',
         'dry_run' => 'Dry run',
+        'sync' => 'Sync',
         'rotate_webhook' => 'Rotate webhook',
     ],
     'validation_code' => [
@@ -170,5 +171,13 @@ return [
         'ok' => 'OK',
         'warn' => 'Warning',
         'fail' => 'Failure',
+    ],
+    'sync_status' => [
+        'created' => 'Created',
+        'drafted' => 'Drafted',
+        'published' => 'Published',
+        'unchanged' => 'Unchanged',
+        'invalid' => 'Invalid',
+        'failed' => 'Failed',
     ],
 ];

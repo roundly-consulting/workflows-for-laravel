@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use RoundlyConsulting\Workflows\Actions\Wake\WakeAction;
@@ -319,4 +320,69 @@ it('shows an instance with its step log, waits and escalation', function (): voi
 
 it('shows nothing for an unknown instance and exits 1', function (): void {
     $this->artisan('workflows:show', ['instance' => '01JC9ZZZZZZZZZZZZZZZZZZZZZ'])->expectsOutput('Instance not found.')->assertFailed();
+});
+
+// W-15
+it('exports a version to a file', function (): void {
+    $dir = sys_get_temp_dir().'/workflows-export-'.bin2hex(random_bytes(6));
+    $acme = company();
+    published('flow', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]), $acme);
+
+    $this->artisan('workflows:export', ['key' => 'flow', '--path' => $dir, '--owner-type' => $acme->getMorphClass(), '--owner-id' => (string) $acme->id])
+        ->expectsOutput('Exported to '.$dir.'/flow.json.')
+        ->assertSuccessful();
+
+    $file = json_decode((string) file_get_contents($dir.'/flow.json'), true);
+
+    expect($file['schema'])->toBe('roundly.workflows.template/v1')
+        ->and($file['definition']['key'])->toBe('flow')
+        ->and(array_column($file['graph']['nodes'], 'id'))->toBe(['start', 'done']);
+
+    $this->artisan('workflows:export', ['key' => 'flow', '--number' => 9, '--path' => $dir, '--owner-type' => $acme->getMorphClass(), '--owner-id' => (string) $acme->id])
+        ->expectsOutput('The workflow "flow" has no version 9.')
+        ->assertFailed();
+    $this->artisan('workflows:export', ['key' => 'flow', '--owner-type' => 'nope', '--owner-id' => '1'])->expectsOutput('Owner not found.')->assertFailed();
+
+    // The exported file syncs back into another owner as a no-op the second time.
+    $globex = company('Globex');
+    $this->artisan('workflows:sync', ['path' => $dir, '--owner-type' => $globex->getMorphClass(), '--owner-id' => (string) $globex->id, '--publish' => true])->assertSuccessful();
+    $this->artisan('workflows:sync', ['path' => $dir, '--owner-type' => $globex->getMorphClass(), '--owner-id' => (string) $globex->id, '--publish' => true, '--dry' => true])
+        ->expectsOutputToContain('Dry run')
+        ->assertSuccessful();
+
+    expect(Workflows::definition('flow', $globex)->model()->currentVersion?->number)->toBe(1);
+
+    (new Filesystem)->deleteDirectory($dir);
+});
+
+it('validates a file without a definition', function (): void {
+    $file = sys_get_temp_dir().'/workflows-validate-'.bin2hex(random_bytes(6)).'.json';
+    $template = ['schema' => 'roundly.workflows.template/v1', 'definition' => ['key' => 'x', 'name' => 'X'], 'graph' => graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']])];
+    file_put_contents($file, json_encode($template));
+
+    $this->artisan('workflows:validate', ['--file' => $file])->expectsOutput('Valid.')->assertSuccessful();
+
+    $template['graph']['edges'] = [];
+    file_put_contents($file, json_encode($template));
+
+    $this->artisan('workflows:validate', ['--file' => $file])->assertFailed();
+    $this->artisan('workflows:validate', ['--file' => $file.'.missing'])->expectsOutputToContain('template')->assertFailed();
+    $this->artisan('workflows:validate')->expectsOutput('Name a definition key or pass --file.')->assertFailed();
+
+    unlink($file);
+});
+
+it('syncs from the command and reports files and untracked definitions', function (): void {
+    $dir = sys_get_temp_dir().'/workflows-sync-cmd-'.bin2hex(random_bytes(6));
+    mkdir($dir);
+    published('manual', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]), null, null);
+    file_put_contents($dir.'/bad.json', '{');
+
+    expect(Artisan::call('workflows:sync', ['path' => $dir]))->toBe(1)
+        ->and(Artisan::output())->toContain('bad.json', 'invalid', 'Untracked (no file, left as they are): manual');
+
+    $this->artisan('workflows:sync', ['path' => $dir.'/none'])->expectsOutput('No definition files.')->assertSuccessful();
+    $this->artisan('workflows:sync', ['--owner-type' => 'nope', '--owner-id' => '1'])->expectsOutput('Owner not found.')->assertFailed();
+
+    (new Filesystem)->deleteDirectory($dir);
 });

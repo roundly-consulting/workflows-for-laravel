@@ -206,6 +206,11 @@ return [
     // What happens to running instances when their subject is deleted: cancel | keep.
     'subjects_on_deleted' => 'cancel',
 
+    // Definition files (`workflows:sync` / `workflows:export`): absolute or relative to the base path.
+    'sync' => [
+        'path' => env('WORKFLOWS_SYNC_PATH', 'resources/workflows'),
+    ],
+
     'dry_run' => [
         // Write a workflow_dry_runs row for every dry run (on | off).
         'log' => env('WORKFLOWS_DRY_RUN_LOG', 'off'),
