@@ -149,8 +149,14 @@ final readonly class RecordStepResultAction
         $node = $graph?->node($run->node_id);
 
         if (! $version instanceof WorkflowVersion || $graph === null || $node === null) {
-            $this->failRun($run, StepFailure::permanent(FailureCode::VersionMissing, Messages::get('failures.version_missing')));
-            $this->advancer->fail($instance, FailureCode::VersionMissing, Messages::get('failures.version_missing'), $run->node_id, $after);
+            // The version exists but has no such node: keep the attempt's own failure
+            // (unknown_step_type), never claim the version is gone.
+            $failure = $version instanceof WorkflowVersion && $result instanceof StepFailure
+                ? $result
+                : StepFailure::permanent(FailureCode::VersionMissing, Messages::get('failures.version_missing'));
+
+            $this->failRun($run, $failure);
+            $this->advancer->fail($instance, $failure->code, $failure->message, $run->node_id, $after);
 
             return;
         }
