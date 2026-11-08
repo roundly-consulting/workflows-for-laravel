@@ -2,10 +2,6 @@
 
 declare(strict_types=1);
 
-use RoundlyConsulting\Workflows\Tests\TestCase;
-
-uses(TestCase::class)->in('Arch', 'Feature', 'Unit', 'RealEngine');
-
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Teams\DataTransferObjects\CreateTeamData;
 use RoundlyConsulting\Teams\Facades\Teams;
@@ -17,7 +13,12 @@ use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Models\PurchaseRequest;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Company;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Document;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
+use RoundlyConsulting\Workflows\Tests\Publish\PublishSandboxTestCase;
 use RoundlyConsulting\Workflows\Tests\Sentinel\SentinelTestCase;
+use RoundlyConsulting\Workflows\Tests\TestCase;
+
+uses(TestCase::class)->in('Arch', 'Feature', 'Unit', 'RealEngine');
+uses(PublishSandboxTestCase::class)->in('Publish');
 
 /**
  * A graph document from nodes and edges (`[from, to, outcome?]` tuples).

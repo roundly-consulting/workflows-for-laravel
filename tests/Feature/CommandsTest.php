@@ -145,24 +145,3 @@ it('flags definitions that need a missing calendar or bridge, and event mappings
 
     expect(doctorChecks())->toContain('ok webhooks');
 });
-
-it('refuses to install over existing tables, and publishes into a fresh app', function (): void {
-    $this->artisan('workflows:install')->expectsOutputToContain('already exists')->assertFailed();
-
-    foreach (['definitions', 'versions', 'instances', 'step_runs', 'waits', 'escalations', 'idempotency_keys', 'dry_runs'] as $table) {
-        config()->set('workflows.tables.'.$table, 'fresh_'.$table);
-    }
-
-    $before = [...glob(config_path('*')) ?: [], ...glob(database_path('migrations/*')) ?: []];
-
-    try {
-        $this->artisan('workflows:install')->expectsOutputToContain("Schedule::command('workflows:wake')")->assertSuccessful();
-
-        expect(config_path('workflows.php'))->toBeFile()
-            ->and(glob(database_path('migrations/*_create_workflow_definitions_table.php')))->toHaveCount(1);
-    } finally {
-        foreach (array_diff([...glob(config_path('*')) ?: [], ...glob(database_path('migrations/*')) ?: []], $before) as $file) {
-            @unlink($file);
-        }
-    }
-});
