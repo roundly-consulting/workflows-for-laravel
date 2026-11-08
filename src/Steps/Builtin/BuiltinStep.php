@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Steps\Builtin;
 
-use RoundlyConsulting\Workflows\Steps\StepContext;
 use RoundlyConsulting\Workflows\Steps\StepType;
 use RoundlyConsulting\Workflows\Support\Messages;
 
@@ -28,13 +27,5 @@ abstract class BuiltinStep extends StepType
     public function category(): string
     {
         return 'flow';
-    }
-
-    /**
-     * The ability the authorization hook checks before this step (the type's own by default).
-     */
-    public function abilityFor(StepContext $context): ?string
-    {
-        return $this->ability();
     }
 }

@@ -6,6 +6,8 @@ use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\ExpectationFailedException;
 use RoundlyConsulting\Workflows\DataTransferObjects\CreateDefinitionData;
 use RoundlyConsulting\Workflows\DataTransferObjects\ImportResult;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
+use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\WaitKind;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Facades\Workflows;
@@ -14,8 +16,14 @@ use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
 use RoundlyConsulting\Workflows\Models\WorkflowWait;
+use RoundlyConsulting\Workflows\Steps\StepContext;
+use RoundlyConsulting\Workflows\Steps\StepResult;
+use RoundlyConsulting\Workflows\Support\StepCatalogue;
+use RoundlyConsulting\Workflows\Testing\ScriptedStepType;
 use RoundlyConsulting\Workflows\Testing\WorkflowsFake;
+use RoundlyConsulting\Workflows\Tests\Fixtures\App\FixtureServiceProvider;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Document;
+use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Task;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
 function fakeFlow(): array
@@ -366,4 +374,92 @@ it('builds graphs under the fake', function (): void {
 
     expect($graph->validate()->valid())->toBeTrue();
     $fake->assertNothingRecorded();
+});
+
+// W-14
+it('scripts an outcome for a registered step type', function (): void {
+    published('flow', graph([node('start', 'trigger', ['trigger' => 'manual']), node('task', 'acme.create_task', ['title' => 'Order']), node('done', 'end')], [['start', 'task'], ['task', 'done']]), null, null);
+    $this->fakeStep('acme.create_task', static fn (StepContext $context): StepResult => StepResult::complete(output: ['task_id' => 7]));
+
+    $instance = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
+
+    expect($instance->refresh()->status)->toBe(InstanceStatus::Completed)
+        ->and(Task::query()->count())->toBe(0)
+        ->and(Workflows::instances()->steps($instance)->firstWhere('node_id', 'task')?->output)->toBe(['task_id' => 7]);
+
+    $this->assertStepRan('acme.create_task', times: 1, where: static fn (StepContext $context): bool => $context->config()['title'] === 'Order');
+});
+
+it('scripts an unregistered bridged type with declared outcomes', function (bool $queued): void {
+    if ($queued) {
+        config()->set('workflows.queue.enabled', 'on');
+        config()->set('queue.default', 'database');
+    }
+
+    $this->fakeStep('approval', 'rejected', outcomes: ['approved', 'rejected', 'expired']);
+    published('flow', graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('approve', 'approval', ['approvers' => [['kind' => 'role', 'role' => 'legal']], 'rule' => 'any']),
+        node('yes', 'end'),
+        node('no', 'end', ['status' => 'failed', 'reason' => 'Rejected']),
+    ], [['start', 'approve'], ['approve', 'yes', 'approved'], ['approve', 'no', 'rejected'], ['approve', 'no', 'expired']]), null, null);
+
+    $instance = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
+    $this->runWorkflows();
+
+    expect($instance->refresh()->path())->toBe(['start', 'approve', 'no'])
+        ->and($instance->failure())->toBe(FailureCode::EndedByGraph);
+
+    $this->assertStepRan('approval', times: 1);
+})->with(['inline' => [false], 'queued' => [true]]);
+
+it('still authorizes a scripted side-effect step', function (): void {
+    FixtureServiceProvider::$allow = false;
+    $this->fakeStep('acme.create_task', 'next');
+    published('flow', graph([node('start', 'trigger', ['trigger' => 'manual']), node('task', 'acme.create_task', ['title' => 'x']), node('done', 'end')], [['start', 'task'], ['task', 'done']]), null, null);
+
+    expect(Workflows::start('flow')->dispatch()->instance)->toHaveFailedWith('authorization_denied');
+
+    $this->assertStepNotRan('acme.create_task');
+});
+
+it('restores the real step type after the test', function (): void {
+    $original = app(StepCatalogue::class)->find('acme.create_task');
+    $this->fakeStep('acme.create_task', 'next');
+    $this->fakeStep('acme.create_task', 'next');
+    $this->fakeStep('acme.unknown', 'next', outcomes: ['next']);
+
+    expect(app(StepCatalogue::class)->find('acme.create_task'))->toBeInstanceOf(ScriptedStepType::class)
+        ->and(app(StepCatalogue::class)->find('acme.create_task'))->not->toBe($original)
+        ->and(fn () => $this->fakeStep('acme.nothing', 'next'))->toThrow(LogicException::class, 'pass the outcomes');
+
+    $this->callBeforeApplicationDestroyedCallbacks();
+
+    expect(app(StepCatalogue::class)->find('acme.create_task'))->toBe($original)
+        ->and(app(StepCatalogue::class)->find('acme.unknown'))->toBeNull();
+});
+
+it('asserts step runs with a where clause', function (): void {
+    published('flow', graph([node('start', 'trigger', ['trigger' => 'manual']), node('task', 'acme.create_task', ['title' => 'Order']), node('done', 'end')], [['start', 'task'], ['task', 'done']]), null, null);
+    $this->fakeStep('acme.create_task', StepResult::complete());
+
+    $this->assertStepNotRan('acme.create_task');
+    expect(fn () => $this->assertStepRan('acme.create_task'))->toThrow(ExpectationFailedException::class);
+
+    Workflows::start('flow')->dispatch();
+
+    $this->assertStepRan('acme.create_task');
+    expect(fn () => $this->assertStepRan('acme.create_task', where: static fn (StepContext $context): bool => $context->config()['title'] === 'Other'))->toThrow(ExpectationFailedException::class)
+        ->and(fn () => $this->assertStepRan('acme.create_task', times: 2))->toThrow(ExpectationFailedException::class, 'ran 1 time(s)')
+        ->and(fn () => $this->assertStepNotRan('acme.create_task'))->toThrow(ExpectationFailedException::class);
+
+    $type = app(StepCatalogue::class)->find('acme.create_task') ?? throw new LogicException;
+
+    expect($type->label())->toBe('Create task')
+        ->and($type->category())->toBe('custom')
+        ->and($type->description())->toBeNull()
+        ->and($type->hasSideEffects())->toBeTrue()
+        ->and($type->ability())->toBe('createTask')
+        ->and($type->supportsEscalations())->toBeFalse()
+        ->and($type->ownerSpecificPaths())->toBe([]);
 });

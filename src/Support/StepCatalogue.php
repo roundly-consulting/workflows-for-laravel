@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Support;
 
+use Closure;
 use Illuminate\Contracts\Container\Container;
 use RoundlyConsulting\Workflows\Bridges\Approvals\ApprovalStep;
 use RoundlyConsulting\Workflows\Bridges\Notifications\NotifyStep;
@@ -98,6 +99,29 @@ final class StepCatalogue
     public function get(string $key): StepType
     {
         return $this->find($key) ?? throw UnknownStepTypeException::key($key, array_keys($this->types), $this->missingAdapter($key));
+    }
+
+    /**
+     * Put a type in place of the one under its key (or of none) and hand back the undo — the
+     * testing helpers' step fakes use it.
+     *
+     * @internal
+     *
+     * @return Closure(): void
+     */
+    public function swap(string $key, StepType $type): Closure
+    {
+        $this->load();
+        $original = $this->types[$key] ?? null;
+        $this->types[$key] = $type;
+
+        return function () use ($key, $original): void {
+            if ($original === null) {
+                unset($this->types[$key]);
+            } else {
+                $this->types[$key] = $original;
+            }
+        };
     }
 
     public function has(string $key): bool

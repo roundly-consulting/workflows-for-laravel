@@ -12,7 +12,6 @@ use RoundlyConsulting\Workflows\Graph\Graph;
 use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
-use RoundlyConsulting\Workflows\Steps\Builtin\BuiltinStep;
 use RoundlyConsulting\Workflows\Steps\StepContext;
 use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Steps\StepType;
@@ -91,7 +90,7 @@ final readonly class Attempts
 
         if ($type->hasSideEffects()) {
             try {
-                $ability = $type instanceof BuiltinStep ? $type->abilityFor($context) : $type->ability();
+                $ability = $type->abilityFor($context);
                 $this->authorization->check($context->actor(), $ability, $subject, $node, $instance);
             } catch (Throwable $exception) {
                 return [$this->exceptions->map($exception), null];

@@ -80,6 +80,15 @@ abstract class StepType
         return null;
     }
 
+    /**
+     * The ability the authorization hook checks before this step runs, when it has side effects
+     * (the type's own `ability()` unless a step decides per run, as set_field does).
+     */
+    public function abilityFor(StepContext $context): ?string
+    {
+        return $this->ability();
+    }
+
     public function retry(): ?RetryPolicy
     {
         return null;
