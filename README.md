@@ -1,3 +1,11 @@
+<!-- roundly-hero:start -->
+<p align="center">
+  <a href="https://roundly-consulting.com/open-source/docs/workflows-for-laravel?utm_source=github&utm_medium=readme&utm_campaign=open-source&utm_content=workflows-for-laravel">
+    <img src="art/hero.png" alt="Workflows for Laravel — Roundly open source" width="100%">
+  </a>
+</p>
+<!-- roundly-hero:end -->
+
 <!-- roundly-badges:start -->
 <p align="center">
   <a href="https://packagist.org/packages/roundly-consulting/workflows-for-laravel"><img src="https://img.shields.io/packagist/v/roundly-consulting/workflows-for-laravel?style=flat-square&label=release" alt="Latest release"></a>
