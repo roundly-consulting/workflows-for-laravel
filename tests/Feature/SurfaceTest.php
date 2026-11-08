@@ -113,7 +113,14 @@ it('reads history, starts and dry runs through the definition handle', function 
         ->and($document->workflows()->emit('doc.nothing')->started)->toBe([])
         ->and(Workflows::instances()->wake()->timers)->toBe(0)
         ->and(Workflows::instances()->prune()->instances)->toBe(0)
-        ->and(Workflows::instances()->find('nope'))->toBeNull();
+        ->and(Workflows::instances()->find('nope'))->toBeNull()
+        ->and(Workflows::instances()->find('01J00000000000000000000000'))->toBeNull()
+        ->and(Workflows::instances()->find(999999))->toBeNull();
+
+    $first = WorkflowInstance::query()->firstOrFail();
+
+    expect(Workflows::instances()->find(strtolower($first->ulid))?->is($first))->toBeTrue()
+        ->and(Workflows::instances()->find((string) $first->id)?->is($first))->toBeTrue();
 
     expect(fn () => Workflows::definition('flow')->dryRun(99))->toThrow(NothingToPublishException::class);
 });

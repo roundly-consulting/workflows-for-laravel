@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Handles;
 
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
+use RoundlyConsulting\PackageToolkit\Enums\KeyType;
 use RoundlyConsulting\Workflows\Actions\Instances\CancelInstanceAction;
 use RoundlyConsulting\Workflows\Actions\Instances\RetryInstanceAction;
 use RoundlyConsulting\Workflows\DataTransferObjects\PruneReport;
@@ -31,9 +33,23 @@ final readonly class InstancesAccessor
     public function find(int|string $id): ?WorkflowInstance
     {
         $model = WorkflowModels::instance();
-        $instance = is_string($id) && strlen($id) === 26 && ! ctype_digit($id)
-            ? $model::query()->where('ulid', strtoupper($id))->first()
-            : $model::query()->find($id);
+
+        if (is_string($id) && Str::isUlid($id)) {
+            $instance = $model::query()->where('ulid', strtoupper($id))->first();
+
+            if ($instance instanceof WorkflowInstance) {
+                return $instance;
+            }
+        }
+
+        // Never hand the database a value its key column cannot hold (PostgreSQL refuses it).
+        $valid = match ((new $model)->configuredKeyType()) {
+            KeyType::BigInt => is_int($id) || ctype_digit($id),
+            KeyType::Uuid => is_string($id) && Str::isUuid($id),
+            KeyType::Ulid => is_string($id) && Str::isUlid($id),
+        };
+
+        $instance = $valid ? $model::query()->find($id) : null;
 
         return $instance instanceof WorkflowInstance ? $instance : null;
     }
