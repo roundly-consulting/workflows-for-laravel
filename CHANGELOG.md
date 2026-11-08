@@ -6,6 +6,8 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 
 ## Unreleased
 
+## 1.1.0 - 2026-11-08
+
 ### Changed
 
 - A manual retry (`Workflows::instances()->retry()`, `workflows:retry`) of a step whose `resume()` failed now resumes it again with the signal it received and the state it waited with, like the automatic retry already did — the event that already arrived is not waited for again. A step whose `handle()` failed still runs `handle()` again.
