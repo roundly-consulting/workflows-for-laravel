@@ -195,3 +195,33 @@ it('enforces the condition depth and clause limits', function (): void {
         ->and(conditionErrors(['all' => [clause('subject.amount', 'gt', '1'), clause('subject.amount', 'gt', '1'), clause('subject.amount', 'gt', '1')]]))->toContain('condition_too_complex')
         ->and(conditionErrors(['all' => [clause('subject.amount', 'gt', '1')]]))->toBe([]);
 });
+
+it('handles the edge shapes of each operator', function (array $condition, array $input, bool $expected): void {
+    $requester = user('Rita');
+    $document = document(null, ['requester_id' => $requester->id, 'due_on' => '2026-11-12 08:00:00']);
+
+    expect(holds($condition, $document, ['urgent' => true, 'note' => 'hello', ...$input], starter: $requester))->toBe($expected);
+})->with([
+    'list contains' => [clause('input.tags', 'contains', 'b'), ['tags' => ['a', 'b']], true],
+    'list lacks' => [clause('input.tags', 'contains', 'z'), ['tags' => ['a', 'b']], false],
+    'contains empty needle' => [clause('input.note', 'contains', ''), [], false],
+    'between malformed' => [clause('input.count', 'between', ['1']), ['count' => 5], false],
+    'in malformed' => [clause('input.count', 'in', 'x'), ['count' => 5], false],
+    'party not a model' => [clause('input.note', 'equals', ['kind' => 'triggered_by']), [], false],
+    'date bad literal' => [clause('subject.due_on', 'after', 'someday'), [], false],
+    'date iso literal' => [clause('subject.due_on', 'before', '2026-11-13T09:00:00+00:00'), [], true],
+    'bool vs string' => [clause('input.flag', 'equals', 'yes'), ['flag' => true], false],
+    'scalar vs list' => [clause('input.note', 'equals', ['a']), [], false],
+    'string ordering' => [clause('input.code', 'gt', 'a'), ['code' => 'b'], true],
+    'all with junk' => [['all' => 'nope'], [], true],
+    'any with junk' => [['any' => ['nope']], [], false],
+    'not of junk' => [['not' => 'nope'], [], false],
+]);
+
+it('compares a party with a stored key', function (): void {
+    $requester = user('Rita');
+    $document = document(null, ['requester_id' => $requester->id]);
+
+    expect(holds(clause('subject.requester', 'equals', (string) $requester->id), $document))->toBeTrue()
+        ->and(holds(clause('subject.requester', 'equals', $requester->id + 1000), $document))->toBeFalse();
+});
