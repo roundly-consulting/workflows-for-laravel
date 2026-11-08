@@ -75,6 +75,10 @@
         "roundly-consulting/teams-for-laravel": "Team owners: context restored in every queued step, team roles as approvers.",
         "roundly-consulting/webhooks-for-laravel": "Signed inbound webhooks that start workflows, and outbound webhook steps (bridge lands once the package is released)."
     },
+    "conflict": {
+        "roundly-consulting/approvals-for-laravel": "<2.1",
+        "roundly-consulting/opening-hours-for-laravel": "<2.1"
+    },
     "autoload": {
         "psr-4": {
             "RoundlyConsulting\\Workflows\\": "src",
