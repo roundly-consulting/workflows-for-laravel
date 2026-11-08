@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * A Laravel event that maps itself to a trigger key, instead of a `workflows.events` entry.
- * Listed in `workflows.events` (as `Event::class => '*'`) or registered through
- * `Workflows::triggers()->listen()`, it emits after the host's transaction commits.
+ * Listed in `workflows.events` (as `Event::class => '*'`) or registered with
+ * `Workflows::triggers()->listen(Event::class)`, it emits after the host's transaction commits.
  */
 interface WorkflowEvent
 {

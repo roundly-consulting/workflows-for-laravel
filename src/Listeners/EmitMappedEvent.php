@@ -7,7 +7,10 @@ namespace RoundlyConsulting\Workflows\Listeners;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Contracts\WorkflowEvent;
-use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
+use RoundlyConsulting\Workflows\DataTransferObjects\EventMapping;
+use RoundlyConsulting\Workflows\Graph\GraphParser;
+use RoundlyConsulting\Workflows\Support\EventMappings;
+use RoundlyConsulting\Workflows\Support\Values;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
@@ -19,6 +22,7 @@ final readonly class EmitMappedEvent implements ShouldHandleEventsAfterCommit
 {
     public function __construct(
         private WorkflowsManager $workflows,
+        private EventMappings $mappings,
     ) {}
 
     public function handle(object $event): void
@@ -29,9 +33,9 @@ final readonly class EmitMappedEvent implements ShouldHandleEventsAfterCommit
             return;
         }
 
-        $mapping = WorkflowsConfig::events()[$event::class] ?? null;
+        $mapping = $this->mappings->find($event::class);
 
-        if ($mapping === null) {
+        if ($mapping === null || $mapping->selfDescribing()) {
             return;
         }
 
@@ -41,9 +45,42 @@ final readonly class EmitMappedEvent implements ShouldHandleEventsAfterCommit
         $this->workflows->emit(
             $mapping->key,
             $subject instanceof Model ? $subject : null,
-            [],
-            null,
+            $this->payload($event, $mapping),
+            $this->idempotencyKey($event, $mapping),
             $user instanceof Model ? $user : null,
         );
+    }
+
+    /**
+     * The listed public properties, or what the named method returns; models become `{id, type}`.
+     *
+     * @return array<string, mixed>
+     */
+    private function payload(object $event, EventMapping $mapping): array
+    {
+        if (is_string($mapping->payload)) {
+            $values = method_exists($event, $mapping->payload) ? $event->{$mapping->payload}() : null;
+
+            return is_array($values) ? GraphParser::stringKeyed(array_map(Values::plain(...), $values)) : [];
+        }
+
+        $payload = [];
+
+        foreach ($mapping->payload ?? [] as $property) {
+            $payload[$property] = Values::plain($event->{$property} ?? null);
+        }
+
+        return $payload;
+    }
+
+    private function idempotencyKey(object $event, EventMapping $mapping): ?string
+    {
+        $value = $mapping->idempotencyKey === null ? null : ($event->{$mapping->idempotencyKey} ?? null);
+
+        if ($value instanceof Model) {
+            $value = $value->getKey();
+        }
+
+        return is_int($value) || (is_string($value) && $value !== '') ? $mapping->key.':'.$value : null;
     }
 }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows;
 
 use Illuminate\Contracts\Auth\Access\Gate;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use RoundlyConsulting\PackageToolkit\Concerns\RegistersBlueprintMacros;
 use RoundlyConsulting\PackageToolkit\Package;
@@ -24,12 +23,12 @@ use RoundlyConsulting\Workflows\Commands\WakeCommand;
 use RoundlyConsulting\Workflows\Contracts\AuthorizesSteps;
 use RoundlyConsulting\Workflows\Contracts\ChecksOwnerMembership;
 use RoundlyConsulting\Workflows\Contracts\RestoresOwnerContext;
-use RoundlyConsulting\Workflows\Listeners\EmitMappedEvent;
 use RoundlyConsulting\Workflows\Support\AllowMembership;
 use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Support\Engine\ExceptionMap;
 use RoundlyConsulting\Workflows\Support\Engine\SyncRunner;
 use RoundlyConsulting\Workflows\Support\EscalationActions;
+use RoundlyConsulting\Workflows\Support\EventMappings;
 use RoundlyConsulting\Workflows\Support\GateStepAuthorizer;
 use RoundlyConsulting\Workflows\Support\NullOwnerContext;
 use RoundlyConsulting\Workflows\Support\Owners;
@@ -87,6 +86,7 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
         $this->app->singleton(EscalationActions::class);
         $this->app->singleton(ExceptionMap::class);
         $this->app->singleton(TriggerForms::class);
+        $this->app->singleton(EventMappings::class);
         $this->app->singleton(SyncRunner::class);
 
         $this->app->bind(AuthorizesSteps::class, static function (Application $app): AuthorizesSteps {
@@ -125,10 +125,10 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
         $this->app->booted(function (Application $app): void {
             ApprovalsBridge::register($app);
 
-            $events = $app->make(Dispatcher::class);
+            $mappings = $app->make(EventMappings::class);
 
             foreach (array_keys(WorkflowsConfig::events()) as $class) {
-                $events->listen($class, [EmitMappedEvent::class, 'handle']);
+                $mappings->wire($class);
             }
         });
     }

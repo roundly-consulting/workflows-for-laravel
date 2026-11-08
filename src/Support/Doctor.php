@@ -32,6 +32,7 @@ final readonly class Doctor
         private CalendarRegistry $calendars,
         private Repository $cache,
         private ConfigRepository $config,
+        private EventMappings $mappings,
     ) {}
 
     /**
@@ -176,7 +177,7 @@ final readonly class Doctor
             }
 
             if ($version->actor_mode === ActorMode::OnBehalfOf && $version->trigger_type === TriggerType::Event) {
-                foreach (WorkflowsConfig::events() as $class => $mapping) {
+                foreach ($this->mappings->all() as $class => $mapping) {
                     // A self-describing event names its own user.
                     if (! $mapping->selfDescribing() && $mapping->key === $version->trigger_key && $mapping->user === null) {
                         $findings[] = new DoctorFinding('warn', 'events', sprintf('[%s] runs on behalf of a user, but %s maps no user.', $definition->key, class_basename($class)));
@@ -195,7 +196,11 @@ final readonly class Doctor
     {
         $findings = [];
 
-        foreach (WorkflowsConfig::events() as $class => $mapping) {
+        foreach ($this->mappings->duplicates() as $class) {
+            $findings[] = new DoctorFinding('warn', 'events', sprintf('%s is mapped more than once: the last mapping wins.', class_basename($class)));
+        }
+
+        foreach ($this->mappings->all() as $class => $mapping) {
             if (! class_exists($class)) {
                 $findings[] = new DoctorFinding('fail', 'events', sprintf('%s does not exist.', class_basename($class)));
 
