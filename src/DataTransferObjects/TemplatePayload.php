@@ -15,7 +15,7 @@ final readonly class TemplatePayload
 
     /**
      * @param  array<string, mixed>  $graph
-     * @param  list<array{node: string, path: string, reason: string}>  $review
+     * @param  list<ReviewFlag>  $review
      */
     public function __construct(
         public string $key,
@@ -42,7 +42,7 @@ final readonly class TemplatePayload
                 'description' => $this->description,
             ],
             'graph' => $this->graph,
-            'review' => $this->review,
+            'review' => array_map(static fn (ReviewFlag $flag): array => $flag->toArray(), $this->review),
             'exported_at' => $this->exportedAt,
             'source' => ['checksum' => $this->checksum],
         ];

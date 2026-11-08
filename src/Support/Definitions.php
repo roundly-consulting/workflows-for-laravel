@@ -27,6 +27,19 @@ final class Definitions
         return $definition instanceof WorkflowDefinition ? $definition : throw UnknownDefinitionException::key($key);
     }
 
+    /**
+     * The scope a subject's start looks in: its owner's definition, else the app-wide one (the
+     * owner's wins on a key clash). Returns the owner, or null for app-wide.
+     */
+    public static function scopeFor(string $key, ?Model $owner): ?Model
+    {
+        if ($owner === null || self::exists($key, $owner)) {
+            return $owner;
+        }
+
+        return self::exists($key, null) ? null : $owner;
+    }
+
     public static function exists(string $key, ?Model $owner): bool
     {
         return self::query($owner)->where('key', $key)->exists();

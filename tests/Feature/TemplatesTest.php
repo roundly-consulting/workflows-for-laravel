@@ -2,27 +2,12 @@
 
 declare(strict_types=1);
 
+use RoundlyConsulting\Workflows\DataTransferObjects\ReviewFlag;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Exceptions\InvalidGraphException;
 use RoundlyConsulting\Workflows\Exceptions\InvalidTemplateException;
-use RoundlyConsulting\Workflows\Exceptions\NothingToPublishException;
+use RoundlyConsulting\Workflows\Exceptions\NoVersionException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
-
-function reviewGraph(int $reviewer): array
-{
-    return graph([
-        node('start', 'trigger', ['trigger' => 'manual']),
-        node('task', 'acme.create_task', ['title' => 'Prepare']),
-        node('review', 'acme.review', ['reviewer' => $reviewer, 'after' => 'task']),
-        node('check', 'condition', ['when' => ['field' => 'steps.task.output.task_id', 'op' => 'gt', 'value' => 0]]),
-        node('child', 'start_workflow', ['definition' => 'helper', 'wait' => false]),
-        node('later', 'delay', ['for' => ['amount' => 1, 'unit' => 'business_days', 'calendar' => 'weekdays']]),
-        node('done', 'end'),
-    ], [
-        ['start', 'task'], ['task', 'review'], ['review', 'check', 'approved'], ['review', 'done', 'rejected'], ['review', 'done', 'expired'],
-        ['check', 'child', 'true'], ['check', 'done', 'false'], ['child', 'later', 'started'], ['later', 'done'],
-    ]);
-}
 
 // C-92
 it('remaps every node id and rewrites references through the map', function (): void {
@@ -54,7 +39,7 @@ it('clears and flags owner-specific values, and blocks publish until they are re
 
     $template = Workflows::definition('review', $acme)->export();
 
-    expect($template->review)->toBe([['node' => 'review', 'path' => '/config/reviewer', 'reason' => 'owner_specific']])
+    expect($template->toArray()['review'])->toBe([['node' => 'review', 'path' => '/config/reviewer', 'reason' => 'owner_specific']])
         ->and($template->toArray())->not->toHaveKey('owner')
         ->and(json_encode($template->toArray()))->not->toContain('\\\\');
 
@@ -119,6 +104,22 @@ it('exports a chosen version and refuses one that does not exist', function (): 
     published('flow', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]));
 
     expect(Workflows::definition('flow')->export(1)->key)->toBe('flow')
-        ->and(fn () => Workflows::definition('flow')->export(5))->toThrow(NothingToPublishException::class)
+        ->and(fn () => Workflows::definition('flow')->export(5))->toThrow(NoVersionException::class)
         ->and(Workflows::schema()->template()['properties']['schema']['const'])->toBe('roundly.workflows.template/v1');
+});
+
+// W-04
+it('carries review flags as ReviewFlag objects', function (): void {
+    $acme = company('Acme');
+    published('helper', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]), $acme);
+    published('review', reviewGraph(7), $acme);
+
+    $template = Workflows::definition('review', $acme)->export();
+    $imported = Workflows::versions()->import($template, company('Globex'));
+
+    expect($template->review)->toHaveCount(1)->each->toBeInstanceOf(ReviewFlag::class)
+        ->and($template->review[0]->is('review', '/config/reviewer'))->toBeTrue()
+        ->and($imported->version->reviewFlags())->each->toBeInstanceOf(ReviewFlag::class)
+        ->and(ReviewFlag::fromArray(['node' => 1]))->toBeNull()
+        ->and(ReviewFlag::fromArray(['node' => 'a', 'path' => '/x'])?->reason)->toBe('owner_specific');
 });

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Steps;
 
+use RoundlyConsulting\Workflows\DataTransferObjects\SideEffect;
+
 /**
  * What a handler returns: complete with an outcome (and plain-JSON output), wait, or fail for
  * good. In a dry run, `wouldDo()` describes the side effect a real run would have.
@@ -18,7 +20,7 @@ final readonly class StepResult
 
     /**
      * @param  array<string, mixed>  $output
-     * @param  list<array{description: string, details: array<string, mixed>}>  $wouldDo
+     * @param  list<SideEffect>  $wouldDo
      */
     private function __construct(
         public string $kind,
@@ -58,7 +60,7 @@ final readonly class StepResult
     {
         return new self($this->kind, $this->outcome, $this->output, $this->wait, $this->failureCode, $this->failureMessage, [
             ...$this->wouldDo,
-            ['description' => $description, 'details' => $details],
+            new SideEffect($description, $details),
         ]);
     }
 

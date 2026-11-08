@@ -35,11 +35,11 @@ final readonly class EmitMappedEvent implements ShouldHandleEventsAfterCommit
             return;
         }
 
-        $subject = $mapping['subject'] === null ? null : ($event->{$mapping['subject']} ?? null);
-        $user = $mapping['user'] === null ? null : ($event->{$mapping['user']} ?? null);
+        $subject = $mapping->subject === null ? null : ($event->{$mapping->subject} ?? null);
+        $user = $mapping->user === null ? null : ($event->{$mapping->user} ?? null);
 
         $this->workflows->emit(
-            $mapping['key'],
+            $mapping->key,
             $subject instanceof Model ? $subject : null,
             [],
             null,

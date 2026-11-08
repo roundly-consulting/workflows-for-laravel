@@ -27,6 +27,14 @@ final readonly class DryRunResult
     ) {}
 
     /**
+     * A result for a walk that never ran.
+     */
+    public static function empty(): self
+    {
+        return new self(false, false, [], [], null, 'invalid', new ValidationReport);
+    }
+
+    /**
      * @return list<string>
      */
     public function nodes(): array

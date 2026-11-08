@@ -5,6 +5,7 @@ declare(strict_types=1);
 use RoundlyConsulting\Workflows\Exceptions\DuplicateStepTypeException;
 use RoundlyConsulting\Workflows\Exceptions\InvalidStepTypeException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Steps\Outcome;
 use RoundlyConsulting\Workflows\Steps\StepContext;
 use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Steps\StepType;
@@ -76,7 +77,7 @@ it('exports every type with its schema, outcomes and availability for a builder'
     $condition = $export->find('condition');
     $transition = $export->find('transition');
 
-    expect($condition?->outcomes)->toBe([
+    expect($condition?->toArray()['outcomes'])->toBe([
         ['key' => 'true', 'label' => 'True', 'required' => true],
         ['key' => 'false', 'label' => 'False', 'required' => true],
     ])->and($condition?->configSchema['required'])->toBe(['when'])
@@ -85,4 +86,12 @@ it('exports every type with its schema, outcomes and availability for a builder'
         ->and($export->definitions)->toHaveKeys(['value', 'party', 'parties', 'duration', 'condition', 'field'])
         ->and($export->find('nope'))->toBeNull()
         ->and($export->toArray()['types'])->not->toBeEmpty();
+});
+
+// W-04
+it('exposes outcomes as Outcome objects', function (): void {
+    $outcomes = Workflows::catalogue()->export()->find('condition')?->outcomes ?? [];
+
+    expect($outcomes)->toHaveCount(2)->each->toBeInstanceOf(Outcome::class)
+        ->and(array_map(static fn (Outcome $outcome): string => $outcome->key, $outcomes))->toBe(['true', 'false']);
 });

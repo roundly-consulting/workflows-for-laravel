@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Actions\Versions;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Calendars\CalendarRegistry;
 use RoundlyConsulting\Workflows\DataTransferObjects\EdgeReference;
+use RoundlyConsulting\Workflows\DataTransferObjects\ReviewFlag;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationReport;
 use RoundlyConsulting\Workflows\Enums\Severity;
@@ -52,7 +53,7 @@ final readonly class ValidateGraphAction
 
     /**
      * @param  array<array-key, mixed>  $graph
-     * @param  list<array{node: string, path: string, reason: string}>  $reviewFlags
+     * @param  list<ReviewFlag>  $reviewFlags
      */
     public function execute(array $graph, ?string $subjectType = null, ?Model $owner = null, array $reviewFlags = [], ?string $definitionKey = null): ValidationReport
     {
@@ -136,7 +137,7 @@ final readonly class ValidateGraphAction
         }
 
         foreach ($reviewFlags as $flag) {
-            $errors[] = ValidationError::make(ValidationCode::UnresolvedImportReference, node: $flag['node'], path: $flag['path'], params: ['reason' => $flag['reason']]);
+            $errors[] = ValidationError::make(ValidationCode::UnresolvedImportReference, node: $flag->node, path: $flag->path, params: ['reason' => $flag->reason]);
         }
 
         return new ValidationReport($errors);

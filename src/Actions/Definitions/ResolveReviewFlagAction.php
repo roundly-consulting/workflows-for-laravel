@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Actions\Definitions;
 
+use RoundlyConsulting\Workflows\DataTransferObjects\ReviewFlag;
 use RoundlyConsulting\Workflows\Exceptions\NothingToPublishException;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
@@ -19,11 +20,11 @@ final readonly class ResolveReviewFlagAction
         $draft = Drafts::find($definition) ?? throw NothingToPublishException::key($definition->key);
 
         $flags = array_values(array_filter(
-            $draft->review_flags ?? [],
-            static fn (array $flag): bool => ! ($flag['node'] === $node && $flag['path'] === $path),
+            $draft->reviewFlags(),
+            static fn (ReviewFlag $flag): bool => ! $flag->is($node, $path),
         ));
 
-        $draft->review_flags = $flags === [] ? null : $flags;
+        $draft->setReviewFlags($flags);
         $draft->save();
 
         return $draft;

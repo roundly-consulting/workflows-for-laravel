@@ -6,6 +6,7 @@ namespace RoundlyConsulting\Workflows\Commands;
 
 use Illuminate\Console\Command;
 use RoundlyConsulting\Workflows\DataTransferObjects\CatalogueEntry;
+use RoundlyConsulting\Workflows\Steps\Outcome;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
@@ -25,7 +26,7 @@ final class CatalogueCommand extends Command
                 $entry->key,
                 $entry->label,
                 $entry->sideEffects ? 'yes' : 'no',
-                implode(', ', array_map(static fn (array $outcome): string => $outcome['key'], $entry->outcomes)),
+                implode(', ', array_map(static fn (Outcome $outcome): string => $outcome->key, $entry->outcomes)),
                 $entry->package ?? '—',
                 $entry->available ? 'yes' : 'no',
             ], $workflows->catalogue()->export()->types),

@@ -22,6 +22,6 @@ Initial public release.
 - Owners and teams: per-owner definitions, owner-scoped instances run in the owner's context, role and membership checks.
 - Bridges, each optional: approvals, lifecycle, notifications, opening hours, forms and teams.
 - HTTP resources with swappable owner, subject and user reference resources — no class names over the wire.
-- `Workflows` facade, injectable `WorkflowsManager`, actions, and a record-only `Workflows::fake()` with assertions and Pest expectations.
+- `Workflows` facade, injectable `WorkflowsManager`, actions, and a record-only `Workflows::fake()`: non-null return types throughout, faked mutations return unsaved stand-ins, and every recorded operation has an assertion and its negative (`assertCreated`, `assertEdited`, `assertPublished`, `assertWebhookRotated`, `assertTouched($subject)`, `assertNothingRecorded`, …), plus Pest expectations.
 - Commands: `workflows:install`, `wake`, `prune`, `catalogue`, `validate`, `retry`, `cancel` and `doctor`.
 - English and Slovak translations.

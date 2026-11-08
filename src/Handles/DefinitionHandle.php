@@ -23,6 +23,7 @@ use RoundlyConsulting\Workflows\DataTransferObjects\ValidationReport;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Exceptions\NothingToPublishException;
+use RoundlyConsulting\Workflows\Exceptions\NoVersionException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownDefinitionException;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
@@ -31,6 +32,7 @@ use RoundlyConsulting\Workflows\Support\Definitions;
 use RoundlyConsulting\Workflows\Support\Drafts;
 use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
+use RoundlyConsulting\Workflows\Testing\StandIns;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
@@ -65,7 +67,7 @@ final readonly class DefinitionHandle
      *
      * @param  array<string, mixed>  $graph
      */
-    public function edit(array $graph, ?string $expectedChecksum = null): ?WorkflowVersion
+    public function edit(array $graph, ?string $expectedChecksum = null): WorkflowVersion
     {
         $definition = $this->model();
 
@@ -73,11 +75,12 @@ final readonly class DefinitionHandle
             WorkflowOperation::Edit,
             SaveDraftAction::class,
             static fn (SaveDraftAction $action): WorkflowVersion => $action->execute($definition, $graph, $expectedChecksum),
-            ['definition' => $definition, 'key' => $this->key],
+            static fn (): WorkflowVersion => StandIns::version($graph),
+            ['definition' => $definition, 'key' => $this->key, 'graph' => $graph],
         );
     }
 
-    public function discardDraft(): ?WorkflowDefinition
+    public function discardDraft(): WorkflowDefinition
     {
         $definition = $this->model();
 
@@ -85,6 +88,7 @@ final readonly class DefinitionHandle
             WorkflowOperation::DiscardDraft,
             DiscardDraftAction::class,
             static fn (DiscardDraftAction $action): WorkflowDefinition => $action->execute($definition),
+            static fn (): WorkflowDefinition => StandIns::of($definition),
             ['definition' => $definition, 'key' => $this->key],
         );
     }
@@ -98,10 +102,10 @@ final readonly class DefinitionHandle
         $draft = Drafts::find($definition) ?? throw NothingToPublishException::key($definition->key);
 
         return $this->manager->make(ValidateGraphAction::class)
-            ->execute($draft->graph, $definition->subject_key, Definitions::owner($definition), $draft->review_flags ?? [], $definition->key);
+            ->execute($draft->graph, $definition->subject_key, Definitions::owner($definition), $draft->reviewFlags(), $definition->key);
     }
 
-    public function publish(?Model $by = null): ?WorkflowVersion
+    public function publish(?Model $by = null): WorkflowVersion
     {
         $definition = $this->model();
 
@@ -109,11 +113,12 @@ final readonly class DefinitionHandle
             WorkflowOperation::Publish,
             PublishVersionAction::class,
             static fn (PublishVersionAction $action): WorkflowVersion => $action->execute($definition, $by),
+            static fn (): WorkflowVersion => StandIns::version(Drafts::find($definition)->graph ?? []),
             ['definition' => $definition, 'key' => $this->key, 'by' => $by],
         );
     }
 
-    public function retire(): ?WorkflowDefinition
+    public function retire(): WorkflowDefinition
     {
         $definition = $this->model();
 
@@ -121,11 +126,12 @@ final readonly class DefinitionHandle
             WorkflowOperation::Retire,
             RetireDefinitionAction::class,
             static fn (RetireDefinitionAction $action): WorkflowDefinition => $action->execute($definition),
+            static fn (): WorkflowDefinition => StandIns::of($definition),
             ['definition' => $definition, 'key' => $this->key],
         );
     }
 
-    public function activate(): ?WorkflowDefinition
+    public function activate(): WorkflowDefinition
     {
         $definition = $this->model();
 
@@ -133,6 +139,7 @@ final readonly class DefinitionHandle
             WorkflowOperation::Activate,
             ActivateDefinitionAction::class,
             static fn (ActivateDefinitionAction $action): WorkflowDefinition => $action->execute($definition),
+            static fn (): WorkflowDefinition => StandIns::of($definition),
             ['definition' => $definition, 'key' => $this->key],
         );
     }
@@ -140,7 +147,7 @@ final readonly class DefinitionHandle
     /**
      * Dismiss one import review flag on the draft.
      */
-    public function resolveFlag(string $node, string $path): ?WorkflowVersion
+    public function resolveFlag(string $node, string $path): WorkflowVersion
     {
         $definition = $this->model();
 
@@ -148,18 +155,20 @@ final readonly class DefinitionHandle
             WorkflowOperation::ResolveFlag,
             ResolveReviewFlagAction::class,
             static fn (ResolveReviewFlagAction $action): WorkflowVersion => $action->execute($definition, $node, $path),
-            ['definition' => $definition, 'key' => $this->key],
+            static fn (): WorkflowVersion => StandIns::version(Drafts::find($definition)->graph ?? []),
+            ['definition' => $definition, 'key' => $this->key, 'node' => $node, 'path' => $path],
         );
     }
 
-    public function rotateWebhook(): ?WorkflowDefinition
+    public function rotateWebhook(): WorkflowDefinition
     {
         $definition = $this->model();
 
         return $this->manager->perform(
-            WorkflowOperation::Edit,
+            WorkflowOperation::RotateWebhook,
             RotateWebhookAction::class,
             static fn (RotateWebhookAction $action): WorkflowDefinition => $action->execute($definition),
+            static fn (): WorkflowDefinition => StandIns::of($definition),
             ['definition' => $definition, 'key' => $this->key],
         );
     }
@@ -213,7 +222,7 @@ final readonly class DefinitionHandle
         $target = $version === null ? ($definition->currentVersion ?? Drafts::find($definition)) : $this->version($version);
 
         if (! $target instanceof WorkflowVersion) {
-            throw NothingToPublishException::key($definition->key);
+            throw NoVersionException::key($definition->key, $version);
         }
 
         return new PendingDryRun($this->manager, $definition, $target->graph, Keys::of($target));
@@ -225,7 +234,7 @@ final readonly class DefinitionHandle
         $target = $version === null ? $definition->currentVersion : $this->version($version);
 
         if (! $target instanceof WorkflowVersion) {
-            throw NothingToPublishException::key($definition->key);
+            throw NoVersionException::key($definition->key, $version);
         }
 
         return $this->manager->make(ExportTemplateAction::class)->execute($target);

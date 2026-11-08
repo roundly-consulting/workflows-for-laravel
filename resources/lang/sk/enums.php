@@ -123,6 +123,7 @@ return [
         'wake' => 'Prebudenie',
         'prune' => 'Čistenie',
         'dry_run' => 'Skúšobný beh',
+        'rotate_webhook' => 'Obnovenie webhooku',
     ],
     'validation_code' => [
         'invalid_schema_version' => 'Neplatná verzia schémy',

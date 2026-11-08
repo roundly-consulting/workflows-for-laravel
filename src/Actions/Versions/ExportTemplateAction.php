@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Actions\Versions;
 
-use RoundlyConsulting\Workflows\DataTransferObjects\ReviewFlag;
 use RoundlyConsulting\Workflows\DataTransferObjects\TemplatePayload;
 use RoundlyConsulting\Workflows\Exceptions\InvalidTemplateException;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
@@ -41,7 +40,7 @@ final readonly class ExportTemplateAction
             graph: $version->graph,
             exportedAt: Clock::now()->toIso8601String(),
             checksum: $version->checksum,
-            review: array_map(static fn (ReviewFlag $flag): array => $flag->toArray(), $scanned['flags']),
+            review: $scanned['flags'],
         );
     }
 }

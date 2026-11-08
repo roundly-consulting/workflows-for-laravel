@@ -10,6 +10,7 @@ use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Actions\Wake\WakeAction;
 use RoundlyConsulting\Workflows\Calendars\CalendarRegistry;
+use RoundlyConsulting\Workflows\Contracts\WorkflowEvent;
 use RoundlyConsulting\Workflows\DataTransferObjects\DoctorFinding;
 use RoundlyConsulting\Workflows\Enums\ActorMode;
 use RoundlyConsulting\Workflows\Enums\DefinitionStatus;
@@ -176,7 +177,8 @@ final readonly class Doctor
 
             if ($version->actor_mode === ActorMode::OnBehalfOf && $version->trigger_type === TriggerType::Event) {
                 foreach (WorkflowsConfig::events() as $class => $mapping) {
-                    if ($mapping['key'] === $version->trigger_key && $mapping['user'] === null) {
+                    // A self-describing event names its own user.
+                    if (! $mapping->selfDescribing() && $mapping->key === $version->trigger_key && $mapping->user === null) {
                         $findings[] = new DoctorFinding('warn', 'events', sprintf('[%s] runs on behalf of a user, but %s maps no user.', $definition->key, class_basename($class)));
                     }
                 }
@@ -196,8 +198,16 @@ final readonly class Doctor
         foreach (WorkflowsConfig::events() as $class => $mapping) {
             if (! class_exists($class)) {
                 $findings[] = new DoctorFinding('fail', 'events', sprintf('%s does not exist.', class_basename($class)));
-            } else {
-                $findings[] = new DoctorFinding('warn', 'events', sprintf('%s → %s carries no idempotency key: every event starts an instance.', class_basename($class), $mapping['key']));
+
+                continue;
+            }
+
+            $selfDescribing = is_subclass_of($class, WorkflowEvent::class);
+
+            if ($mapping->selfDescribing() && ! $selfDescribing) {
+                $findings[] = new DoctorFinding('fail', 'events', sprintf('%s is mapped as self-describing (*) but is not a WorkflowEvent.', class_basename($class)));
+            } elseif (! $selfDescribing && $mapping->idempotencyKey === null) {
+                $findings[] = new DoctorFinding('warn', 'events', sprintf('%s → %s carries no idempotency key: every event starts an instance.', class_basename($class), $mapping->key));
             }
         }
 

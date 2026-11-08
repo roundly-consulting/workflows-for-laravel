@@ -14,6 +14,7 @@ use RoundlyConsulting\Workflows\Exceptions\DraftConflictException;
 use RoundlyConsulting\Workflows\Exceptions\InvalidDefinitionException;
 use RoundlyConsulting\Workflows\Exceptions\InvalidGraphException;
 use RoundlyConsulting\Workflows\Exceptions\NothingToPublishException;
+use RoundlyConsulting\Workflows\Exceptions\NoVersionException;
 use RoundlyConsulting\Workflows\Exceptions\PublishedVersionImmutableException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownDefinitionException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownSubjectTypeException;
@@ -217,4 +218,43 @@ it('rotates the webhook address', function (): void {
     $after = Workflows::definition('hook')->rotateWebhook()?->webhook_id;
 
     expect($before)->toBeString()->and($after)->toBeString()->and($after)->not->toBe($before);
+});
+
+// W-05a (OQ-I6): a subject's handle falls back to an app-wide definition.
+it('starts an app-wide definition through an owned subject\'s handle', function (): void {
+    published('flow', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]));
+    $acme = company();
+    $document = document($acme);
+
+    $instance = Workflows::for($document)->start('flow')->dispatch()->instance;
+
+    expect($instance)->not->toBeNull()
+        ->and($instance?->definition?->owner_scope)->toBe('*')
+        ->and($instance?->owner_id)->toBe($acme->id);
+});
+
+it('prefers the owner\'s definition over an app-wide one with the same key', function (): void {
+    $flow = graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]);
+    published('flow', $flow);
+    $acme = company();
+    $owned = published('flow', $flow, $acme);
+
+    $instance = Workflows::for(document($acme))->start('flow')->dispatch()->instance;
+
+    expect($instance?->definition_id)->toBe($owned->id);
+});
+
+// W-05c
+it('names the missing version when exporting or dry-running', function (): void {
+    Workflows::definitions()->create(key: 'flow', name: 'Flow');
+
+    expect(fn () => Workflows::definition('flow')->export())->toThrow(NoVersionException::class, 'The workflow "flow" has no version yet.')
+        ->and(fn () => Workflows::definition('flow')->export(7))->toThrow(NoVersionException::class, 'The workflow "flow" has no version 7.')
+        ->and(fn () => Workflows::definition('flow')->dryRun(7))->toThrow(NoVersionException::class, 'has no version 7.');
+
+    try {
+        Workflows::definition('flow')->export();
+    } catch (NoVersionException $exception) {
+        expect($exception->errorCode())->toBe('no_version')->and($exception->status())->toBe(404);
+    }
 });

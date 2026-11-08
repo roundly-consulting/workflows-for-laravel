@@ -13,8 +13,8 @@ use RoundlyConsulting\Workflows\DataTransferObjects\Actor;
 use RoundlyConsulting\Workflows\DataTransferObjects\DryRunData;
 use RoundlyConsulting\Workflows\DataTransferObjects\DryRunResult;
 use RoundlyConsulting\Workflows\DataTransferObjects\DryRunStep;
+use RoundlyConsulting\Workflows\DataTransferObjects\SideEffect;
 use RoundlyConsulting\Workflows\DataTransferObjects\SubjectTypeDefinition;
-use RoundlyConsulting\Workflows\DataTransferObjects\ValidationReport;
 use RoundlyConsulting\Workflows\DataTransferObjects\WouldBeAction;
 use RoundlyConsulting\Workflows\Enums\ActorMode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
@@ -208,7 +208,7 @@ final readonly class DryRunAction
 
         if ($simulated instanceof StepResult && $simulated->isComplete()) {
             $actions = array_map(
-                static fn (array $would): WouldBeAction => new WouldBeAction($node->id, $node->type, 'simulated', $would['description'], $would['details']),
+                static fn (SideEffect $would): WouldBeAction => new WouldBeAction($node->id, $node->type, 'simulated', $would->description, $would->details),
                 $simulated->wouldDo,
             );
 
@@ -345,13 +345,5 @@ final readonly class DryRunAction
         $key = $model?->getKey();
 
         return is_int($key) || is_string($key) ? $key : null;
-    }
-
-    /**
-     * @internal
-     */
-    public static function empty(): DryRunResult
-    {
-        return new DryRunResult(false, false, [], [], null, 'invalid', new ValidationReport);
     }
 }

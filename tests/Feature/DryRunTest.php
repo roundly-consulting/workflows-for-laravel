@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use RoundlyConsulting\Workflows\DataTransferObjects\SideEffect;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Http\Resources\DryRunResultResource;
 use RoundlyConsulting\Workflows\Http\Resources\OverlayResource;
 use RoundlyConsulting\Workflows\Models\WorkflowDryRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
+use RoundlyConsulting\Workflows\Steps\StepResult;
 
 /**
  * @param  array<string, mixed>  $trigger
@@ -158,3 +160,13 @@ it('counts the in-flight instances per node and status', function (): void {
         ->and((new OverlayResource($overlay))->resolve())->toBe($overlay->toArray())
         ->and(WorkflowInstance::query()->where('status', InstanceStatus::Cancelled->value)->count())->toBe(1);
 });
+
+// W-04
+it('collects would-do side effects as SideEffect objects', function (): void {
+    $result = StepResult::complete()->wouldDo('Create task', ['title' => 'Order'])->wouldDo('Notify');
+
+    expect($result->wouldDo)->toHaveCount(2)->each->toBeInstanceOf(SideEffect::class)
+        ->and($result->wouldDo[0]->details)->toBe(['title' => 'Order'])
+        ->and($result->wouldDo[1]->description)->toBe('Notify');
+});
+

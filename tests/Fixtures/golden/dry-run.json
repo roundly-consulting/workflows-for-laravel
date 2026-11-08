@@ -1,0 +1,43 @@
+{
+    "valid": true,
+    "started": true,
+    "reason": null,
+    "path": [
+        {
+            "node": "start",
+            "type": "trigger",
+            "outcome": "next",
+            "assumed": false,
+            "at": "2026-11-08T10:00:00+00:00"
+        },
+        {
+            "node": "task",
+            "type": "acme.create_task",
+            "outcome": "next",
+            "assumed": false,
+            "at": "2026-11-08T10:00:00+00:00"
+        },
+        {
+            "node": "done",
+            "type": "end",
+            "outcome": null,
+            "assumed": false,
+            "at": "2026-11-08T10:00:00+00:00"
+        }
+    ],
+    "actions": [
+        {
+            "node": "task",
+            "type": "acme.create_task",
+            "status": "simulated",
+            "description": "Create task \"Order\"",
+            "details": []
+        }
+    ],
+    "ended_at": "done",
+    "ended_by": "end",
+    "report": {
+        "valid": true,
+        "errors": []
+    }
+}

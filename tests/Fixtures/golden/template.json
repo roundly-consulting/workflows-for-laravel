@@ -1,0 +1,127 @@
+{
+    "schema": "roundly.workflows.template/v1",
+    "definition": {
+        "key": "review",
+        "name": "Review",
+        "subject_type": "document",
+        "description": null
+    },
+    "graph": {
+        "schema": "roundly.workflows.graph/v1",
+        "settings": [],
+        "nodes": [
+            {
+                "id": "start",
+                "type": "trigger",
+                "config": {
+                    "trigger": "manual"
+                }
+            },
+            {
+                "id": "task",
+                "type": "acme.create_task",
+                "config": {
+                    "title": "Prepare"
+                }
+            },
+            {
+                "id": "review",
+                "type": "acme.review",
+                "config": {
+                    "reviewer": 7,
+                    "after": "task"
+                }
+            },
+            {
+                "id": "check",
+                "type": "condition",
+                "config": {
+                    "when": {
+                        "field": "steps.task.output.task_id",
+                        "op": "gt",
+                        "value": 0
+                    }
+                }
+            },
+            {
+                "id": "child",
+                "type": "start_workflow",
+                "config": {
+                    "definition": "helper",
+                    "wait": false
+                }
+            },
+            {
+                "id": "later",
+                "type": "delay",
+                "config": {
+                    "for": {
+                        "amount": 1,
+                        "unit": "business_days",
+                        "calendar": "weekdays"
+                    }
+                }
+            },
+            {
+                "id": "done",
+                "type": "end",
+                "config": []
+            }
+        ],
+        "edges": [
+            {
+                "from": "start",
+                "to": "task"
+            },
+            {
+                "from": "task",
+                "to": "review"
+            },
+            {
+                "from": "review",
+                "to": "check",
+                "outcome": "approved"
+            },
+            {
+                "from": "review",
+                "to": "done",
+                "outcome": "rejected"
+            },
+            {
+                "from": "review",
+                "to": "done",
+                "outcome": "expired"
+            },
+            {
+                "from": "check",
+                "to": "child",
+                "outcome": "true"
+            },
+            {
+                "from": "check",
+                "to": "done",
+                "outcome": "false"
+            },
+            {
+                "from": "child",
+                "to": "later",
+                "outcome": "started"
+            },
+            {
+                "from": "later",
+                "to": "done"
+            }
+        ]
+    },
+    "review": [
+        {
+            "node": "review",
+            "path": "/config/reviewer",
+            "reason": "owner_specific"
+        }
+    ],
+    "exported_at": "2026-11-08T10:00:00+00:00",
+    "source": {
+        "checksum": "eefc05a1d9cd718cf37a65fe150e5fe4860d14742df0c5f4b8a20b3e4c56c5ca"
+    }
+}

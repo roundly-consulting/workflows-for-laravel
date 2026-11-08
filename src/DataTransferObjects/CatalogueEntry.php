@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\DataTransferObjects;
 
+use RoundlyConsulting\Workflows\Steps\Outcome;
+
 /**
  * One step type as a builder UI needs it: key, label, description, category, config JSON schema,
  * outcomes (for the default config), side effects, escalation support and availability (its
@@ -13,7 +15,7 @@ final readonly class CatalogueEntry
 {
     /**
      * @param  array<string, mixed>  $configSchema
-     * @param  list<array{key: string, label: string, required: bool}>  $outcomes
+     * @param  list<Outcome>  $outcomes
      * @param  array<string, mixed>|null  $outputSchema
      */
     public function __construct(
@@ -42,7 +44,7 @@ final readonly class CatalogueEntry
             'category' => $this->category,
             'config_schema' => $this->configSchema,
             'output_schema' => $this->outputSchema,
-            'outcomes' => $this->outcomes,
+            'outcomes' => array_map(static fn (Outcome $outcome): array => ['key' => $outcome->key, 'label' => $outcome->label, 'required' => $outcome->required], $this->outcomes),
             'side_effects' => $this->sideEffects,
             'escalations' => $this->escalations,
             'available' => $this->available,

@@ -11,6 +11,7 @@ use RoundlyConsulting\Workflows\Calendars\WeekdayCalendar;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Support\Doctor;
+use RoundlyConsulting\Workflows\Tests\Fixtures\App\Events\DocumentSigned;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Company;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Steps\SpyStep;
 
@@ -144,4 +145,17 @@ it('flags definitions that need a missing calendar or bridge, and event mappings
     config()->set('workflows.webhooks.verify_middleware', ['auth']);
 
     expect(doctorChecks())->toContain('ok webhooks');
+});
+
+// W-05b
+it('does not warn about idempotency for self-describing events', function (): void {
+    config()->set('workflows.events', [DocumentSigned::class => '*']);
+
+    $findings = array_values(array_filter(app(Doctor::class)->run(), static fn ($finding): bool => $finding->check === 'events'));
+
+    expect($findings)->toBe([]);
+
+    config()->set('workflows.events', [Login::class => 'user.login']);
+
+    expect(doctorChecks())->toContain('warn events');
 });

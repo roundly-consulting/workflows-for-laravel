@@ -34,4 +34,5 @@ enum WorkflowOperation: string
     case Wake = 'wake';
     case Prune = 'prune';
     case DryRun = 'dry_run';
+    case RotateWebhook = 'rotate_webhook';
 }

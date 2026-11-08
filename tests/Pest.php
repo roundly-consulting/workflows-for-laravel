@@ -82,6 +82,27 @@ function user(string $name = 'Ada', array $attributes = []): User
     return User::query()->create(['name' => $name, ...$attributes]);
 }
 
+/**
+ * A graph with owner-specific values (a reviewer id, a start target, a business-day delay).
+ *
+ * @return array<string, mixed>
+ */
+function reviewGraph(int $reviewer): array
+{
+    return graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('task', 'acme.create_task', ['title' => 'Prepare']),
+        node('review', 'acme.review', ['reviewer' => $reviewer, 'after' => 'task']),
+        node('check', 'condition', ['when' => ['field' => 'steps.task.output.task_id', 'op' => 'gt', 'value' => 0]]),
+        node('child', 'start_workflow', ['definition' => 'helper', 'wait' => false]),
+        node('later', 'delay', ['for' => ['amount' => 1, 'unit' => 'business_days', 'calendar' => 'weekdays']]),
+        node('done', 'end'),
+    ], [
+        ['start', 'task'], ['task', 'review'], ['review', 'check', 'approved'], ['review', 'done', 'rejected'], ['review', 'done', 'expired'],
+        ['check', 'child', 'true'], ['check', 'done', 'false'], ['child', 'later', 'started'], ['later', 'done'],
+    ]);
+}
+
 uses(BridgesTestCase::class)->group('bridges')->in('Bridges', 'Acceptance');
 
 /**

@@ -10,6 +10,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use ReflectionClass;
 use RoundlyConsulting\PackageToolkit\Enums\KeyType;
 use RoundlyConsulting\PackageToolkit\Support\Config;
+use RoundlyConsulting\Workflows\DataTransferObjects\EventMapping;
 use RoundlyConsulting\Workflows\DataTransferObjects\RetryPolicy;
 use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
 use RoundlyConsulting\Workflows\Http\Resources\WorkflowOwnerResource;
@@ -131,12 +132,14 @@ final class WorkflowsConfig
     }
 
     /**
-     * The event map: class-string => [key, subject property, user property, idempotency property].
+     * The configured event map: event class => its mapping (a bare string is the trigger key).
      *
-     * @return array<string, array{key: string, subject: ?string, user: ?string}>
+     * @return array<string, EventMapping>
      */
     public static function events(): array
     {
+        $key = 'workflows.events';
+        $expected = 'a map of event class => trigger key or {key, subject, user, payload, idempotency_key}';
         $raw = config('workflows.events');
 
         if (self::blank($raw)) {
@@ -144,37 +147,65 @@ final class WorkflowsConfig
         }
 
         if (! is_array($raw)) {
-            throw InvalidWorkflowsConfigurationException::invalidMap('workflows.events', 'a map of event class => trigger key or {key, subject, user}');
+            throw InvalidWorkflowsConfigurationException::invalidMap($key, $expected);
         }
 
         $events = [];
 
         foreach ($raw as $class => $mapping) {
             if (! is_string($class) || $class === '') {
-                throw InvalidWorkflowsConfigurationException::invalidMap('workflows.events', 'a map keyed by event class');
+                throw InvalidWorkflowsConfigurationException::invalidMap($key, 'a map keyed by event class');
             }
 
             if (is_string($mapping) && $mapping !== '') {
-                $events[$class] = ['key' => $mapping, 'subject' => null, 'user' => null];
+                $events[$class] = new EventMapping($mapping);
 
                 continue;
             }
 
             if (! is_array($mapping) || ! is_string($mapping['key'] ?? null) || $mapping['key'] === '') {
-                throw InvalidWorkflowsConfigurationException::invalidMap('workflows.events', 'a map of event class => trigger key or {key, subject, user}');
+                throw InvalidWorkflowsConfigurationException::invalidMap($key, $expected);
             }
 
-            $subject = $mapping['subject'] ?? null;
-            $user = $mapping['user'] ?? null;
-
-            $events[$class] = [
-                'key' => $mapping['key'],
-                'subject' => is_string($subject) && $subject !== '' ? $subject : null,
-                'user' => is_string($user) && $user !== '' ? $user : null,
-            ];
+            $events[$class] = new EventMapping(
+                $mapping['key'],
+                self::name($mapping['subject'] ?? null),
+                self::name($mapping['user'] ?? null),
+                self::eventPayload($mapping['payload'] ?? null, $key.'.'.$class.'.payload'),
+                self::name($mapping['idempotency_key'] ?? null),
+            );
         }
 
         return $events;
+    }
+
+    /**
+     * An event mapping's payload: a list of event property names, or one method name.
+     *
+     * @return list<string>|string|null
+     */
+    public static function eventPayload(mixed $value, string $key): array|string|null
+    {
+        if ($value === null || (is_string($value) && $value !== '')) {
+            return $value;
+        }
+
+        $names = [];
+
+        foreach (is_array($value) && array_is_list($value) ? $value : [null] as $name) {
+            if (! is_string($name) || $name === '') {
+                throw InvalidWorkflowsConfigurationException::invalidMap($key, 'a list of event property names, or one method name');
+            }
+
+            $names[] = $name;
+        }
+
+        return $names;
+    }
+
+    private static function name(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     public static function timezone(): string

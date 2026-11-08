@@ -14,6 +14,7 @@ use RoundlyConsulting\Workflows\Casts\UtcDateTime;
 use RoundlyConsulting\Workflows\Concerns\HasConfigurableKey;
 use RoundlyConsulting\Workflows\Concerns\StoresUtcTimestamps;
 use RoundlyConsulting\Workflows\Database\Factories\WorkflowVersionFactory;
+use RoundlyConsulting\Workflows\DataTransferObjects\ReviewFlag;
 use RoundlyConsulting\Workflows\Enums\ActorMode;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
 use RoundlyConsulting\Workflows\Enums\VersionStatus;
@@ -106,6 +107,34 @@ class WorkflowVersion extends Model
     public function parsedGraph(): Graph
     {
         return GraphParser::parse($this->graph);
+    }
+
+    /**
+     * The import review flags left on this (draft) version.
+     *
+     * @return list<ReviewFlag>
+     */
+    public function reviewFlags(): array
+    {
+        $flags = [];
+
+        foreach ($this->review_flags ?? [] as $stored) {
+            $flag = ReviewFlag::fromArray($stored);
+
+            if ($flag !== null) {
+                $flags[] = $flag;
+            }
+        }
+
+        return $flags;
+    }
+
+    /**
+     * @param  list<ReviewFlag>  $flags
+     */
+    public function setReviewFlags(array $flags): void
+    {
+        $this->review_flags = $flags === [] ? null : array_map(static fn (ReviewFlag $flag): array => $flag->toArray(), $flags);
     }
 
     public function isPublished(): bool

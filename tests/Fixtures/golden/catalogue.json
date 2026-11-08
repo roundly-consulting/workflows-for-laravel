@@ -1,0 +1,668 @@
+[
+    {
+        "key": "trigger",
+        "label": "Trigger",
+        "description": "Starts the workflow: manually, on an app event, on a schedule or by a webhook.",
+        "category": "trigger",
+        "config_schema": {
+            "type": "object",
+            "required": [
+                "trigger"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "trigger": {
+                    "enum": [
+                        "manual",
+                        "event",
+                        "schedule",
+                        "webhook"
+                    ]
+                },
+                "inputs": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "name",
+                            "type"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                            },
+                            "type": {
+                                "enum": [
+                                    "string",
+                                    "text",
+                                    "integer",
+                                    "decimal",
+                                    "boolean",
+                                    "date",
+                                    "datetime",
+                                    "enum",
+                                    "party",
+                                    "list"
+                                ]
+                            },
+                            "label": {
+                                "type": "string",
+                                "maxLength": 200
+                            },
+                            "required": {
+                                "type": "boolean"
+                            },
+                            "options": {
+                                "type": "array",
+                                "items": {
+                                    "type": [
+                                        "string",
+                                        "integer"
+                                    ]
+                                }
+                            },
+                            "rules": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "maxLength": 100
+                                }
+                            }
+                        }
+                    }
+                },
+                "form": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                },
+                "event": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                },
+                "condition": {
+                    "$ref": "#/$defs/condition"
+                },
+                "cron": {
+                    "type": "string",
+                    "format": "cron"
+                },
+                "preset": {
+                    "type": "object",
+                    "required": [
+                        "every"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "every": {
+                            "enum": [
+                                "day",
+                                "weekday",
+                                "week",
+                                "month",
+                                "hour",
+                                "minutes"
+                            ]
+                        },
+                        "at": {
+                            "type": "string",
+                            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                        },
+                        "day": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 31
+                        },
+                        "interval": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 59
+                        }
+                    }
+                },
+                "timezone": {
+                    "type": "string",
+                    "format": "timezone"
+                },
+                "idempotency": {
+                    "type": "object",
+                    "required": [
+                        "from"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "from": {
+                            "type": "string",
+                            "pattern": "^(header:[A-Za-z0-9-]{1,100}|payload:[A-Za-z0-9_.]{1,200})$"
+                        }
+                    }
+                },
+                "subject": {
+                    "type": "object",
+                    "required": [
+                        "lookup",
+                        "value"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "lookup": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                        },
+                        "value": {
+                            "$ref": "#/$defs/value"
+                        }
+                    }
+                },
+                "endpoint": {
+                    "type": [
+                        "string",
+                        "integer",
+                        "null"
+                    ],
+                    "x-workflows-owner-specific": true
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "next",
+                "label": "Next",
+                "required": true
+            }
+        ],
+        "side_effects": false,
+        "escalations": false,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "condition",
+        "label": "Condition",
+        "description": "Branches on a condition: true or false.",
+        "category": "flow",
+        "config_schema": {
+            "type": "object",
+            "required": [
+                "when"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "when": {
+                    "$ref": "#/$defs/condition"
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "true",
+                "label": "True",
+                "required": true
+            },
+            {
+                "key": "false",
+                "label": "False",
+                "required": true
+            }
+        ],
+        "side_effects": false,
+        "escalations": false,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "branch",
+        "label": "Branch",
+        "description": "Takes the first case whose condition holds, else the default.",
+        "category": "flow",
+        "config_schema": {
+            "type": "object",
+            "required": [
+                "cases",
+                "default"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "cases": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "outcome",
+                            "when"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "outcome": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                            },
+                            "when": {
+                                "$ref": "#/$defs/condition"
+                            }
+                        }
+                    }
+                },
+                "default": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [],
+        "side_effects": false,
+        "escalations": false,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "set_field",
+        "label": "Set field",
+        "description": "Writes a writable field of the subject.",
+        "category": "flow",
+        "config_schema": {
+            "type": "object",
+            "required": [
+                "field",
+                "value"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "field": {
+                    "$ref": "#/$defs/field"
+                },
+                "value": {
+                    "$ref": "#/$defs/value"
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "next",
+                "label": "Next",
+                "required": true
+            }
+        ],
+        "side_effects": true,
+        "escalations": false,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "transition",
+        "label": "Lifecycle transition",
+        "description": "Requests a lifecycle transition; the lifecycle guard decides.",
+        "category": "flow",
+        "config_schema": {
+            "type": "object",
+            "required": [
+                "transition"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "transition": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                },
+                "lifecycle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "transitioned",
+                "label": "Transitioned",
+                "required": true
+            },
+            {
+                "key": "denied",
+                "label": "Denied",
+                "required": false
+            }
+        ],
+        "side_effects": true,
+        "escalations": false,
+        "available": false,
+        "package": "roundly-consulting/lifecycle-for-laravel"
+    },
+    {
+        "key": "delay",
+        "label": "Delay",
+        "description": "Waits for a duration, until a date, or until a date field.",
+        "category": "flow",
+        "config_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "for": {
+                    "$ref": "#/$defs/duration"
+                },
+                "until": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "until_field": {
+                    "$ref": "#/$defs/field"
+                },
+                "offset": {
+                    "$ref": "#/$defs/duration"
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "next",
+                "label": "Next",
+                "required": true
+            }
+        ],
+        "side_effects": false,
+        "escalations": false,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "wait",
+        "label": "Wait",
+        "description": "Waits for an event or until a condition holds.",
+        "category": "flow",
+        "config_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "event": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                },
+                "match": {
+                    "enum": [
+                        "subject",
+                        "any"
+                    ]
+                },
+                "condition": {
+                    "$ref": "#/$defs/condition"
+                },
+                "poll": {
+                    "$ref": "#/$defs/duration"
+                },
+                "timeout": {
+                    "$ref": "#/$defs/duration"
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "received",
+                "label": "Received",
+                "required": true
+            }
+        ],
+        "side_effects": false,
+        "escalations": true,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "loop",
+        "label": "Loop counter",
+        "description": "Continues a loop at most a set number of times.",
+        "category": "flow",
+        "config_schema": {
+            "type": "object",
+            "required": [
+                "max"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "max": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "continue",
+                "label": "Continue",
+                "required": true
+            },
+            {
+                "key": "exhausted",
+                "label": "Exhausted",
+                "required": true
+            }
+        ],
+        "side_effects": false,
+        "escalations": false,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "start_workflow",
+        "label": "Start workflow",
+        "description": "Starts another workflow, optionally waiting for it.",
+        "category": "flow",
+        "config_schema": {
+            "type": "object",
+            "required": [
+                "definition"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "definition": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                },
+                "subject": {
+                    "anyOf": [
+                        {
+                            "const": "same"
+                        },
+                        {
+                            "type": "null"
+                        },
+                        {
+                            "type": "object",
+                            "required": [
+                                "field"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "field": {
+                                    "$ref": "#/$defs/field"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "input": {
+                    "type": "object"
+                },
+                "wait": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "started",
+                "label": "Started",
+                "required": true
+            }
+        ],
+        "side_effects": true,
+        "escalations": false,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "end",
+        "label": "End",
+        "description": "Ends the workflow.",
+        "category": "flow",
+        "config_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "status": {
+                    "enum": [
+                        "completed",
+                        "failed"
+                    ]
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [],
+        "side_effects": false,
+        "escalations": false,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "acme.spy",
+        "label": "Spy",
+        "description": null,
+        "category": "custom",
+        "config_schema": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+                "mode": {
+                    "enum": [
+                        "ok",
+                        "throw",
+                        "model",
+                        "nan",
+                        "retryable",
+                        "fail"
+                    ]
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "next",
+                "label": "Next",
+                "required": true
+            }
+        ],
+        "side_effects": true,
+        "escalations": false,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "acme.review",
+        "label": "Review",
+        "description": null,
+        "category": "custom",
+        "config_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "reviewer": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "x-workflows-owner-specific": true
+                },
+                "after": {
+                    "type": "string",
+                    "format": "node-id"
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "approved",
+                "label": "Approved",
+                "required": true
+            },
+            {
+                "key": "rejected",
+                "label": "Rejected",
+                "required": true
+            },
+            {
+                "key": "expired",
+                "label": "Expired",
+                "required": true
+            }
+        ],
+        "side_effects": false,
+        "escalations": true,
+        "available": true,
+        "package": null
+    },
+    {
+        "key": "acme.create_task",
+        "label": "Create task",
+        "description": null,
+        "category": "custom",
+        "config_schema": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "crash_after_effect": {
+                    "type": "boolean"
+                },
+                "fail_for_good": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "output_schema": null,
+        "outcomes": [
+            {
+                "key": "next",
+                "label": "Next",
+                "required": true
+            }
+        ],
+        "side_effects": true,
+        "escalations": false,
+        "available": true,
+        "package": null
+    }
+]

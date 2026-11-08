@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Actions\Definitions\CreateDefinitionAction;
 use RoundlyConsulting\Workflows\DataTransferObjects\CreateDefinitionData;
 use RoundlyConsulting\Workflows\DataTransferObjects\ImportResult;
-use RoundlyConsulting\Workflows\DataTransferObjects\ReviewFlag;
 use RoundlyConsulting\Workflows\DataTransferObjects\TemplatePayload;
 use RoundlyConsulting\Workflows\Exceptions\InvalidTemplateException;
 use RoundlyConsulting\Workflows\Graph\GraphParser;
@@ -74,7 +73,7 @@ final readonly class ImportTemplateAction
         }
 
         Drafts::fill($version, $graph);
-        $version->review_flags = $flags === [] ? null : array_map(static fn (ReviewFlag $flag): array => $flag->toArray(), $flags);
+        $version->setReviewFlags($flags);
         $version->save();
 
         return new ImportResult($definition, $version, $flags, $map);

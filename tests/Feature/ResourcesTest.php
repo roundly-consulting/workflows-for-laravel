@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +11,7 @@ use RoundlyConsulting\Workflows\Exceptions\SubjectOwnerMismatchException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Http\Resources\CatalogueEntryResource;
 use RoundlyConsulting\Workflows\Http\Resources\DefinitionResource;
+use RoundlyConsulting\Workflows\Http\Resources\DryRunResultResource;
 use RoundlyConsulting\Workflows\Http\Resources\InstanceResource;
 use RoundlyConsulting\Workflows\Http\Resources\StepRunResource;
 use RoundlyConsulting\Workflows\Http\Resources\SubjectTypeResource;
@@ -199,4 +201,38 @@ it('publishes the graph and template JSON schemas', function (): void {
         ->and($template['type'])->toBe('object')
         ->and(Workflows::schema()->definitions())->not->toBeEmpty()
         ->and(json_encode([$graph, $template], JSON_THROW_ON_ERROR))->toBeString();
+});
+
+// W-04: the DTO swap changes no byte of the JSON (goldens captured before the swap; regenerate
+// with WORKFLOWS_WRITE_GOLDEN=1 only for an intended wire change).
+it('renders the same JSON after the DTO swap', function (): void {
+    CarbonImmutable::setTestNow('2026-11-08 10:00:00');
+    $acme = company('Acme');
+    published('helper', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]), $acme);
+    published('review', reviewGraph(7), $acme);
+    published('flow', graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('task', 'acme.create_task', ['title' => 'Order']),
+        node('done', 'end'),
+    ], [['start', 'task'], ['task', 'done']]), null, null);
+
+    $request = Request::create('/');
+    $rendered = [
+        'catalogue' => array_map(static fn ($entry): array => (new CatalogueEntryResource($entry))->resolve($request), Workflows::catalogue()->export()->types),
+        'template' => (new TemplateResource(Workflows::definition('review', $acme)->export()))->resolve($request),
+        'dry-run' => (new DryRunResultResource(Workflows::definition('flow')->dryRun()->run()))->resolve($request),
+    ];
+
+    foreach ($rendered as $name => $json) {
+        $file = __DIR__.'/../Fixtures/golden/'.$name.'.json';
+        $encoded = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n";
+
+        if (getenv('WORKFLOWS_WRITE_GOLDEN') === '1') {
+            file_put_contents($file, $encoded);
+        }
+
+        expect($encoded)->toBe(file_get_contents($file), $name);
+    }
+
+    CarbonImmutable::setTestNow();
 });

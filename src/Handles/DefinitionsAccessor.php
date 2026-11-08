@@ -12,6 +12,7 @@ use RoundlyConsulting\Workflows\DataTransferObjects\CreateDefinitionData;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Support\Definitions;
+use RoundlyConsulting\Workflows\Testing\StandIns;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
@@ -24,17 +25,18 @@ final readonly class DefinitionsAccessor
         private WorkflowsManager $manager,
     ) {}
 
-    public function create(string $key, string $name, ?string $subjectType = null, ?Model $owner = null, ?string $description = null): ?WorkflowDefinition
+    public function create(string $key, string $name, ?string $subjectType = null, ?Model $owner = null, ?string $description = null): WorkflowDefinition
     {
         return $this->createWith(new CreateDefinitionData($key, $name, $subjectType, $owner, $description));
     }
 
-    public function createWith(CreateDefinitionData $data): ?WorkflowDefinition
+    public function createWith(CreateDefinitionData $data): WorkflowDefinition
     {
         return $this->manager->perform(
             WorkflowOperation::CreateDefinition,
             CreateDefinitionAction::class,
             static fn (CreateDefinitionAction $action): WorkflowDefinition => $action->execute($data),
+            static fn (): WorkflowDefinition => StandIns::definition($data->key, $data->name, $data->owner, $data->subjectType, $data->description),
             ['data' => $data, 'key' => $data->key],
         );
     }
@@ -62,13 +64,14 @@ final readonly class DefinitionsAccessor
     /**
      * Bring back a soft-deleted definition (its key is still taken while trashed).
      */
-    public function restore(string $key, ?Model $owner = null): ?WorkflowDefinition
+    public function restore(string $key, ?Model $owner = null): WorkflowDefinition
     {
         return $this->manager->perform(
             WorkflowOperation::RestoreDefinition,
             RestoreDefinitionAction::class,
             static fn (RestoreDefinitionAction $action): WorkflowDefinition => $action->execute($key, $owner),
-            ['key' => $key],
+            static fn (): WorkflowDefinition => StandIns::definition($key, owner: $owner),
+            ['key' => $key, 'owner' => $owner],
         );
     }
 }

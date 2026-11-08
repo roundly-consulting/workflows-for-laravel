@@ -49,7 +49,7 @@ final readonly class PublishVersionAction
                 throw NothingToPublishException::key($locked->key);
             }
 
-            $report = $this->validate->execute($draft->graph, $locked->subject_key, Definitions::owner($locked), $draft->review_flags ?? [], $locked->key);
+            $report = $this->validate->execute($draft->graph, $locked->subject_key, Definitions::owner($locked), $draft->reviewFlags(), $locked->key);
 
             if (! $report->valid()) {
                 throw InvalidGraphException::report($report);

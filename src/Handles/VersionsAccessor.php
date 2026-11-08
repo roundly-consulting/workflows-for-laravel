@@ -21,6 +21,7 @@ use RoundlyConsulting\Workflows\Exceptions\InvalidTemplateException;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
 use RoundlyConsulting\Workflows\Support\Keys;
+use RoundlyConsulting\Workflows\Testing\StandIns;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
@@ -59,13 +60,16 @@ final readonly class VersionsAccessor
     /**
      * @param  TemplatePayload|array<string, mixed>  $payload
      */
-    public function import(TemplatePayload|array $payload, ?Model $owner = null, ?string $key = null): ?ImportResult
+    public function import(TemplatePayload|array $payload, ?Model $owner = null, ?string $key = null): ImportResult
     {
+        $standIn = static fn (): ImportResult => StandIns::import($payload, $owner, $key);
+
         return $this->manager->perform(
             WorkflowOperation::Import,
             ImportTemplateAction::class,
             static fn (ImportTemplateAction $action): ImportResult => $action->execute($payload, $owner, $key),
-            ['owner' => $owner, 'key' => $key],
+            $standIn,
+            ['owner' => $owner, 'key' => $key ?? $standIn()->definition->key, 'payload' => $payload],
         );
     }
 

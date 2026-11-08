@@ -123,6 +123,7 @@ return [
         'wake' => 'Wake',
         'prune' => 'Prune',
         'dry_run' => 'Dry run',
+        'rotate_webhook' => 'Rotate webhook',
     ],
     'validation_code' => [
         'invalid_schema_version' => 'Invalid schema version',

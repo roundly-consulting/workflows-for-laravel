@@ -30,8 +30,9 @@ final readonly class TriggersAccessor
             WorkflowOperation::Webhook,
             ReceiveWebhookAction::class,
             static fn (ReceiveWebhookAction $action): StartResult => $action->execute($hookId, $payload, $headers),
+            static fn (): StartResult => new StartResult(null, false, skipped: 'faked'),
             ['hook' => $hookId, 'payload' => $payload],
-        ) ?? new StartResult(null, false);
+        );
     }
 
     /**
@@ -45,7 +46,7 @@ final readonly class TriggersAccessor
         $events = [];
 
         foreach (WorkflowsConfig::events() as $class => $mapping) {
-            $events[class_basename($class)] = $mapping['key'];
+            $events[class_basename($class)] = $mapping->key;
         }
 
         return $events;

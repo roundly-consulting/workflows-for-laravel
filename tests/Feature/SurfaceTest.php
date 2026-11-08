@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use PHPUnit\Framework\AssertionFailedError;
 use RoundlyConsulting\Workflows\Casts\UtcDateTime;
 use RoundlyConsulting\Workflows\Contracts\DeliversWebhooks;
+use RoundlyConsulting\Workflows\DataTransferObjects\ImportResult;
 use RoundlyConsulting\Workflows\DataTransferObjects\PartyReference;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus as Status;
 use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
-use RoundlyConsulting\Workflows\Exceptions\NothingToPublishException;
+use RoundlyConsulting\Workflows\Exceptions\NoVersionException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Graph\GraphParser;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
@@ -23,6 +24,7 @@ use RoundlyConsulting\Workflows\Support\StepCatalogue;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 use RoundlyConsulting\Workflows\Testing\WorkflowExpectations;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Document;
+use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
  * Records outbound webhook deliveries.
@@ -123,7 +125,7 @@ it('reads history, starts and dry runs through the definition handle', function 
     expect(Workflows::instances()->find(strtolower($first->ulid))?->is($first))->toBeTrue()
         ->and(Workflows::instances()->find((string) $first->id)?->is($first))->toBeTrue();
 
-    expect(fn () => Workflows::definition('flow')->dryRun(99))->toThrow(NothingToPublishException::class);
+    expect(fn () => Workflows::definition('flow')->dryRun(99))->toThrow(NoVersionException::class);
 });
 
 it('round-trips a parsed graph with node retries, escalations and ui', function (): void {
@@ -277,4 +279,36 @@ it('builds subject types with owners, abilities and enum options', function (): 
         ->and($type->field('status')?->options)->toContain('running', 'completed')
         ->and($type->field('kind')?->options)->toBe([])
         ->and(Workflows::subject('x', Document::class)->key())->toBe('x');
+});
+
+// W-01: the fake returns stand-ins, so no mutation needs a nullable model return.
+it('declares no nullable model return on a mutating API method', function (): void {
+    $classes = [WorkflowsManager::class];
+
+    foreach (glob(__DIR__.'/../../src/Handles/*.php') ?: [] as $file) {
+        $classes[] = 'RoundlyConsulting\\Workflows\\Handles\\'.basename($file, '.php');
+    }
+
+    $nullable = [];
+
+    foreach ($classes as $class) {
+        foreach ((new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+            $type = $method->getReturnType();
+
+            if ($type === null || ! $type->allowsNull() || in_array($method->name, ['find', 'draft', 'version'], true) || str_contains((string) $method->getDocComment(), '@internal')) {
+                continue;
+            }
+
+            $names = $type instanceof ReflectionNamedType ? [$type->getName()] : array_map(static fn ($named): string => $named->getName(), $type instanceof ReflectionUnionType ? $type->getTypes() : []);
+
+            foreach ($names as $name) {
+                if (is_subclass_of($name, Model::class) || in_array($name, [ImportResult::class], true)) {
+                    $nullable[] = class_basename($class).'::'.$method->name;
+                }
+            }
+        }
+    }
+
+    expect($nullable)->toBe([])
+        ->and(count($classes))->toBeGreaterThan(8);
 });

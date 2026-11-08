@@ -81,8 +81,11 @@ return [
     // Subject types: a list of classes implementing Contracts\DescribesWorkflowSubject.
     'subjects' => [],
 
-    // Laravel events mapped to trigger keys: [Event::class => 'request.submitted'] or
-    // [Event::class => ['key' => 'request.submitted', 'subject' => 'request', 'user' => 'user']].
+    // Laravel events mapped to trigger keys: [Event::class => 'request.submitted'], or
+    // [Event::class => ['key' => 'request.submitted', 'subject' => 'request', 'user' => 'user',
+    //     'payload' => ['amount', 'currency'], 'idempotency_key' => 'submissionId']], or a
+    // self-describing WorkflowEvent as [Event::class => '*']. Workflows::triggers()->map() and
+    // ->listen() do the same from a service provider.
     'events' => [],
 
     // The default timezone of a workflow version (blank = app.timezone).

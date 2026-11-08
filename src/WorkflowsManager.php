@@ -62,8 +62,9 @@ class WorkflowsManager
             WorkflowOperation::Start,
             StartInstanceAction::class,
             static fn (StartInstanceAction $action): StartResult => $action->execute($data),
-            ['data' => $data],
-        ) ?? new StartResult(null, false, definition: $data->key);
+            static fn (): StartResult => new StartResult(null, false, skipped: 'faked', definition: $data->key),
+            ['data' => $data, 'key' => $data->key],
+        );
     }
 
     /**
@@ -83,8 +84,9 @@ class WorkflowsManager
             WorkflowOperation::Emit,
             EmitEventAction::class,
             static fn (EmitEventAction $action): EmitResult => $action->execute($data),
-            ['data' => $data],
-        ) ?? new EmitResult;
+            static fn (): EmitResult => new EmitResult,
+            ['data' => $data, 'event' => $data->event],
+        );
     }
 
     /**
@@ -166,8 +168,9 @@ class WorkflowsManager
             WorkflowOperation::Signal,
             SignalAction::class,
             static fn (SignalAction $action): int => $action->execute($key, $subject, $payload),
+            static fn (): int => 0,
             ['key' => $key, 'subject' => $subject],
-        ) ?? 0;
+        );
     }
 
     /**
@@ -179,7 +182,9 @@ class WorkflowsManager
             WorkflowOperation::Wake,
             WakeAction::class,
             static fn (WakeAction $action): WakeReport => $action->execute($now),
-        ) ?? new WakeReport;
+            static fn (): WakeReport => new WakeReport,
+            ['now' => $now],
+        );
     }
 
     public function prune(): PruneReport
@@ -188,12 +193,14 @@ class WorkflowsManager
             WorkflowOperation::Prune,
             PruneAction::class,
             static fn (PruneAction $action): PruneReport => $action->execute(),
-        ) ?? new PruneReport;
+            static fn (): PruneReport => new PruneReport,
+        );
     }
 
     /**
      * The one path every mutating call takes: resolve the action from the container and run it.
-     * The fake overrides this to record (and, in passthrough, still run) the call.
+     * The fake overrides this to record the call and return the stand-in (or, in passthrough,
+     * still run it); the real manager never calls the stand-in.
      *
      * @internal
      *
@@ -202,10 +209,11 @@ class WorkflowsManager
      *
      * @param  class-string<TAction>  $action
      * @param  Closure(TAction): TResult  $execute
+     * @param  Closure(): TResult  $standIn
      * @param  array<string, mixed>  $context
-     * @return TResult|null
+     * @return TResult
      */
-    public function perform(WorkflowOperation $operation, string $action, Closure $execute, array $context = []): mixed
+    public function perform(WorkflowOperation $operation, string $action, Closure $execute, Closure $standIn, array $context = []): mixed
     {
         $instance = $this->container->make($action);
 

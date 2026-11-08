@@ -8,6 +8,8 @@ return [
     'definition_key_trashed' => 'Kľúč pracovného postupu „:key“ drží odstránený pracovný postup: obnovte ho.',
     'definition_not_active' => 'Pracovný postup „:key“ nie je aktívny.',
     'nothing_to_publish' => 'Pracovný postup „:key“ nemá koncept na zverejnenie.',
+    'no_version' => 'Pracovný postup „:key“ nemá verziu :number.',
+    'no_version_yet' => 'Pracovný postup „:key“ zatiaľ nemá žiadnu verziu.',
     'invalid_graph' => 'Graf pracovného postupu je neplatný (počet problémov: :count).',
     'published_version_immutable' => 'Zverejnenú verziu nie je možné zmeniť (:column).',
     'draft_conflict' => 'Koncept „:key“ medzitým zmenil niekto iný. Načítajte ho znova a skúste to znova.',

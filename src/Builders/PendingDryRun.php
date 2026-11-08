@@ -145,7 +145,8 @@ final class PendingDryRun
             WorkflowOperation::DryRun,
             DryRunAction::class,
             static fn (DryRunAction $action): DryRunResult => $action->execute($data),
+            static fn (): DryRunResult => DryRunResult::empty(),
             ['data' => $data],
-        ) ?? DryRunAction::empty();
+        );
     }
 }

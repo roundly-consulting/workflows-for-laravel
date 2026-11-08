@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Actions\Definitions;
 
 use Illuminate\Support\Arr;
+use RoundlyConsulting\Workflows\DataTransferObjects\ReviewFlag;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationReport;
 use RoundlyConsulting\Workflows\Events\DraftSaved;
 use RoundlyConsulting\Workflows\Exceptions\DraftConflictException;
@@ -48,7 +49,7 @@ final readonly class SaveDraftAction
 
             $before = $draft->graph;
             Drafts::fill($draft, $graph);
-            $draft->review_flags = self::remainingFlags($draft->review_flags ?? [], $before, $graph);
+            $draft->setReviewFlags(self::remainingFlags($draft->reviewFlags(), $before, $graph));
             $draft->save();
 
             return $draft;
@@ -62,25 +63,25 @@ final readonly class SaveDraftAction
     /**
      * Flags whose value changed (and is no longer null) are resolved.
      *
-     * @param  list<array{node: string, path: string, reason: string}>  $flags
+     * @param  list<ReviewFlag>  $flags
      * @param  array<string, mixed>  $before
      * @param  array<string, mixed>  $after
-     * @return list<array{node: string, path: string, reason: string}>|null
+     * @return list<ReviewFlag>
      */
-    private static function remainingFlags(array $flags, array $before, array $after): ?array
+    private static function remainingFlags(array $flags, array $before, array $after): array
     {
         $remaining = [];
 
         foreach ($flags as $flag) {
-            $old = self::at($before, $flag['node'], $flag['path']);
-            $new = self::at($after, $flag['node'], $flag['path']);
+            $old = self::at($before, $flag->node, $flag->path);
+            $new = self::at($after, $flag->node, $flag->path);
 
             if ($new === null || $new === $old) {
                 $remaining[] = $flag;
             }
         }
 
-        return $remaining === [] ? null : $remaining;
+        return $remaining;
     }
 
     /**

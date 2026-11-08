@@ -8,7 +8,6 @@ use Illuminate\Contracts\Container\Container;
 use RoundlyConsulting\Workflows\DataTransferObjects\CatalogueEntry;
 use RoundlyConsulting\Workflows\DataTransferObjects\CatalogueExport;
 use RoundlyConsulting\Workflows\Steps\Builtin\TransitionStep;
-use RoundlyConsulting\Workflows\Steps\Outcome;
 use RoundlyConsulting\Workflows\Steps\StepType;
 use RoundlyConsulting\Workflows\Support\Schema\SharedDefinitions;
 use RoundlyConsulting\Workflows\Support\StepCatalogue;
@@ -60,7 +59,7 @@ final readonly class CatalogueAccessor
                 description: $type->description(),
                 category: $type->category(),
                 configSchema: $type->configSchema(),
-                outcomes: array_map(static fn (Outcome $outcome): array => ['key' => $outcome->key, 'label' => $outcome->label, 'required' => $outcome->required], $type->outcomes([])),
+                outcomes: $type->outcomes([]),
                 sideEffects: $type->hasSideEffects(),
                 escalations: $type->supportsEscalations(),
                 available: ! $type instanceof TransitionStep || $type->available(),

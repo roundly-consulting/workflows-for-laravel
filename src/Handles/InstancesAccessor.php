@@ -54,22 +54,24 @@ final readonly class InstancesAccessor
         return $instance instanceof WorkflowInstance ? $instance : null;
     }
 
-    public function retry(WorkflowInstance $instance): ?WorkflowInstance
+    public function retry(WorkflowInstance $instance): WorkflowInstance
     {
         return $this->manager->perform(
             WorkflowOperation::Retry,
             RetryInstanceAction::class,
             static fn (RetryInstanceAction $action): WorkflowInstance => $action->execute($instance),
+            static fn (): WorkflowInstance => $instance,
             ['instance' => $instance],
         );
     }
 
-    public function cancel(WorkflowInstance $instance, ?string $reason = null): ?WorkflowInstance
+    public function cancel(WorkflowInstance $instance, ?string $reason = null): WorkflowInstance
     {
         return $this->manager->perform(
             WorkflowOperation::Cancel,
             CancelInstanceAction::class,
             static fn (CancelInstanceAction $action): WorkflowInstance => $action->execute($instance, $reason),
+            static fn (): WorkflowInstance => $instance,
             ['instance' => $instance, 'reason' => $reason],
         );
     }

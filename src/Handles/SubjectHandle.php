@@ -14,6 +14,7 @@ use RoundlyConsulting\Workflows\DataTransferObjects\EmitResult;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
+use RoundlyConsulting\Workflows\Support\Definitions;
 use RoundlyConsulting\Workflows\Support\Owners;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 use RoundlyConsulting\Workflows\WorkflowsManager;
@@ -31,11 +32,12 @@ final readonly class SubjectHandle
     ) {}
 
     /**
-     * A manual start of the subject owner's (or an app-wide) definition.
+     * A manual start of the subject owner's definition, else the app-wide one with that key (the
+     * owner's wins on a clash). An explicit owner is looked up in that scope only.
      */
     public function start(string $key, ?Model $owner = null): PendingStart
     {
-        return $this->manager->start($key, $this->subject, $owner ?? app(Owners::class)->ownerOf($this->subject));
+        return $this->manager->start($key, $this->subject, $owner ?? Definitions::scopeFor($key, app(Owners::class)->ownerOf($this->subject)));
     }
 
     /**
@@ -90,8 +92,9 @@ final readonly class SubjectHandle
             WorkflowOperation::Touch,
             TouchSubjectAction::class,
             static fn (TouchSubjectAction $action): int => $action->execute($subject),
+            static fn (): int => 0,
             ['subject' => $subject],
-        ) ?? 0;
+        );
     }
 
     /**

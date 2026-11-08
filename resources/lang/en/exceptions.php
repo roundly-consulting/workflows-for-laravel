@@ -8,6 +8,8 @@ return [
     'definition_key_trashed' => 'The workflow key ":key" is held by a deleted workflow: restore it instead.',
     'definition_not_active' => 'The workflow ":key" is not active.',
     'nothing_to_publish' => 'The workflow ":key" has no draft to publish.',
+    'no_version' => 'The workflow ":key" has no version :number.',
+    'no_version_yet' => 'The workflow ":key" has no version yet.',
     'invalid_graph' => 'The workflow graph is invalid (:count problems).',
     'published_version_immutable' => 'A published version cannot be changed (:column).',
     'draft_conflict' => 'The draft of ":key" was changed by someone else. Reload it and try again.',
