@@ -19,6 +19,8 @@ use RoundlyConsulting\Workflows\Exceptions\PublishedVersionImmutableException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownDefinitionException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownSubjectTypeException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Graph\Build\Trigger;
+use RoundlyConsulting\Workflows\Graph\Build\When;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
 use RoundlyConsulting\Workflows\Support\Drafts;
 
@@ -257,4 +259,25 @@ it('names the missing version when exporting or dry-running', function (): void 
     } catch (NoVersionException $exception) {
         expect($exception->errorCode())->toBe('no_version')->and($exception->status())->toBe(404);
     }
+});
+
+// W-06
+it('edits, validates and dry-runs a builder graph', function (): void {
+    Workflows::definitions()->create(key: 'flow', name: 'Flow', subjectType: 'document');
+    $graph = Workflows::graph()
+        ->trigger('start', Trigger::manual())
+        ->condition('big', When::field('subject.amount')->gt('100'))
+        ->node('task', 'acme.create_task', ['title' => 'Order'])
+        ->end('done')
+        ->connect('start', 'big')
+        ->connect('big', 'task', on: 'true')
+        ->connect('big', 'done', on: 'false')
+        ->chain('task', 'done');
+
+    $draft = Workflows::definition('flow')->edit($graph);
+
+    expect($draft->graph)->toBe($graph->toArray())
+        ->and($graph->validate(subjectType: 'document')->valid())->toBeTrue()
+        ->and(Workflows::versions()->validate($graph, 'document')->valid())->toBeTrue()
+        ->and(Workflows::versions()->dryRun($graph, Workflows::definition('flow')->model())->sample(['amount' => '500'])->run()->nodes())->toBe(['start', 'big', 'task', 'done']);
 });

@@ -23,6 +23,7 @@ use RoundlyConsulting\Workflows\DataTransferObjects\StartData;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartResult;
 use RoundlyConsulting\Workflows\DataTransferObjects\WakeReport;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
+use RoundlyConsulting\Workflows\Graph\Build\GraphBuilder;
 use RoundlyConsulting\Workflows\Handles\CalendarsAccessor;
 use RoundlyConsulting\Workflows\Handles\CatalogueAccessor;
 use RoundlyConsulting\Workflows\Handles\DefinitionHandle;
@@ -153,6 +154,15 @@ class WorkflowsManager
     public function schema(): SchemaAccessor
     {
         return new SchemaAccessor;
+    }
+
+    /**
+     * A fluent graph builder: `Workflows::graph()->trigger(...)->approval(...)->connect(...)`.
+     * Pure — it builds a document and runs nothing — so the fake passes it through.
+     */
+    public function graph(): GraphBuilder
+    {
+        return new GraphBuilder;
     }
 
     /**

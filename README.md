@@ -39,6 +39,7 @@ Schedule::command('workflows:wake')->everyMinute()->withoutOverlapping(10)->onOn
 
 ```php
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Graph\Build\{Party, Trigger, When};
 
 // Once, in a service provider: what a purchase request looks like to the engine.
 Workflows::subjects()->register(
@@ -50,11 +51,19 @@ Workflows::subjects()->register(
         ->field('approver', 'party', 'Approver'),
 );
 
-// The workflow itself is data: a graph your users edit in a builder, stored as JSON.
+// The workflow itself is data: a JSON graph your users edit in a builder — or written in PHP.
 $definition = Workflows::definitions()->create(key: 'purchase-approval', name: 'Purchase approval',
     subjectType: 'purchase_request', owner: $team);
 
-Workflows::definition('purchase-approval', $team)->edit(json_decode($json, true));
+Workflows::definition('purchase-approval', $team)->edit(Workflows::graph()   // or ->edit(json_decode($json, true))
+    ->trigger('start', Trigger::manual())
+    ->condition('check', When::field('subject.amount')->gt('500'))
+    ->approval('approve', approvers: [Party::field('subject.approver')])
+    ->end('done')
+    ->connect('start', 'check')
+    ->connect('check', 'approve', on: 'true')
+    ->connect('check', 'done', on: 'false')
+    ->connect('approve', 'done', on: ['approved', 'rejected', 'expired']));
 Workflows::definition('purchase-approval', $team)->publish(by: $admin);
 
 // Start it (this graph's trigger is `manual`) — with an `event` trigger the app event starts it instead.

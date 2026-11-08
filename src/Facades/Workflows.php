@@ -26,6 +26,7 @@ use RoundlyConsulting\Workflows\WorkflowsManager;
  * @method static \RoundlyConsulting\Workflows\Handles\CalendarsAccessor calendars()
  * @method static \RoundlyConsulting\Workflows\Handles\TriggersAccessor triggers()
  * @method static \RoundlyConsulting\Workflows\Handles\SchemaAccessor schema()
+ * @method static \RoundlyConsulting\Workflows\Graph\Build\GraphBuilder graph()
  * @method static \RoundlyConsulting\Workflows\DataTransferObjects\WakeReport wake(\Carbon\CarbonInterface|null $now = null)
  * @method static \RoundlyConsulting\Workflows\DataTransferObjects\PruneReport prune()
  * @method static void assertStarted(string $key, \Closure|null $where = null, int|null $times = null)

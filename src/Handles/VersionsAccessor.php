@@ -18,6 +18,7 @@ use RoundlyConsulting\Workflows\DataTransferObjects\ValidationReport;
 use RoundlyConsulting\Workflows\DataTransferObjects\VersionDiff;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Exceptions\InvalidTemplateException;
+use RoundlyConsulting\Workflows\Graph\Build\GraphBuilder;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
 use RoundlyConsulting\Workflows\Support\Keys;
@@ -35,11 +36,11 @@ final readonly class VersionsAccessor
     ) {}
 
     /**
-     * @param  array<string, mixed>  $graph
+     * @param  array<array-key, mixed>|GraphBuilder  $graph
      */
-    public function validate(array $graph, ?string $subjectType = null, ?Model $owner = null): ValidationReport
+    public function validate(array|GraphBuilder $graph, ?string $subjectType = null, ?Model $owner = null): ValidationReport
     {
-        return $this->manager->make(ValidateGraphAction::class)->execute($graph, $subjectType, $owner);
+        return $this->manager->make(ValidateGraphAction::class)->execute($graph instanceof GraphBuilder ? $graph->toArray() : $graph, $subjectType, $owner);
     }
 
     public function diff(WorkflowVersion $from, WorkflowVersion $to): VersionDiff
@@ -76,10 +77,12 @@ final readonly class VersionsAccessor
     /**
      * A dry run of a version, or of any graph against a definition (its subject type and owner).
      *
-     * @param  WorkflowVersion|array<string, mixed>  $graph
+     * @param  WorkflowVersion|array<string, mixed>|GraphBuilder  $graph
      */
-    public function dryRun(WorkflowVersion|array $graph, ?WorkflowDefinition $definition = null): PendingDryRun
+    public function dryRun(WorkflowVersion|array|GraphBuilder $graph, ?WorkflowDefinition $definition = null): PendingDryRun
     {
+        $graph = $graph instanceof GraphBuilder ? $graph->toArray() : $graph;
+
         if ($graph instanceof WorkflowVersion) {
             $owner = $graph->definition;
 

@@ -9,6 +9,7 @@ use RoundlyConsulting\Workflows\DataTransferObjects\ImportResult;
 use RoundlyConsulting\Workflows\Enums\WaitKind;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Graph\Build\Trigger;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
@@ -356,4 +357,13 @@ it('covers every operation with an assertion', function (): void {
             expect(method_exists(WorkflowsFake::class, $method))->toBeTrue($method);
         }
     }
+});
+
+it('builds graphs under the fake', function (): void {
+    $fake = Workflows::fake();
+
+    $graph = Workflows::graph()->trigger('start', Trigger::manual())->end('done')->chain('start', 'done');
+
+    expect($graph->validate()->valid())->toBeTrue();
+    $fake->assertNothingRecorded();
 });

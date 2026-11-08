@@ -11,6 +11,7 @@ Initial public release.
 ### Added
 
 - Workflow definitions stored as versioned JSON graphs: drafts with optimistic checksums, publish, retire, activate, restore, version diffs and portable templates with id remapping and owner-specific review flags.
+- A fluent graph builder (`Workflows::graph()` with `When`, `Party`, `After`, `Ref`, `Trigger`, `Input`, `Stage` and `Escalate`) that writes the same JSON document; every method taking a graph also takes the builder.
 - A published JSON Schema for the graph and the template, a step catalogue with per-type config schemas, and registered subject types with typed fields.
 - Graph validation with machine-readable codes: reachability, cycles, limits, config schemas, field and party references, calendars and missing adapters.
 - Triggers: manual (with validated input or a form), app events (`Workflows::emit()` and Laravel events mapped in config or in code with `Workflows::triggers()->map()` / `->listen()`, with a payload and an idempotency key), schedules (cron) and an opt-in signed inbound webhook route.

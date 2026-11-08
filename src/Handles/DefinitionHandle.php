@@ -25,6 +25,7 @@ use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Exceptions\NothingToPublishException;
 use RoundlyConsulting\Workflows\Exceptions\NoVersionException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownDefinitionException;
+use RoundlyConsulting\Workflows\Graph\Build\GraphBuilder;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
@@ -65,11 +66,12 @@ final readonly class DefinitionHandle
      * Save a graph into the draft (created from the current version when there is none). Only
      * the structure is checked; `expectedChecksum` guards against a concurrent edit.
      *
-     * @param  array<string, mixed>  $graph
+     * @param  array<string, mixed>|GraphBuilder  $graph
      */
-    public function edit(array $graph, ?string $expectedChecksum = null): WorkflowVersion
+    public function edit(array|GraphBuilder $graph, ?string $expectedChecksum = null): WorkflowVersion
     {
         $definition = $this->model();
+        $graph = $graph instanceof GraphBuilder ? $graph->toArray() : $graph;
 
         return $this->manager->perform(
             WorkflowOperation::Edit,
