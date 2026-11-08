@@ -88,6 +88,14 @@ final class TriggerStep extends BuiltinStep
                     ],
                 ],
                 'timezone' => ['type' => 'string', 'format' => 'timezone'],
+                'for_each' => [
+                    'type' => 'object',
+                    'additionalProperties' => false,
+                    'properties' => [
+                        'where' => ['$ref' => '#/$defs/condition'],
+                        'limit' => ['type' => 'integer', 'minimum' => 1],
+                    ],
+                ],
                 'idempotency' => [
                     'type' => 'object',
                     'required' => ['from'],
@@ -132,6 +140,10 @@ final class TriggerStep extends BuiltinStep
 
         if ($trigger === 'schedule') {
             $errors = [...$errors, ...$this->schedule($config, $node)];
+        }
+
+        if (array_key_exists('for_each', $config)) {
+            $errors = [...$errors, ...$this->forEach($config, $scope, $node)];
         }
 
         if (is_string($config['form'] ?? null)) {
@@ -196,6 +208,23 @@ final class TriggerStep extends BuiltinStep
         }
 
         return null;
+    }
+
+    /**
+     * `for_each` runs a schedule once per subject of the definition's subject type.
+     *
+     * @param  array<string, mixed>  $config
+     * @return list<ValidationError>
+     */
+    private function forEach(array $config, ValidationScope $scope, ?string $node): array
+    {
+        if (($config['trigger'] ?? null) !== 'schedule' || $scope->subjectType === null) {
+            return [ValidationError::make(ValidationCode::InvalidConfig, node: $node, path: '/for_each', params: ['keyword' => 'for_each', 'expected' => 'a schedule trigger of a definition with a subject type'])];
+        }
+
+        $where = is_array($config['for_each']) ? ($config['for_each']['where'] ?? null) : null;
+
+        return $where === null ? [] : ConditionValidator::validate($where, $scope, '/for_each/where');
     }
 
     /**

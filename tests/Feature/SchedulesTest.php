@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Graph\Build\Trigger;
+use RoundlyConsulting\Workflows\Graph\Build\When;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 
 function scheduled(string $cron, string $timezone = 'UTC'): array
@@ -92,4 +94,53 @@ it('runs presets and skips retired definitions', function (): void {
 
     clockAt('2026-11-10 09:00:00 UTC');
     expect(Workflows::wake()->schedules)->toBe(0);
+});
+
+// W-24
+it('starts one instance per matching subject per slot', function (): void {
+    clockAt('2026-11-09 08:00:00 UTC');
+    $acme = company('Acme');
+    $urgent = document($acme, ['urgent' => true]);
+    document($acme, ['urgent' => false]);
+    document(company('Globex'), ['urgent' => true]);
+    $later = document($acme, ['urgent' => true]);
+    published('chase', graph([
+        node('start', 'trigger', ['trigger' => 'schedule', 'cron' => '0 9 * * *', 'timezone' => 'UTC', 'for_each' => ['where' => ['field' => 'subject.urgent', 'op' => 'equals', 'value' => true], 'limit' => 5]]),
+        node('done', 'end'),
+    ], [['start', 'done']]), $acme);
+
+    clockAt('2026-11-09 09:00:00 UTC');
+
+    expect(Workflows::wake()->schedules)->toBe(2)
+        ->and(WorkflowInstance::query()->orderBy('id')->pluck('subject_id')->all())->toBe([$urgent->id, $later->id])
+        ->and(Workflows::wake()->schedules)->toBe(0);
+
+    clockAt('2026-11-10 09:00:00 UTC');
+
+    expect(Workflows::wake()->schedules)->toBe(2);
+});
+
+it('caps a per-subject schedule and refuses it without a subject type', function (): void {
+    clockAt('2026-11-09 08:00:00 UTC');
+    foreach (range(1, 3) as $ignored) {
+        document();
+    }
+    published('chase', graph([
+        node('start', 'trigger', ['trigger' => 'schedule', 'cron' => '0 9 * * *', 'for_each' => ['limit' => 2]]),
+        node('done', 'end'),
+    ], [['start', 'done']]));
+
+    clockAt('2026-11-09 09:00:00 UTC');
+
+    expect(Workflows::wake()->schedules)->toBe(2)
+        ->and(Workflows::versions()->validate(graph([
+            node('start', 'trigger', ['trigger' => 'schedule', 'cron' => '0 9 * * *', 'for_each' => ['limit' => 2]]),
+            node('done', 'end'),
+        ], [['start', 'done']]))->valid())->toBeFalse()
+        ->and(Workflows::versions()->validate(graph([
+            node('start', 'trigger', ['trigger' => 'manual', 'for_each' => ['limit' => 2]]),
+            node('done', 'end'),
+        ], [['start', 'done']]), 'document')->valid())->toBeFalse()
+        ->and(Trigger::schedule('0 9 * * *')->forEach(When::field('subject.urgent')->equals(true), limit: 10)->toArray())
+        ->toBe(['trigger' => 'schedule', 'cron' => '0 9 * * *', 'for_each' => ['where' => ['field' => 'subject.urgent', 'op' => 'equals', 'value' => true], 'limit' => 10]]);
 });

@@ -75,6 +75,25 @@ final readonly class Trigger
     }
 
     /**
+     * Run a schedule once per subject of the definition's subject type (each matching `$where`,
+     * at most `$limit` per slot).
+     */
+    public function forEach(?When $where = null, ?int $limit = null): self
+    {
+        $forEach = [];
+
+        if ($where !== null) {
+            $forEach['where'] = $where->toArray();
+        }
+
+        if ($limit !== null) {
+            $forEach['limit'] = $limit;
+        }
+
+        return new self([...$this->value, 'for_each' => $forEach]);
+    }
+
+    /**
      * Start only when the condition holds (otherwise the start is skipped).
      */
     public function when(When $condition): self
