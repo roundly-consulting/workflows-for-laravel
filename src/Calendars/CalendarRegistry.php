@@ -76,7 +76,7 @@ final class CalendarRegistry
             }
         }
 
-        throw UnknownCalendarException::name($name);
+        throw UnknownCalendarException::name($name, ['weekdays', ...array_keys($this->calendars)]);
     }
 
     /**

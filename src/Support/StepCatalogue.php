@@ -97,7 +97,7 @@ final class StepCatalogue
      */
     public function get(string $key): StepType
     {
-        return $this->find($key) ?? throw UnknownStepTypeException::key($key);
+        return $this->find($key) ?? throw UnknownStepTypeException::key($key, array_keys($this->types), $this->missingAdapter($key));
     }
 
     public function has(string $key): bool

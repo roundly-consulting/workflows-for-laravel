@@ -48,7 +48,7 @@ final class SubjectRegistry
      */
     public function get(string $key): SubjectTypeDefinition
     {
-        return $this->find($key) ?? throw UnknownSubjectTypeException::key($key);
+        return $this->find($key) ?? throw UnknownSubjectTypeException::key($key, array_keys($this->types));
     }
 
     /**

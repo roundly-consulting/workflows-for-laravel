@@ -43,7 +43,7 @@ final readonly class ReceiveWebhookAction
         $version = $definition instanceof WorkflowDefinition ? $definition->currentVersion : null;
 
         if (! $definition instanceof WorkflowDefinition || ! $version instanceof WorkflowVersion || $version->trigger_type !== TriggerType::Webhook) {
-            throw UnknownDefinitionException::key($hookId);
+            throw UnknownDefinitionException::hook($hookId);
         }
 
         $key = $this->idempotencyKey($version->trigger, $payload, $headers);

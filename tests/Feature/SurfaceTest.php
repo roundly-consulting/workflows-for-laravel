@@ -5,14 +5,24 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use PHPUnit\Framework\AssertionFailedError;
+use RoundlyConsulting\Workflows\Calendars\CalendarRegistry;
 use RoundlyConsulting\Workflows\Casts\UtcDateTime;
 use RoundlyConsulting\Workflows\Contracts\DeliversWebhooks;
+use RoundlyConsulting\Workflows\DataTransferObjects\EdgeReference;
 use RoundlyConsulting\Workflows\DataTransferObjects\ImportResult;
 use RoundlyConsulting\Workflows\DataTransferObjects\PartyReference;
+use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
+use RoundlyConsulting\Workflows\DataTransferObjects\ValidationReport;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus as Status;
+use RoundlyConsulting\Workflows\Enums\ValidationCode;
+use RoundlyConsulting\Workflows\Exceptions\InvalidGraphException;
 use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
 use RoundlyConsulting\Workflows\Exceptions\NoVersionException;
+use RoundlyConsulting\Workflows\Exceptions\UnknownCalendarException;
+use RoundlyConsulting\Workflows\Exceptions\UnknownDefinitionException;
+use RoundlyConsulting\Workflows\Exceptions\UnknownStepTypeException;
+use RoundlyConsulting\Workflows\Exceptions\UnknownSubjectTypeException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Graph\GraphParser;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
@@ -21,6 +31,8 @@ use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Steps\StepType;
 use RoundlyConsulting\Workflows\Support\Adapters;
 use RoundlyConsulting\Workflows\Support\StepCatalogue;
+use RoundlyConsulting\Workflows\Support\SubjectRegistry;
+use RoundlyConsulting\Workflows\Support\Suggestions;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 use RoundlyConsulting\Workflows\Testing\WorkflowExpectations;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Document;
@@ -311,4 +323,67 @@ it('declares no nullable model return on a mutating API method', function (): vo
 
     expect($nullable)->toBe([])
         ->and(count($classes))->toBeGreaterThan(8);
+});
+
+// W-11
+it('lists the first problems in an invalid graph message', function (): void {
+    Workflows::definitions()->create(key: 'flow', name: 'Flow');
+    Workflows::definition('flow')->edit(graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('check', 'condition', ['when' => ['field' => 'input.x', 'op' => 'equals', 'value' => 'secret-value']]),
+        node('orphan', 'end'),
+        node('lonely', 'end'),
+        node('done', 'end'),
+    ], [['start', 'check'], ['check', 'done', 'true']]));
+
+    try {
+        Workflows::definition('flow')->publish();
+        $this->fail('Expected InvalidGraphException.');
+    } catch (InvalidGraphException $exception) {
+        $count = count($exception->validationReport()->errorsOnly());
+
+        expect($count)->toBeGreaterThan(3)
+            ->and($exception->getMessage())->toStartWith('The workflow graph is invalid ('.$count.' problems): ')
+            ->and($exception->getMessage())->toContain(' at check')
+            ->and($exception->getMessage())->toContain('and '.($count - 3).' more')
+            ->and($exception->getMessage())->not->toContain('secret-value');
+    }
+
+    expect(InvalidGraphException::report(new ValidationReport)->getMessage())->toBe('The workflow graph is invalid (0 problems).')
+        ->and(InvalidGraphException::report(new ValidationReport([ValidationError::make(ValidationCode::DanglingEdge, edge: new EdgeReference('a', 'b'))]))->getMessage())
+        ->toBe('The workflow graph is invalid (1 problems): dangling_edge at a→b.')
+        ->and(InvalidGraphException::report(new ValidationReport([ValidationError::make(ValidationCode::InvalidStructure, params: ['keyword' => 'nodes'])]))->getMessage())
+        ->toBe('The workflow graph is invalid (1 problems): invalid_structure (nodes).');
+});
+
+it('says which scope a definition was looked up in', function (): void {
+    $acme = company('Acme');
+
+    expect(fn () => Workflows::definition('nope', $acme)->model())->toThrow(UnknownDefinitionException::class, 'The workflow "nope" was not found for this owner.')
+        ->and(fn () => Workflows::definition('nope')->model())->toThrow(UnknownDefinitionException::class, 'The workflow "nope" was not found among the app-wide workflows.')
+        ->and(fn () => Workflows::triggers()->webhook('wh_nope', []))->toThrow(UnknownDefinitionException::class, 'The workflow "wh_nope" was not found.');
+
+    try {
+        Workflows::definition('nope', $acme)->model();
+    } catch (UnknownDefinitionException $exception) {
+        expect($exception->getMessage())->not->toContain('Company')->not->toContain('\\');
+    }
+});
+
+it('suggests the closest step type', function (): void {
+    expect(fn () => app(StepCatalogue::class)->get('acme.creat_task'))->toThrow(UnknownStepTypeException::class, 'Did you mean "acme.create_task"?')
+        ->and(fn () => app(StepCatalogue::class)->get('zzzzzzzz'))->toThrow(UnknownStepTypeException::class, 'The step type "zzzzzzzz" is not registered.')
+        ->and(fn () => app(SubjectRegistry::class)->get('documnt'))->toThrow(UnknownSubjectTypeException::class, 'Did you mean "document"?')
+        ->and(fn () => app(SubjectRegistry::class)->get('zzz'))->toThrow(UnknownSubjectTypeException::class, 'The subject type "zzz" is not registered.')
+        ->and(fn () => app(CalendarRegistry::class)->find('weekday', null, 'UTC'))->toThrow(UnknownCalendarException::class, 'Did you mean "weekdays"?')
+        ->and(Suggestions::closest('ab', ['ac', 'aa', 'ab']))->toBe('aa');
+});
+
+it('names the package a bridged step type needs', function (): void {
+    expect(fn () => app(StepCatalogue::class)->get('approval'))->toThrow(UnknownStepTypeException::class, 'The step type "approval" needs roundly-consulting/approvals-for-laravel.');
+});
+
+it('adds the error code and key to the log context', function (): void {
+    expect(UnknownDefinitionException::key('flow', company())->context())->toBe(['code' => 'unknown_definition', 'key' => 'flow'])
+        ->and(InvalidGraphException::report(new ValidationReport)->context())->toBe(['code' => 'invalid_graph']);
 });

@@ -24,7 +24,7 @@ final class Definitions
     {
         $definition = self::query($owner, $withTrashed)->where('key', $key)->first();
 
-        return $definition instanceof WorkflowDefinition ? $definition : throw UnknownDefinitionException::key($key);
+        return $definition instanceof WorkflowDefinition ? $definition : throw UnknownDefinitionException::key($key, $owner);
     }
 
     /**
