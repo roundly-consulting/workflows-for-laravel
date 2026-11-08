@@ -42,9 +42,7 @@ final readonly class EmitEventAction
 
     public function execute(EmitData $data): EmitResult
     {
-        if (str_starts_with($data->event, '@') || preg_match(TriggerStep::EVENT_KEY, $data->event) !== 1) {
-            throw InvalidEventKeyException::key($data->event);
-        }
+        self::assertKey($data->event);
 
         $owner = $data->owner;
 
@@ -75,6 +73,19 @@ final readonly class EmitEventAction
         $resumed = $this->context->run($owner, fn (): int => $this->signals->send($data->event, $data->subject, $data->payload, $owner));
 
         return new EmitResult($started, $resumed, $failed);
+    }
+
+    /**
+     * The one event-key check: the manager runs it before the fake records an emit, so the fake
+     * refuses exactly what this action refuses.
+     *
+     * @throws InvalidEventKeyException
+     */
+    public static function assertKey(string $event): void
+    {
+        if (str_starts_with($event, '@') || preg_match(TriggerStep::EVENT_KEY, $event) !== 1) {
+            throw InvalidEventKeyException::key($event);
+        }
     }
 
     private function start(WorkflowDefinition $definition, EmitData $data, ?Model $owner): StartResult

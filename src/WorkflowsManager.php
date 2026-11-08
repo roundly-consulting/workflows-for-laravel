@@ -81,6 +81,9 @@ class WorkflowsManager
 
     public function emitWith(EmitData $data): EmitResult
     {
+        // Before perform(): the fake refuses the keys the real emit refuses.
+        EmitEventAction::assertKey($data->event);
+
         return $this->perform(
             WorkflowOperation::Emit,
             EmitEventAction::class,
