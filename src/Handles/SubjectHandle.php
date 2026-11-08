@@ -13,6 +13,7 @@ use RoundlyConsulting\Workflows\Builders\PendingStart;
 use RoundlyConsulting\Workflows\DataTransferObjects\EmitResult;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
+use RoundlyConsulting\Workflows\Exceptions\InstanceNotCancellableException;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Support\Definitions;
 use RoundlyConsulting\Workflows\Support\Owners;
@@ -67,15 +68,30 @@ final readonly class SubjectHandle
     }
 
     /**
-     * Cancel every running or waiting instance of the subject.
+     * Cancel every running or waiting instance of the subject; returns how many of them ended
+     * cancelled (children cancelled through a parent count).
      */
     public function cancelAll(?string $reason = null): int
     {
         $cancelled = 0;
 
         foreach ($this->running() as $instance) {
-            $this->manager->instances()->cancel($instance, $reason);
-            $cancelled++;
+            // A parent's cancel cascades to the children it waits on, and an instance may end on
+            // its own meanwhile: only one still active is cancelled here.
+            if ($instance->refresh()->status->isActive()) {
+                try {
+                    $this->manager->instances()->cancel($instance, $reason);
+                    $cancelled++;
+
+                    continue;
+                } catch (InstanceNotCancellableException) {
+                    $instance->refresh();
+                }
+            }
+
+            if ($instance->status === InstanceStatus::Cancelled) {
+                $cancelled++;
+            }
         }
 
         return $cancelled;
