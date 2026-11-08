@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Steps\Builtin;
 
 use Illuminate\Database\Eloquent\Model;
+use RoundlyConsulting\Workflows\Actions\Instances\CancelInstanceAction;
 use RoundlyConsulting\Workflows\Actions\Instances\StartInstanceAction;
 use RoundlyConsulting\Workflows\DataTransferObjects\Signal;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartData;
@@ -14,6 +15,7 @@ use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\Severity;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
+use RoundlyConsulting\Workflows\Exceptions\InstanceNotCancellableException;
 use RoundlyConsulting\Workflows\Exceptions\WorkflowsException;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
@@ -24,6 +26,7 @@ use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Steps\ValidationScope;
 use RoundlyConsulting\Workflows\Steps\WaitSpec;
 use RoundlyConsulting\Workflows\Support\Definitions;
+use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\Messages;
 use RoundlyConsulting\Workflows\Support\Owners;
 use RoundlyConsulting\Workflows\Support\Read;
@@ -165,6 +168,30 @@ final class StartWorkflowStep extends BuiltinStep
             InstanceStatus::Cancelled => 'cancelled',
             default => 'failed',
         }, ['instance' => $child->ulid]);
+    }
+
+    /**
+     * The child this step started goes with it: a cancel whose cascade ran before the running
+     * attempt had started the child (or a retry carrying an earlier attempt's child) still
+     * reaches it here. Only this instance's own, still active child; parent → child lock order.
+     */
+    public function cancel(StepContext $context): void
+    {
+        $ulid = $context->stepRun()->output['instance'] ?? null;
+        $model = WorkflowModels::instance();
+        $child = is_string($ulid)
+            ? $model::query()->where('ulid', $ulid)->where('parent_instance_id', Keys::of($context->instance()))->first()
+            : null;
+
+        if (! $child instanceof WorkflowInstance || ! $child->status->isActive()) {
+            return;
+        }
+
+        try {
+            app(CancelInstanceAction::class)->execute($child, 'parent_cancelled');
+        } catch (InstanceNotCancellableException) {
+            // It ended meanwhile.
+        }
     }
 
     public function simulate(StepContext $context): StepResult
