@@ -15,8 +15,9 @@ use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 
 /**
  * Runs the authorization hook: the ability is `workflows.authorization.abilities.<type>` when
- * set, else the one given (the type's own). Graph config can never pick a weaker one. A null
- * ability is allowed (the target package enforces access itself).
+ * set, else the one given (the type's own). Graph config can never pick a weaker one. The bound
+ * hook is always called, a null ability included — the default GateStepAuthorizer allows that
+ * (the target package enforces access itself), a host's own hook decides for itself.
  *
  * @internal
  */
@@ -34,17 +35,14 @@ final readonly class Authorization
     public function check(Actor $actor, ?string $ability, ?Model $subject, Node $node, WorkflowInstance $instance, array $arguments = []): void
     {
         $ability = WorkflowsConfig::abilities()[$node->type] ?? $ability;
-
-        if ($ability === null || $ability === '') {
-            return;
-        }
+        $ability = $ability === '' ? null : $ability;
 
         $authorizer = $this->container->make(AuthorizesSteps::class);
 
         $response = $authorizer->authorize(new StepAuthorization($actor, $ability, $subject, $node, $instance, $arguments));
 
         if ($response->denied()) {
-            throw StepAuthorizationDeniedException::because($response->message(), $ability);
+            throw StepAuthorizationDeniedException::because($response->message(), $ability, $node->id);
         }
     }
 }

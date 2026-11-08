@@ -34,6 +34,7 @@ return [
     'calendar_never_open' => 'The business calendar is not open within :days days.',
     'unknown_calendar' => 'The calendar ":calendar" does not exist.',
     'authorization_denied' => 'The workflow is not allowed to :ability.',
+    'authorization_denied_step' => 'The workflow is not allowed to run the step ":node".',
     'invalid_definition_key' => 'The workflow key ":key" is not valid (lowercase letters, digits, ., _ and -).',
     'definition_needs_subject' => 'The workflow ":key" needs a subject.',
     'invalid_event_key' => '":key" cannot be emitted.',

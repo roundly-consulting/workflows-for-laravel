@@ -156,7 +156,8 @@ return [
     ],
 
     'authorization' => [
-        // class-string<Contracts\AuthorizesSteps>: called before every side-effect step.
+        // class-string<Contracts\AuthorizesSteps>: called before every side-effect step and escalation
+        // action, a null ability included (the default allows that).
         'authorizer' => GateStepAuthorizer::class,
         // Step type key => policy ability, overriding the type's own ability().
         'abilities' => [],

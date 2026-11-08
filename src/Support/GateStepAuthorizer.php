@@ -12,7 +12,8 @@ use RoundlyConsulting\Workflows\DataTransferObjects\StepAuthorization;
 /**
  * The default authorization hook: `Gate::forUser($actor->user)->inspect($ability, [$subject])`.
  * The system actor authorizes as the configured service account, else as a null user — so a
- * policy denies unless it declares `?User` (fail closed).
+ * policy denies unless it declares `?User` (fail closed). A null ability — a type without one,
+ * e.g. start_workflow or notify — is allowed: the target package enforces its own access.
  */
 final readonly class GateStepAuthorizer implements AuthorizesSteps
 {
@@ -22,6 +23,10 @@ final readonly class GateStepAuthorizer implements AuthorizesSteps
 
     public function authorize(StepAuthorization $authorization): Response
     {
+        if ($authorization->ability === null) {
+            return Response::allow();
+        }
+
         $arguments = $authorization->subject === null
             ? $authorization->arguments
             : [$authorization->subject, ...$authorization->arguments];

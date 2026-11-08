@@ -34,6 +34,7 @@ return [
     'calendar_never_open' => 'Pracovný kalendár nie je otvorený v rámci :days dní.',
     'unknown_calendar' => 'Kalendár „:calendar“ neexistuje.',
     'authorization_denied' => 'Pracovný postup nemá povolenie na :ability.',
+    'authorization_denied_step' => 'Pracovný postup nemá povolenie spustiť krok „:node“.',
     'invalid_definition_key' => 'Kľúč pracovného postupu „:key“ nie je platný (malé písmená, číslice, ., _ a -).',
     'definition_needs_subject' => 'Pracovný postup „:key“ potrebuje subjekt.',
     'invalid_event_key' => '„:key“ nie je možné vyslať.',
