@@ -17,7 +17,8 @@ use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Steps\StepType;
 use RoundlyConsulting\Workflows\Steps\WaitSpec;
 
-// Dual review O-3 / F-5: a retried waiting step keeps escalating.
+// Dual review O-3 / F-5: a retried waiting step keeps escalating. (Since chat review C-2 the manual
+// retry resumes with the stored signal; the gate waits on, and its chain is armed again.)
 
 final class RegressionGateStep extends StepType
 {
@@ -64,7 +65,10 @@ final class RegressionGateStep extends StepType
             throw StepFailedException::because('gate_broken', 'broken');
         }
 
-        return StepResult::complete('next');
+        // The gate needs a second, confirming open: a resume without one waits on.
+        return ($signal->payload['confirmed'] ?? false) === true
+            ? StepResult::complete('next')
+            : StepResult::wait(WaitSpec::event('gate.open', ['subject' => false]));
     }
 }
 

@@ -19,8 +19,9 @@ use RoundlyConsulting\Workflows\Support\WorkflowModels;
 
 /**
  * Retries a failed instance from the step that failed: a new attempt of the same visit, with
- * the same idempotency key (so an effect recorded with `once()` is not repeated). The attempt cap
- * does not apply; on success the instance resumes from that node.
+ * the same idempotency key (so an effect recorded with `once()` is not repeated). A step whose
+ * `resume()` failed is resumed again with the signal it received; one whose `handle()` failed runs
+ * `handle()` again. The attempt cap does not apply; on success the instance resumes from that node.
  */
 final readonly class RetryInstanceAction
 {
@@ -62,6 +63,15 @@ final readonly class RetryInstanceAction
             }
 
             $next = $this->advancer->createRun($locked, $node, $last->attempt + 1, $last->visit, $last->idempotency_key);
+
+            // A failed resume is retried as a resume, exactly like the automatic retry: the signal
+            // it received (the event will not come again) and the state the step waited with.
+            if ($last->resume_signal !== null) {
+                $next->resume_signal = $last->resume_signal;
+                $next->input = $last->input;
+                $next->output = $last->output;
+                $next->save();
+            }
 
             $locked->status = InstanceStatus::Running;
             $locked->failure_code = null;

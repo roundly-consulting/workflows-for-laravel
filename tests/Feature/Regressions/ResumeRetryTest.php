@@ -18,10 +18,15 @@ use RoundlyConsulting\Workflows\Steps\StepType;
 use RoundlyConsulting\Workflows\Steps\WaitSpec;
 
 // Dual review O-6: an automatic retry of a failed resume resumes again with the same signal.
+// Chat review C-2: so does a manual retry; a failed handle() still runs handle() again.
 
 final class RegressionDecisionStep extends StepType
 {
     public static int $resumes = 0;
+
+    public static int $handles = 0;
+
+    public static bool $failHandle = false;
 
     /** @var list<array{kind: string, payload: array<string, mixed>, output: array<string, mixed>|null}> */
     public static array $signals = [];
@@ -53,6 +58,10 @@ final class RegressionDecisionStep extends StepType
 
     public function handle(StepContext $context): StepResult
     {
+        if (++self::$handles === 1 && self::$failHandle) {
+            throw new RuntimeException('connection refused');
+        }
+
         return StepResult::wait(WaitSpec::event('decision.made', ['subject' => false]), ['round' => 7]);
     }
 
@@ -70,6 +79,8 @@ final class RegressionDecisionStep extends StepType
 
 beforeEach(function (): void {
     RegressionDecisionStep::$resumes = 0;
+    RegressionDecisionStep::$handles = 0;
+    RegressionDecisionStep::$failHandle = false;
     RegressionDecisionStep::$signals = [];
     Workflows::catalogue()->register(new RegressionDecisionStep);
     published('flow', graph([
@@ -132,15 +143,39 @@ it('resumes again after a worker died during the resume', function (): void {
         ->and(RegressionDecisionStep::$signals[0]['payload'])->toBe(['decision' => 'rejected']);
 });
 
-it('runs handle() again on a manual retry', function (): void {
+it('resumes a manual retry of a failed resume with the stored signal', function (): void {
     config()->set('workflows.retry.default', ['max_attempts' => 1, 'backoff' => [30], 'jitter' => 0]);
 
     $instance = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
     Workflows::emit('decision.made', payload: ['decision' => 'rejected']);
     expect($instance->refresh()->status)->toBe(InstanceStatus::Failed);
 
+    // The cause is gone (the step throws on its first resume only); the event is not sent again.
+    Workflows::instances()->retry($instance);
+
+    $runs = StepRun::query()->where('node_id', 'decide')->orderBy('attempt')->get();
+
+    expect($instance->refresh()->status)->toBe(InstanceStatus::Completed)
+        ->and($runs->pluck('outcome')->all())->toBe([null, 'rejected'])
+        ->and(RegressionDecisionStep::$handles)->toBe(1)
+        ->and(RegressionDecisionStep::$signals)->toHaveCount(2)
+        ->and(RegressionDecisionStep::$signals[1]['kind'])->toBe(SignalKind::Event->value)
+        ->and(RegressionDecisionStep::$signals[1]['payload'])->toBe(['decision' => 'rejected'])
+        ->and(RegressionDecisionStep::$signals[1]['output'])->toBe(['round' => 7])
+        ->and($runs->last()?->input)->toBe($runs->first()?->input);
+});
+
+it('runs handle() again on a manual retry of a failed handle()', function (): void {
+    config()->set('workflows.retry.default', ['max_attempts' => 1, 'backoff' => [30], 'jitter' => 0]);
+    RegressionDecisionStep::$failHandle = true;
+
+    $instance = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
+    expect($instance->refresh()->status)->toBe(InstanceStatus::Failed);
+
     Workflows::instances()->retry($instance);
 
     expect($instance->refresh()->status)->toBe(InstanceStatus::Waiting)
-        ->and(RegressionDecisionStep::$signals)->toHaveCount(1);
+        ->and(RegressionDecisionStep::$handles)->toBe(2)
+        ->and(RegressionDecisionStep::$signals)->toBe([])
+        ->and(StepRun::query()->where('node_id', 'decide')->orderByDesc('attempt')->value('resume_signal'))->toBeNull();
 });

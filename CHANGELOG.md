@@ -6,6 +6,10 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 
 ## Unreleased
 
+### Changed
+
+- A manual retry (`Workflows::instances()->retry()`, `workflows:retry`) of a step whose `resume()` failed now resumes it again with the signal it received and the state it waited with, like the automatic retry already did — the event that already arrived is not waited for again. A step whose `handle()` failed still runs `handle()` again.
+
 ### Fixed
 
 - `Workflows::emit()` no longer stops at the first matching definition that refuses to start (an `on_behalf_of` definition emitted without a user, one retired meanwhile): the other definitions still start, the waits on the event are still resumed, and the refusal is returned in the new `EmitResult::$failed` list (`EmitFailure` with the definition key and the exception). A mapped Laravel event reports the refusal to the exception handler instead of failing the host's request.
