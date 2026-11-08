@@ -19,6 +19,19 @@ use RoundlyConsulting\Workflows\Models\WorkflowIdempotencyKey;
 final class Effects
 {
     /**
+     * What `once()` recorded for this step key and name, without running anything: null when
+     * nothing was recorded.
+     */
+    public static function recall(string $stepKey, string $name): mixed
+    {
+        $model = WorkflowModels::idempotencyKey();
+        $digest = Crypto::digest()->hex($stepKey.'|'.$name);
+        $row = $model::query()->where('scope', 'effect')->where('key', $digest)->first();
+
+        return $row instanceof WorkflowIdempotencyKey ? ($row->result['value'] ?? null) : null;
+    }
+
+    /**
      * @template T
      *
      * @param  Closure(): T  $callback

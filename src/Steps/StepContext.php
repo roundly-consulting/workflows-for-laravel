@@ -225,6 +225,15 @@ final readonly class StepContext
         return Effects::once($this->idempotencyKey(), $name, Keys::of($this->instance), $callback);
     }
 
+    /**
+     * What `once($name)` recorded for this visit, or null — without running anything. For clean-up
+     * (`cancel()`) when the attempt that ran the effect failed before it could return its output.
+     */
+    public function recall(string $name): mixed
+    {
+        return $this->simulating ? null : Effects::recall($this->idempotencyKey(), $name);
+    }
+
     public function simulating(): bool
     {
         return $this->simulating;

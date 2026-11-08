@@ -201,7 +201,9 @@ final class ApprovalStep extends BuiltinStep
 
     public function cancel(StepContext $context): void
     {
-        $request = $this->request($context->stepRun()->output['request_id'] ?? null);
+        // An attempt that threw after opening its round recorded no output: the round is still in
+        // the visit's once('round') record.
+        $request = $this->request($context->stepRun()->output['request_id'] ?? $context->recall('round'));
 
         if ($request !== null && $request->status === ApprovalStatus::Pending) {
             $this->approvals->for($this->subject($context))->within($request)->close(ApprovalStatus::Cancelled);
