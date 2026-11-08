@@ -26,5 +26,5 @@ Initial public release.
 - Bridges, each optional: approvals, lifecycle, notifications, opening hours, forms and teams.
 - HTTP resources with swappable owner, subject and user reference resources — no class names over the wire.
 - `Workflows` facade, injectable `WorkflowsManager`, actions, and a record-only `Workflows::fake()`: non-null return types throughout, faked mutations return unsaved stand-ins, and every recorded operation has an assertion and its negative (`assertCreated`, `assertEdited`, `assertPublished`, `assertWebhookRotated`, `assertTouched($subject)`, `assertNothingRecorded`, …), plus Pest expectations.
-- Commands: `workflows:install`, `wake`, `prune`, `catalogue`, `validate`, `retry`, `cancel` and `doctor`.
+- Commands: `workflows:install`, `wake`, `prune`, `catalogue`, `validate`, `retry`, `cancel` and `doctor` (`--json` for CI and health checks, `--strict` to fail on warnings; it checks the installation, every host config schema, active versions — unregistered step types, missing adapters and calendars, opening-hours owners, condition waits on subjects without `HasWorkflows` — event mappings, stuck instances, the wake backlog and the last day's failures).
 - English and Slovak translations.

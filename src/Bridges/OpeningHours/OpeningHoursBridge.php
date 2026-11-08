@@ -43,6 +43,14 @@ final class OpeningHoursBridge
         );
     }
 
+    /**
+     * Whether an owner model can hold opening hours (it uses HasOpeningHours).
+     */
+    public static function isOwner(Model $owner): bool
+    {
+        return $owner instanceof OpeningHoursOwner;
+    }
+
     private static function owner(?Model $owner): ?Model
     {
         if ($owner !== null) {

@@ -4,13 +4,23 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use RoundlyConsulting\Workflows\Actions\Wake\WakeAction;
 use RoundlyConsulting\Workflows\Calendars\CalendarRegistry;
 use RoundlyConsulting\Workflows\Calendars\WeekdayCalendar;
+use RoundlyConsulting\Workflows\Enums\DoctorLevel;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
+use RoundlyConsulting\Workflows\Enums\StepRunStatus;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Models\StepRun;
+use RoundlyConsulting\Workflows\Models\WorkflowInstance;
+use RoundlyConsulting\Workflows\Models\WorkflowWait;
+use RoundlyConsulting\Workflows\Steps\StepContext;
+use RoundlyConsulting\Workflows\Steps\StepResult;
+use RoundlyConsulting\Workflows\Steps\StepType;
 use RoundlyConsulting\Workflows\Support\Doctor;
+use RoundlyConsulting\Workflows\Support\StepCatalogue;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Events\DocumentSigned;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Company;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Steps\SpyStep;
@@ -26,7 +36,7 @@ function waitingFlow(): array
 
 function doctorChecks(): array
 {
-    return array_map(static fn ($finding): string => $finding->level.' '.$finding->check, app(Doctor::class)->run());
+    return array_map(static fn ($finding): string => $finding->level->value.' '.$finding->check, app(Doctor::class)->run());
 }
 
 it('wakes due work and prints the report', function (): void {
@@ -158,4 +168,113 @@ it('does not warn about idempotency for self-describing events', function (): vo
     config()->set('workflows.events', [Login::class => 'user.login']);
 
     expect(doctorChecks())->toContain('warn events');
+});
+
+// W-12: doctor v2, each check red and green.
+it('fails on an active version using an unregistered step type', function (): void {
+    published('task', graph([node('start', 'trigger', ['trigger' => 'manual']), node('task', 'acme.create_task', ['title' => 'x']), node('done', 'end')], [['start', 'task'], ['task', 'done']]), null, null);
+
+    expect(doctorChecks())->not->toContain('fail step types');
+
+    app()->forgetInstance(StepCatalogue::class);
+
+    expect(doctorChecks())->toContain('fail step types');
+});
+
+it('fails on an invalid host config schema', function (): void {
+    $type = new class extends StepType
+    {
+        public static bool $broken = false;
+
+        public function key(): string
+        {
+            return 'acme.shifty';
+        }
+
+        public function label(): string
+        {
+            return 'Shifty';
+        }
+
+        public function hasSideEffects(): bool
+        {
+            return false;
+        }
+
+        public function configSchema(): array
+        {
+            return self::$broken ? ['type' => 'object', 'patternProperties' => []] : ['type' => 'object'];
+        }
+
+        public function handle(StepContext $context): StepResult
+        {
+            return StepResult::complete();
+        }
+    };
+    Workflows::catalogue()->register($type);
+
+    expect(doctorChecks())->not->toContain('fail config schema');
+
+    $type::$broken = true;
+
+    expect(doctorChecks())->toContain('fail config schema')
+        ->and(collect(app(Doctor::class)->run())->firstWhere('check', 'config schema')?->message)->toContain('acme.shifty');
+});
+
+it('warns about condition waits on a subject without HasWorkflows', function (): void {
+    $wait = static fn (string $field): array => graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('wait', 'wait', ['condition' => ['field' => 'subject.'.$field, 'op' => 'empty'], 'poll' => 'PT1H']),
+        node('done', 'end'),
+    ], [['start', 'wait'], ['wait', 'done', 'met']]);
+    published('doc', $wait('title'));
+
+    expect(doctorChecks())->not->toContain('warn condition waits');
+
+    published('company', $wait('plan'), null, 'company');
+
+    expect(doctorChecks())->toContain('warn condition waits');
+});
+
+it('warns about stuck instances', function (): void {
+    $instance = WorkflowInstance::factory()->create(['status' => InstanceStatus::Running, 'updated_at' => now()->subDay()]);
+    StepRun::factory()->create(['instance_id' => $instance->id, 'status' => StepRunStatus::Queued]);
+
+    expect(doctorChecks())->not->toContain('warn stuck');
+
+    StepRun::query()->update(['status' => StepRunStatus::Completed->value]);
+
+    expect(doctorChecks())->toContain('warn stuck');
+});
+
+it('warns about a wake backlog', function (): void {
+    WorkflowWait::factory()->create(['due_at' => now()->addHour()]);
+
+    expect(doctorChecks())->not->toContain('warn wake backlog');
+
+    WorkflowWait::factory()->create(['due_at' => now()->subMinutes(10)]);
+
+    expect(doctorChecks())->toContain('warn wake backlog');
+});
+
+it('counts the failures of the last day', function (): void {
+    WorkflowInstance::factory()->create(['status' => InstanceStatus::Failed, 'ended_at' => now()->subHour()]);
+    WorkflowInstance::factory()->create(['status' => InstanceStatus::Failed, 'ended_at' => now()->subDays(2)]);
+
+    expect(collect(app(Doctor::class)->run())->firstWhere('check', 'failures')?->message)->toBe('1 instance(s) failed in the last 24 hours.');
+});
+
+it('prints findings as json', function (): void {
+    expect(Artisan::call('workflows:doctor', ['--json' => true]))->toBe(0);
+
+    $findings = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($findings)->toContain(['level' => 'warn', 'check' => 'queue', 'message' => 'Queue off: steps run inline in the request that starts them.'])
+        ->and(array_keys($findings[0]))->toBe(['level', 'check', 'message'])
+        ->and(DoctorLevel::Warn->label())->toBe('Warning');
+});
+
+it('exits non-zero on warnings under --strict', function (): void {
+    $this->artisan('workflows:doctor')->assertSuccessful();
+    $this->artisan('workflows:doctor', ['--strict' => true])->assertFailed();
 });

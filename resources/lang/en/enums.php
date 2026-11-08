@@ -166,4 +166,9 @@ return [
         'unknown_notification_type' => 'Unknown notification type',
         'unknown_form' => 'Unknown form',
     ],
+    'doctor_level' => [
+        'ok' => 'OK',
+        'warn' => 'Warning',
+        'fail' => 'Failure',
+    ],
 ];

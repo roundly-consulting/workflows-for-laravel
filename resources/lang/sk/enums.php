@@ -166,4 +166,9 @@ return [
         'unknown_notification_type' => 'Neznámy typ notifikácie',
         'unknown_form' => 'Neznámy formulár',
     ],
+    'doctor_level' => [
+        'ok' => 'V poriadku',
+        'warn' => 'Upozornenie',
+        'fail' => 'Chyba',
+    ],
 ];

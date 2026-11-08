@@ -12,6 +12,8 @@ use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Exceptions\InvalidTriggerInputException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownCalendarException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
+use RoundlyConsulting\Workflows\Support\Doctor;
 
 function delayOn(string $calendar): array
 {
@@ -92,4 +94,18 @@ it('validates a form-backed manual trigger through forms, storing a submission',
     expect($instance?->trigger_payload['input']['submission'] ?? null)->toBeString()
         ->and($instance?->trigger_payload['input']['purchase-form']['details']['reason'] ?? null)->toBe('New laptops')
         ->and(Workflows::start('form')->input(['purchase-form' => ['details' => ['reason' => 'From an array']]])->dispatch()->created)->toBeTrue();
+});
+
+// W-12 / build note 13
+it('fails on an opening-hours calendar without HasOpeningHours', function (): void {
+    $team = team();
+    OpeningHours::sync($team, ['week' => ['monday' => ['09:00-17:00']]], 'office');
+    $definition = published('wait', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']], ['calendar' => 'opening_hours:office']), $team, null);
+    $checks = static fn (): array => array_map(static fn ($finding): string => $finding->level->value.' '.$finding->check, app(Doctor::class)->run());
+
+    expect($checks())->not->toContain('fail opening hours');
+
+    WorkflowDefinition::query()->whereKey($definition->id)->update(['owner_type' => Team::class]);
+
+    expect($checks())->toContain('fail opening hours');
 });
