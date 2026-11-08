@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Tests;
 use Illuminate\Support\ServiceProvider;
 use RoundlyConsulting\Crypto\CryptoServiceProvider;
 use RoundlyConsulting\Testing\PackageTestCase;
+use RoundlyConsulting\Workflows\Listeners\EmitMappedEvent;
 use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Testing\InteractsWithWorkflows;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\FixtureServiceProvider;
@@ -38,6 +39,20 @@ abstract class TestCase extends PackageTestCase
         CreateTaskStep::$calls = 0;
         FlakyState::$failing = true;
         FixtureServiceProvider::$allow = true;
+    }
+
+    /**
+     * Wire an event map the way the provider does once everything booted.
+     *
+     * @param  array<class-string, mixed>  $events
+     */
+    public function refreshApplicationWithEvents(array $events): void
+    {
+        config()->set('workflows.events', $events);
+
+        foreach (array_keys($events) as $class) {
+            app('events')->listen($class, [EmitMappedEvent::class, 'handle']);
+        }
     }
 
     protected function bridges(): void

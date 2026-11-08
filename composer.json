@@ -107,6 +107,11 @@
             "aliases": {
                 "Workflows": "RoundlyConsulting\\Workflows\\Facades\\Workflows"
             }
+        },
+        "pest": {
+            "plugins": [
+                "RoundlyConsulting\\Workflows\\Testing\\WorkflowExpectations"
+            ]
         }
     }
 }
