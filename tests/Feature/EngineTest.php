@@ -10,6 +10,7 @@ use RoundlyConsulting\Testing\Fixtures\LockRecorder;
 use RoundlyConsulting\Testing\Fixtures\LockRecordingGrammar;
 use RoundlyConsulting\Workflows\Actions\Engine\RecordStepResultAction;
 use RoundlyConsulting\Workflows\Actions\Engine\RunStepAction;
+use RoundlyConsulting\Workflows\Contracts\AuthorizesSteps;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\SignalKind;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
@@ -22,6 +23,7 @@ use RoundlyConsulting\Workflows\Events\StepCompleted;
 use RoundlyConsulting\Workflows\Events\StepFailed;
 use RoundlyConsulting\Workflows\Events\StepStarted;
 use RoundlyConsulting\Workflows\Exceptions\InvalidTriggerInputException;
+use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
 use RoundlyConsulting\Workflows\Exceptions\MissingTriggeringUserException;
 use RoundlyConsulting\Workflows\Exceptions\SubjectOwnerMismatchException;
 use RoundlyConsulting\Workflows\Exceptions\SubjectTypeMismatchException;
@@ -34,6 +36,8 @@ use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Support\Clock;
 use RoundlyConsulting\Workflows\Support\Engine\EngineQueue;
 use RoundlyConsulting\Workflows\Support\Engine\StepFailure;
+use RoundlyConsulting\Workflows\Support\WorkflowModels;
+use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\FixtureServiceProvider;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Task;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
@@ -649,3 +653,78 @@ it('records the unresolved config when the subject is gone', function (): void {
     expect($run->refresh()->input)->toBe(['amount' => ['ref' => 'subject.amount']])
         ->and($instance->refresh())->toHaveFailedWith('subject_missing');
 });
+
+// W-18: one exception class for every configuration error, toolkit readers included.
+it('throws the package configuration exception for every invalid key', function (string $key, mixed $value, Closure $read): void {
+    config()->set($key, $value);
+
+    expect($read)->toThrow(InvalidWorkflowsConfigurationException::class, $key);
+})->with([
+    'key_type' => ['workflows.key_type', 'guid', fn () => WorkflowsConfig::keyType()],
+    'owner_key_type' => ['workflows.owner_key_type', 'guid', fn () => WorkflowsConfig::ownerKeyType()],
+    'subject_key_type' => ['workflows.subject_key_type', 'guid', fn () => WorkflowsConfig::subjectKeyType()],
+    'primary_key_type' => ['workflows.primary_key_type', 'guid', fn () => WorkflowsConfig::primaryKeyType()],
+    'models.definition' => ['workflows.models.definition', stdClass::class, fn () => WorkflowModels::definition()],
+    'models.version' => ['workflows.models.version', stdClass::class, fn () => WorkflowModels::version()],
+    'models.instance' => ['workflows.models.instance', stdClass::class, fn () => WorkflowModels::instance()],
+    'models.step_run' => ['workflows.models.step_run', stdClass::class, fn () => WorkflowModels::stepRun()],
+    'models.wait' => ['workflows.models.wait', stdClass::class, fn () => WorkflowModels::wait()],
+    'models.escalation' => ['workflows.models.escalation', stdClass::class, fn () => WorkflowModels::escalation()],
+    'models.idempotency_key' => ['workflows.models.idempotency_key', stdClass::class, fn () => WorkflowModels::idempotencyKey()],
+    'models.dry_run' => ['workflows.models.dry_run', stdClass::class, fn () => WorkflowModels::dryRun()],
+    'tables.definitions' => ['workflows.tables.definitions', 'Bad Table', fn () => WorkflowsConfig::table('definitions')],
+    'queue.enabled' => ['workflows.queue.enabled', 'perhaps', fn () => WorkflowsConfig::queueEnabled()],
+    'queue.connection' => ['workflows.queue.connection', 42, fn () => WorkflowsConfig::queueConnection()],
+    'queue.queue' => ['workflows.queue.queue', 42, fn () => WorkflowsConfig::queueName()],
+    'steps' => ['workflows.steps', [42], fn () => WorkflowsConfig::steps()],
+    'subjects' => ['workflows.subjects', [42], fn () => WorkflowsConfig::subjects()],
+    'events' => ['workflows.events', 'nope', fn () => WorkflowsConfig::events()],
+    'timezone' => ['workflows.timezone', 'Mars/Base', fn () => WorkflowsConfig::timezone()],
+    'engine.lease' => ['workflows.engine.lease', 'soon', fn () => WorkflowsConfig::lease()],
+    'engine.requeue_after' => ['workflows.engine.requeue_after', 'soon', fn () => WorkflowsConfig::requeueAfter()],
+    'wake.batch' => ['workflows.wake.batch', 0, fn () => WorkflowsConfig::wakeBatch()],
+    'wake.claim_ttl' => ['workflows.wake.claim_ttl', 'soon', fn () => WorkflowsConfig::claimTtl()],
+    'retry.default.max_attempts' => ['workflows.retry.default.max_attempts', 'x', fn () => WorkflowsConfig::retryDefault()],
+    'retry.default.backoff' => ['workflows.retry.default.backoff', 'x', fn () => WorkflowsConfig::retryDefault()],
+    'retry.default.jitter' => ['workflows.retry.default.jitter', 2, fn () => WorkflowsConfig::retryDefault()],
+    'retry.max_attempts_cap' => ['workflows.retry.max_attempts_cap', 0, fn () => WorkflowsConfig::maxAttemptsCap()],
+    'limits.max_steps' => ['workflows.limits.max_steps', 1, fn () => WorkflowsConfig::maxSteps()],
+    'limits.max_depth' => ['workflows.limits.max_depth', -1, fn () => WorkflowsConfig::maxDepth()],
+    'limits.max_starts_per_minute' => ['workflows.limits.max_starts_per_minute', 'lots', fn () => WorkflowsConfig::maxStartsPerMinute()],
+    'limits.max_loop_iterations' => ['workflows.limits.max_loop_iterations', 0, fn () => WorkflowsConfig::maxLoopIterations()],
+    'graph.max_nodes' => ['workflows.graph.max_nodes', 1, fn () => WorkflowsConfig::graphMaxNodes()],
+    'graph.max_edges' => ['workflows.graph.max_edges', 0, fn () => WorkflowsConfig::graphMaxEdges()],
+    'graph.max_bytes' => ['workflows.graph.max_bytes', 10, fn () => WorkflowsConfig::graphMaxBytes()],
+    'conditions.max_depth' => ['workflows.conditions.max_depth', 0, fn () => WorkflowsConfig::conditionsMaxDepth()],
+    'conditions.max_clauses' => ['workflows.conditions.max_clauses', 0, fn () => WorkflowsConfig::conditionsMaxClauses()],
+    'steps_output.max_bytes' => ['workflows.steps_output.max_bytes', 10, fn () => WorkflowsConfig::stepOutputMaxBytes()],
+    'steps_input.max_bytes' => ['workflows.steps_input.max_bytes', 10, fn () => WorkflowsConfig::stepInputMaxBytes()],
+    'escalations.max_levels' => ['workflows.escalations.max_levels', 0, fn () => WorkflowsConfig::escalationsMaxLevels()],
+    'idempotency.ttl' => ['workflows.idempotency.ttl', 'soon', fn () => WorkflowsConfig::idempotencyTtl()],
+    'schedule.catch_up' => ['workflows.schedule.catch_up', 'soon', fn () => WorkflowsConfig::scheduleCatchUp()],
+    'authorization.authorizer' => ['workflows.authorization.authorizer', stdClass::class, fn () => WorkflowsConfig::implementation('workflows.authorization.authorizer', WorkflowsConfig::authorizer(), AuthorizesSteps::class)],
+    'authorization.abilities' => ['workflows.authorization.abilities', 'x', fn () => WorkflowsConfig::abilities()],
+    'actor.system_user' => ['workflows.actor.system_user', 42, fn () => WorkflowsConfig::systemUserResolver()],
+    'owners.context' => ['workflows.owners.context', 42, fn () => WorkflowsConfig::ownerContext()],
+    'owners.membership' => ['workflows.owners.membership', 42, fn () => WorkflowsConfig::ownerMembership()],
+    'parties.user_model' => ['workflows.parties.user_model', 42, fn () => WorkflowsConfig::partiesUserModel()],
+    'parties.roles' => ['workflows.parties.roles', 42, fn () => WorkflowsConfig::partiesRoles()],
+    'adapters.transition' => ['workflows.adapters.transition', 42, fn () => WorkflowsConfig::transitionAdapter()],
+    'adapters.webhooks' => ['workflows.adapters.webhooks', 42, fn () => WorkflowsConfig::webhooksAdapter()],
+    'business_time.weekdays' => ['workflows.business_time.weekdays', [9], fn () => WorkflowsConfig::businessWeekdays()],
+    'business_time.max_search_days' => ['workflows.business_time.max_search_days', 1, fn () => WorkflowsConfig::businessMaxSearchDays()],
+    'business_time.calendar_owner' => ['workflows.business_time.calendar_owner', 42, fn () => WorkflowsConfig::calendarOwnerResolver()],
+    'approval.expiry_grace' => ['workflows.approval.expiry_grace', 'soon', fn () => WorkflowsConfig::approvalExpiryGrace()],
+    'subjects_on_deleted' => ['workflows.subjects_on_deleted', 'explode', fn () => WorkflowsConfig::subjectsOnDeleted()],
+    'dry_run.log' => ['workflows.dry_run.log', 'perhaps', fn () => WorkflowsConfig::dryRunLog()],
+    'webhooks.enabled' => ['workflows.webhooks.enabled', 'perhaps', fn () => WorkflowsConfig::webhooksEnabled()],
+    'webhooks.prefix' => ['workflows.webhooks.prefix', 42, fn () => WorkflowsConfig::webhooksPrefix()],
+    'webhooks.middleware' => ['workflows.webhooks.middleware', [42], fn () => WorkflowsConfig::webhooksMiddleware()],
+    'webhooks.verify_middleware' => ['workflows.webhooks.verify_middleware', [42], fn () => WorkflowsConfig::webhookVerifyMiddleware()],
+    'webhooks.max_bytes' => ['workflows.webhooks.max_bytes', 1, fn () => WorkflowsConfig::webhooksMaxBytes()],
+    'resources.owner' => ['workflows.resources.owner', stdClass::class, fn () => WorkflowsConfig::ownerResource()],
+    'resources.subject' => ['workflows.resources.subject', stdClass::class, fn () => WorkflowsConfig::subjectResource()],
+    'resources.user' => ['workflows.resources.user', stdClass::class, fn () => WorkflowsConfig::userResource()],
+    'prune.instances_after' => ['workflows.prune.instances_after', 'soon', fn () => WorkflowsConfig::pruneInstancesAfter()],
+    'prune.dry_runs_after' => ['workflows.prune.dry_runs_after', 'soon', fn () => WorkflowsConfig::pruneDryRunsAfter()],
+]);

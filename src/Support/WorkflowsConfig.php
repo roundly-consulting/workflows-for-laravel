@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Support;
 
 use Carbon\CarbonInterval;
+use Closure;
 use DateTimeZone;
 use Illuminate\Http\Resources\Json\JsonResource;
 use ReflectionClass;
 use RoundlyConsulting\PackageToolkit\Enums\KeyType;
+use RoundlyConsulting\PackageToolkit\Exceptions\InvalidConfigurationException;
 use RoundlyConsulting\PackageToolkit\Support\Config;
+use RoundlyConsulting\PackageToolkit\Support\ConfigValidator;
 use RoundlyConsulting\Workflows\DataTransferObjects\EventMapping;
 use RoundlyConsulting\Workflows\DataTransferObjects\RetryPolicy;
 use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
@@ -26,30 +29,58 @@ use Throwable;
  */
 final class WorkflowsConfig
 {
+    /**
+     * Every toolkit reader goes through here, so each configuration error — the toolkit's
+     * readers and the local ones alike — is an InvalidWorkflowsConfigurationException a host can
+     * catch as one class.
+     */
+    private static function reader(): ConfigValidator
+    {
+        return Config::using(InvalidWorkflowsConfigurationException::class);
+    }
+
+    /**
+     * A toolkit reader that has no `using()` form (key types, the model seam), re-thrown as the
+     * package's configuration exception with the same message.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $read
+     * @return T
+     */
+    public static function rethrown(Closure $read): mixed
+    {
+        try {
+            return $read();
+        } catch (InvalidConfigurationException $exception) {
+            throw new InvalidWorkflowsConfigurationException($exception->getMessage(), 0, $exception);
+        }
+    }
+
     // Key types --------------------------------------------------------------------------
 
     public static function keyType(): KeyType
     {
-        return KeyType::fromConfig('workflows.key_type');
+        return self::rethrown(static fn (): KeyType => KeyType::fromConfig('workflows.key_type'));
     }
 
     public static function ownerKeyType(): KeyType
     {
         return self::blank(config('workflows.owner_key_type'))
             ? self::keyType()
-            : KeyType::fromConfig('workflows.owner_key_type');
+            : self::rethrown(static fn (): KeyType => KeyType::fromConfig('workflows.owner_key_type'));
     }
 
     public static function subjectKeyType(): KeyType
     {
         return self::blank(config('workflows.subject_key_type'))
             ? self::keyType()
-            : KeyType::fromConfig('workflows.subject_key_type');
+            : self::rethrown(static fn (): KeyType => KeyType::fromConfig('workflows.subject_key_type'));
     }
 
     public static function primaryKeyType(): KeyType
     {
-        return KeyType::fromConfig('workflows.primary_key_type');
+        return self::rethrown(static fn (): KeyType => KeyType::fromConfig('workflows.primary_key_type'));
     }
 
     /**
@@ -78,14 +109,14 @@ final class WorkflowsConfig
     public static function table(string $name): string
     {
         [$key, $table] = match ($name) {
-            'definitions' => ['workflows.tables.definitions', Config::string('workflows.tables.definitions', 'workflow_definitions')],
-            'versions' => ['workflows.tables.versions', Config::string('workflows.tables.versions', 'workflow_versions')],
-            'instances' => ['workflows.tables.instances', Config::string('workflows.tables.instances', 'workflow_instances')],
-            'step_runs' => ['workflows.tables.step_runs', Config::string('workflows.tables.step_runs', 'workflow_step_runs')],
-            'waits' => ['workflows.tables.waits', Config::string('workflows.tables.waits', 'workflow_waits')],
-            'escalations' => ['workflows.tables.escalations', Config::string('workflows.tables.escalations', 'workflow_escalations')],
-            'idempotency_keys' => ['workflows.tables.idempotency_keys', Config::string('workflows.tables.idempotency_keys', 'workflow_idempotency_keys')],
-            'dry_runs' => ['workflows.tables.dry_runs', Config::string('workflows.tables.dry_runs', 'workflow_dry_runs')],
+            'definitions' => ['workflows.tables.definitions', self::reader()->string('workflows.tables.definitions', 'workflow_definitions')],
+            'versions' => ['workflows.tables.versions', self::reader()->string('workflows.tables.versions', 'workflow_versions')],
+            'instances' => ['workflows.tables.instances', self::reader()->string('workflows.tables.instances', 'workflow_instances')],
+            'step_runs' => ['workflows.tables.step_runs', self::reader()->string('workflows.tables.step_runs', 'workflow_step_runs')],
+            'waits' => ['workflows.tables.waits', self::reader()->string('workflows.tables.waits', 'workflow_waits')],
+            'escalations' => ['workflows.tables.escalations', self::reader()->string('workflows.tables.escalations', 'workflow_escalations')],
+            'idempotency_keys' => ['workflows.tables.idempotency_keys', self::reader()->string('workflows.tables.idempotency_keys', 'workflow_idempotency_keys')],
+            'dry_runs' => ['workflows.tables.dry_runs', self::reader()->string('workflows.tables.dry_runs', 'workflow_dry_runs')],
             default => throw InvalidWorkflowsConfigurationException::invalidTable('workflows.tables.'.$name, $name),
         };
 
@@ -100,7 +131,7 @@ final class WorkflowsConfig
 
     public static function queueEnabled(): bool
     {
-        return Config::boolean('workflows.queue.enabled', true);
+        return self::reader()->boolean('workflows.queue.enabled', true);
     }
 
     public static function queueConnection(): ?string
@@ -120,7 +151,7 @@ final class WorkflowsConfig
      */
     public static function steps(): array
     {
-        return Config::list('workflows.steps', []);
+        return self::reader()->list('workflows.steps', []);
     }
 
     /**
@@ -128,7 +159,7 @@ final class WorkflowsConfig
      */
     public static function subjects(): array
     {
-        return Config::list('workflows.subjects', []);
+        return self::reader()->list('workflows.subjects', []);
     }
 
     /**
@@ -250,7 +281,7 @@ final class WorkflowsConfig
 
     public static function wakeBatch(): int
     {
-        return Config::integer('workflows.wake.batch', 500, min: 1, max: 10000);
+        return self::reader()->integer('workflows.wake.batch', 500, min: 1, max: 10000);
     }
 
     public static function claimTtl(): CarbonInterval
@@ -260,32 +291,32 @@ final class WorkflowsConfig
 
     public static function retryDefault(): RetryPolicy
     {
-        $attempts = Config::integer('workflows.retry.default.max_attempts', 3, min: 1, max: self::maxAttemptsCap());
+        $attempts = self::reader()->integer('workflows.retry.default.max_attempts', 3, min: 1, max: self::maxAttemptsCap());
         $backoff = self::intList('workflows.retry.default.backoff', config('workflows.retry.default.backoff'), [30, 120, 600], 0, 86400);
-        $jitter = Config::float('workflows.retry.default.jitter', 0.1, min: 0.0, max: 1.0);
+        $jitter = self::reader()->float('workflows.retry.default.jitter', 0.1, min: 0.0, max: 1.0);
 
         return new RetryPolicy($attempts, $backoff, $jitter);
     }
 
     public static function maxAttemptsCap(): int
     {
-        return Config::integer('workflows.retry.max_attempts_cap', 10, min: 1, max: 100);
+        return self::reader()->integer('workflows.retry.max_attempts_cap', 10, min: 1, max: 100);
     }
 
     // Limits -----------------------------------------------------------------------------
 
     public static function maxSteps(): int
     {
-        return Config::integer('workflows.limits.max_steps', 200, min: 2, max: 100000);
+        return self::reader()->integer('workflows.limits.max_steps', 200, min: 2, max: 100000);
     }
 
     public static function maxDepth(): int
     {
-        return Config::integer('workflows.limits.max_depth', 3, min: 0, max: 50);
+        return self::reader()->integer('workflows.limits.max_depth', 3, min: 0, max: 50);
     }
 
     /**
-     * Null when the limit is `off`. Read locally: Config::integer() has no "off" sentinel.
+     * Null when the limit is `off`. Read locally: self::reader()->integer() has no "off" sentinel.
      */
     public static function maxStartsPerMinute(): ?int
     {
@@ -295,52 +326,52 @@ final class WorkflowsConfig
             return null;
         }
 
-        return Config::integer('workflows.limits.max_starts_per_minute', 60, min: 1, max: 1000000);
+        return self::reader()->integer('workflows.limits.max_starts_per_minute', 60, min: 1, max: 1000000);
     }
 
     public static function maxLoopIterations(): int
     {
-        return Config::integer('workflows.limits.max_loop_iterations', 1000, min: 1, max: 100000);
+        return self::reader()->integer('workflows.limits.max_loop_iterations', 1000, min: 1, max: 100000);
     }
 
     public static function graphMaxNodes(): int
     {
-        return Config::integer('workflows.graph.max_nodes', 500, min: 2, max: 10000);
+        return self::reader()->integer('workflows.graph.max_nodes', 500, min: 2, max: 10000);
     }
 
     public static function graphMaxEdges(): int
     {
-        return Config::integer('workflows.graph.max_edges', 2000, min: 1, max: 100000);
+        return self::reader()->integer('workflows.graph.max_edges', 2000, min: 1, max: 100000);
     }
 
     public static function graphMaxBytes(): int
     {
-        return Config::integer('workflows.graph.max_bytes', 524288, min: 1024, max: 16777216);
+        return self::reader()->integer('workflows.graph.max_bytes', 524288, min: 1024, max: 16777216);
     }
 
     public static function conditionsMaxDepth(): int
     {
-        return Config::integer('workflows.conditions.max_depth', 6, min: 1, max: 32);
+        return self::reader()->integer('workflows.conditions.max_depth', 6, min: 1, max: 32);
     }
 
     public static function conditionsMaxClauses(): int
     {
-        return Config::integer('workflows.conditions.max_clauses', 100, min: 1, max: 10000);
+        return self::reader()->integer('workflows.conditions.max_clauses', 100, min: 1, max: 10000);
     }
 
     public static function stepOutputMaxBytes(): int
     {
-        return Config::integer('workflows.steps_output.max_bytes', 65536, min: 256, max: 16777216);
+        return self::reader()->integer('workflows.steps_output.max_bytes', 65536, min: 256, max: 16777216);
     }
 
     public static function stepInputMaxBytes(): int
     {
-        return Config::integer('workflows.steps_input.max_bytes', 65536, min: 1024, max: 1048576);
+        return self::reader()->integer('workflows.steps_input.max_bytes', 65536, min: 1024, max: 1048576);
     }
 
     public static function escalationsMaxLevels(): int
     {
-        return Config::integer('workflows.escalations.max_levels', 5, min: 1, max: 20);
+        return self::reader()->integer('workflows.escalations.max_levels', 5, min: 1, max: 20);
     }
 
     public static function idempotencyTtl(): CarbonInterval
@@ -423,7 +454,7 @@ final class WorkflowsConfig
 
     public static function businessMaxSearchDays(): int
     {
-        return Config::integer('workflows.business_time.max_search_days', 366, min: 7, max: 3660);
+        return self::reader()->integer('workflows.business_time.max_search_days', 366, min: 7, max: 3660);
     }
 
     public static function calendarOwnerResolver(): ?string
@@ -438,24 +469,24 @@ final class WorkflowsConfig
 
     public static function subjectsOnDeleted(): string
     {
-        return Config::oneOf('workflows.subjects_on_deleted', ['cancel', 'keep'], 'cancel');
+        return self::reader()->oneOf('workflows.subjects_on_deleted', ['cancel', 'keep'], 'cancel');
     }
 
     public static function dryRunLog(): bool
     {
-        return Config::boolean('workflows.dry_run.log', false);
+        return self::reader()->boolean('workflows.dry_run.log', false);
     }
 
     // Webhooks ---------------------------------------------------------------------------
 
     public static function webhooksEnabled(): bool
     {
-        return Config::boolean('workflows.webhooks.enabled', false);
+        return self::reader()->boolean('workflows.webhooks.enabled', false);
     }
 
     public static function webhooksPrefix(): string
     {
-        return trim(Config::string('workflows.webhooks.prefix', 'workflows'), '/');
+        return trim(self::reader()->string('workflows.webhooks.prefix', 'workflows'), '/');
     }
 
     /**
@@ -463,7 +494,7 @@ final class WorkflowsConfig
      */
     public static function webhooksMiddleware(): array
     {
-        return Config::list('workflows.webhooks.middleware', ['api']);
+        return self::reader()->list('workflows.webhooks.middleware', ['api']);
     }
 
     /**
@@ -471,12 +502,12 @@ final class WorkflowsConfig
      */
     public static function webhookVerifyMiddleware(): array
     {
-        return array_values(array_filter(Config::list('workflows.webhooks.verify_middleware', []), static fn (string $item): bool => trim($item) !== ''));
+        return array_values(array_filter(self::reader()->list('workflows.webhooks.verify_middleware', []), static fn (string $item): bool => trim($item) !== ''));
     }
 
     public static function webhooksMaxBytes(): int
     {
-        return Config::integer('workflows.webhooks.max_bytes', 262144, min: 256, max: 16777216);
+        return self::reader()->integer('workflows.webhooks.max_bytes', 262144, min: 256, max: 16777216);
     }
 
     // Resources --------------------------------------------------------------------------
