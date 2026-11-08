@@ -10,9 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use RoundlyConsulting\PackageToolkit\Concerns\HasConfigurableKey;
+use RoundlyConsulting\PackageToolkit\Concerns\StoresUtcTimestamps;
 use RoundlyConsulting\Workflows\Casts\UtcDateTime;
-use RoundlyConsulting\Workflows\Concerns\HasConfigurableKey;
-use RoundlyConsulting\Workflows\Concerns\StoresUtcTimestamps;
 use RoundlyConsulting\Workflows\Database\Factories\WorkflowDryRunFactory;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
@@ -48,6 +48,11 @@ class WorkflowDryRun extends Model
     use StoresUtcTimestamps;
 
     protected $guarded = [];
+
+    protected function primaryKeyTypeConfigKey(): string
+    {
+        return 'workflows.primary_key_type';
+    }
 
     public function getTable(): string
     {

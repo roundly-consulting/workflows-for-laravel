@@ -8,11 +8,16 @@ use Carbon\CarbonInterval;
 use Closure;
 use DateTimeZone;
 use Illuminate\Http\Resources\Json\JsonResource;
-use ReflectionClass;
 use RoundlyConsulting\PackageToolkit\Enums\KeyType;
 use RoundlyConsulting\PackageToolkit\Exceptions\InvalidConfigurationException;
 use RoundlyConsulting\PackageToolkit\Support\Config;
 use RoundlyConsulting\PackageToolkit\Support\ConfigValidator;
+use RoundlyConsulting\Workflows\Contracts\AuthorizesSteps;
+use RoundlyConsulting\Workflows\Contracts\ChecksOwnerMembership;
+use RoundlyConsulting\Workflows\Contracts\DeliversWebhooks;
+use RoundlyConsulting\Workflows\Contracts\ResolvesRoles;
+use RoundlyConsulting\Workflows\Contracts\RestoresOwnerContext;
+use RoundlyConsulting\Workflows\Contracts\TransitionAdapter;
 use RoundlyConsulting\Workflows\DataTransferObjects\EventMapping;
 use RoundlyConsulting\Workflows\DataTransferObjects\RetryPolicy;
 use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
@@ -136,12 +141,12 @@ final class WorkflowsConfig
 
     public static function queueConnection(): ?string
     {
-        return self::optionalString('workflows.queue.connection', config('workflows.queue.connection'));
+        return self::reader()->optionalString('workflows.queue.connection');
     }
 
     public static function queueName(): ?string
     {
-        return self::optionalString('workflows.queue.queue', config('workflows.queue.queue'));
+        return self::reader()->optionalString('workflows.queue.queue');
     }
 
     // Registries -------------------------------------------------------------------------
@@ -241,7 +246,7 @@ final class WorkflowsConfig
 
     public static function timezone(): string
     {
-        $timezone = self::optionalString('workflows.timezone', config('workflows.timezone'));
+        $timezone = self::reader()->optionalString('workflows.timezone');
 
         if ($timezone === null) {
             $app = config('app.timezone');
@@ -292,7 +297,7 @@ final class WorkflowsConfig
     public static function retryDefault(): RetryPolicy
     {
         $attempts = self::reader()->integer('workflows.retry.default.max_attempts', 3, min: 1, max: self::maxAttemptsCap());
-        $backoff = self::intList('workflows.retry.default.backoff', config('workflows.retry.default.backoff'), [30, 120, 600], 0, 86400);
+        $backoff = self::reader()->integerList('workflows.retry.default.backoff', [30, 120, 600], min: 0, max: 86400);
         $jitter = self::reader()->float('workflows.retry.default.jitter', 0.1, min: 0.0, max: 1.0);
 
         return new RetryPolicy($attempts, $backoff, $jitter);
@@ -316,17 +321,11 @@ final class WorkflowsConfig
     }
 
     /**
-     * Null when the limit is `off`. Read locally: self::reader()->integer() has no "off" sentinel.
+     * Null when the limit is switched off (`off`, `none` or `null`).
      */
     public static function maxStartsPerMinute(): ?int
     {
-        $raw = config('workflows.limits.max_starts_per_minute');
-
-        if (is_string($raw) && in_array(strtolower(trim($raw)), ['off', 'none', 'null'], true)) {
-            return null;
-        }
-
-        return self::reader()->integer('workflows.limits.max_starts_per_minute', 60, min: 1, max: 1000000);
+        return self::reader()->optionalInteger('workflows.limits.max_starts_per_minute', 60, min: 1, max: 1000000, offWords: ['off', 'none', 'null']);
     }
 
     public static function maxLoopIterations(): int
@@ -386,9 +385,12 @@ final class WorkflowsConfig
 
     // Authorization, actor, owners, parties, adapters ------------------------------------
 
-    public static function authorizer(): ?string
+    /**
+     * @return class-string<AuthorizesSteps>
+     */
+    public static function authorizer(): string
     {
-        return self::optionalString('workflows.authorization.authorizer', config('workflows.authorization.authorizer'));
+        return self::implementation('workflows.authorization.authorizer', AuthorizesSteps::class, GateStepAuthorizer::class);
     }
 
     /**
@@ -396,27 +398,33 @@ final class WorkflowsConfig
      */
     public static function abilities(): array
     {
-        return self::stringMap('workflows.authorization.abilities', config('workflows.authorization.abilities'));
+        return self::reader()->stringMap('workflows.authorization.abilities');
     }
 
     public static function systemUserResolver(): ?string
     {
-        return self::optionalString('workflows.actor.system_user', config('workflows.actor.system_user'));
+        return self::reader()->optionalString('workflows.actor.system_user');
     }
 
+    /**
+     * @return class-string<RestoresOwnerContext>|null
+     */
     public static function ownerContext(): ?string
     {
-        return self::optionalString('workflows.owners.context', config('workflows.owners.context'));
+        return self::implementation('workflows.owners.context', RestoresOwnerContext::class);
     }
 
+    /**
+     * @return class-string<ChecksOwnerMembership>|null
+     */
     public static function ownerMembership(): ?string
     {
-        return self::optionalString('workflows.owners.membership', config('workflows.owners.membership'));
+        return self::implementation('workflows.owners.membership', ChecksOwnerMembership::class);
     }
 
     public static function partiesUserModel(): ?string
     {
-        $model = self::optionalString('workflows.parties.user_model', config('workflows.parties.user_model'));
+        $model = self::reader()->optionalString('workflows.parties.user_model');
 
         if ($model !== null) {
             return $model;
@@ -427,19 +435,28 @@ final class WorkflowsConfig
         return is_string($fallback) && $fallback !== '' ? $fallback : null;
     }
 
+    /**
+     * @return class-string<ResolvesRoles>|null
+     */
     public static function partiesRoles(): ?string
     {
-        return self::optionalString('workflows.parties.roles', config('workflows.parties.roles'));
+        return self::implementation('workflows.parties.roles', ResolvesRoles::class);
     }
 
+    /**
+     * @return class-string<TransitionAdapter>|null
+     */
     public static function transitionAdapter(): ?string
     {
-        return self::optionalString('workflows.adapters.transition', config('workflows.adapters.transition'));
+        return self::implementation('workflows.adapters.transition', TransitionAdapter::class);
     }
 
+    /**
+     * @return class-string<DeliversWebhooks>|null
+     */
     public static function webhooksAdapter(): ?string
     {
-        return self::optionalString('workflows.adapters.webhooks', config('workflows.adapters.webhooks'));
+        return self::implementation('workflows.adapters.webhooks', DeliversWebhooks::class);
     }
 
     // Business time ----------------------------------------------------------------------
@@ -449,7 +466,7 @@ final class WorkflowsConfig
      */
     public static function businessWeekdays(): array
     {
-        return array_values(array_unique(self::intList('workflows.business_time.weekdays', config('workflows.business_time.weekdays'), [1, 2, 3, 4, 5], 1, 7)));
+        return array_values(array_unique(self::reader()->integerList('workflows.business_time.weekdays', [1, 2, 3, 4, 5], min: 1, max: 7)));
     }
 
     public static function businessMaxSearchDays(): int
@@ -459,7 +476,7 @@ final class WorkflowsConfig
 
     public static function calendarOwnerResolver(): ?string
     {
-        return self::optionalString('workflows.business_time.calendar_owner', config('workflows.business_time.calendar_owner'));
+        return self::reader()->optionalString('workflows.business_time.calendar_owner');
     }
 
     public static function approvalExpiryGrace(): CarbonInterval
@@ -533,7 +550,7 @@ final class WorkflowsConfig
      */
     public static function ownerResource(): string
     {
-        return self::resource('workflows.resources.owner', config('workflows.resources.owner'), WorkflowOwnerResource::class);
+        return self::resource('workflows.resources.owner', WorkflowOwnerResource::class);
     }
 
     /**
@@ -541,7 +558,7 @@ final class WorkflowsConfig
      */
     public static function subjectResource(): string
     {
-        return self::resource('workflows.resources.subject', config('workflows.resources.subject'), WorkflowSubjectResource::class);
+        return self::resource('workflows.resources.subject', WorkflowSubjectResource::class);
     }
 
     /**
@@ -549,7 +566,7 @@ final class WorkflowsConfig
      */
     public static function userResource(): string
     {
-        return self::resource('workflows.resources.user', config('workflows.resources.user'), WorkflowUserResource::class);
+        return self::resource('workflows.resources.user', WorkflowUserResource::class);
     }
 
     // Prune ------------------------------------------------------------------------------
@@ -567,24 +584,17 @@ final class WorkflowsConfig
     // Helpers ----------------------------------------------------------------------------
 
     /**
-     * A class-string from config that must implement the contract, or null when blank.
+     * A class-string from config that implements the contract (instantiable), else the default.
      *
      * @template T of object
      *
      * @param  class-string<T>  $contract
-     * @return class-string<T>|null
+     * @param  class-string<T>|null  $default
+     * @return ($default is null ? class-string<T>|null : class-string<T>)
      */
-    public static function implementation(string $key, ?string $class, string $contract): ?string
+    public static function implementation(string $key, string $contract, ?string $default = null): ?string
     {
-        if ($class === null) {
-            return null;
-        }
-
-        if (! class_exists($class) || ! is_subclass_of($class, $contract)) {
-            throw InvalidWorkflowsConfigurationException::notAnImplementation($key, $contract, $class);
-        }
-
-        return $class;
+        return self::reader()->implementation($key, $contract, $default);
     }
 
     public static function duration(string $key, mixed $raw, string $default, int $minSeconds, int $maxSeconds): CarbonInterval
@@ -616,100 +626,11 @@ final class WorkflowsConfig
     }
 
     /**
-     * A list of integers (an array of ints or integer strings, or an env comma list).
-     *
-     * @param  list<int>  $default
-     * @return list<int>
-     */
-    public static function intList(string $key, mixed $raw, array $default, int $min, int $max): array
-    {
-
-        if (self::blank($raw)) {
-            return $default;
-        }
-
-        $items = is_string($raw) ? array_map(trim(...), explode(',', $raw)) : $raw;
-
-        if (! is_array($items) || $items === []) {
-            throw InvalidWorkflowsConfigurationException::invalidMap($key, sprintf('a non-empty list of integers between %d and %d', $min, $max));
-        }
-
-        $list = [];
-
-        foreach ($items as $item) {
-            if (is_string($item) && preg_match('/^-?\d+$/', $item) === 1) {
-                $item = (int) $item;
-            }
-
-            if (! is_int($item) || $item < $min || $item > $max) {
-                throw InvalidWorkflowsConfigurationException::invalidMap($key, sprintf('a non-empty list of integers between %d and %d', $min, $max));
-            }
-
-            $list[] = $item;
-        }
-
-        return $list;
-    }
-
-    private static function optionalString(string $key, mixed $value): ?string
-    {
-
-        if (self::blank($value)) {
-            return null;
-        }
-
-        if (! is_string($value)) {
-            throw InvalidWorkflowsConfigurationException::invalidMap($key, 'a string');
-        }
-
-        return trim($value);
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private static function stringMap(string $key, mixed $raw): array
-    {
-
-        if (self::blank($raw)) {
-            return [];
-        }
-
-        if (! is_array($raw)) {
-            throw InvalidWorkflowsConfigurationException::invalidMap($key, 'a map of strings');
-        }
-
-        $map = [];
-
-        foreach ($raw as $name => $value) {
-            if (! is_string($name) || ! is_string($value) || $value === '') {
-                throw InvalidWorkflowsConfigurationException::invalidMap($key, 'a map of strings');
-            }
-
-            $map[$name] = $value;
-        }
-
-        return $map;
-    }
-
-    /**
      * @param  class-string<JsonResource>  $default
      * @return class-string<JsonResource>
      */
-    private static function resource(string $key, mixed $resource, string $default): string
+    private static function resource(string $key, string $default): string
     {
-
-        if (self::blank($resource)) {
-            return $default;
-        }
-
-        if (! is_string($resource)
-            || ! class_exists($resource)
-            || ! is_subclass_of($resource, JsonResource::class)
-            || ! (new ReflectionClass($resource))->isInstantiable()) {
-            throw InvalidWorkflowsConfigurationException::notAnImplementation($key, JsonResource::class, $resource);
-        }
-
-        return $resource;
+        return self::implementation($key, JsonResource::class, $default);
     }
 }

@@ -62,13 +62,13 @@ it('rejects invalid configuration values, naming the key', function (string $key
     'timezone' => ['workflows.timezone', 'Mars/Base', fn () => WorkflowsConfig::timezone(), 'IANA timezone'],
     'duration' => ['workflows.engine.lease', 'soon', fn () => WorkflowsConfig::lease(), 'ISO-8601 duration'],
     'duration range' => ['workflows.engine.lease', 'PT1S', fn () => WorkflowsConfig::lease(), 'between 60s and 86400s'],
-    'int list' => ['workflows.business_time.weekdays', 'mon', fn () => WorkflowsConfig::businessWeekdays(), 'non-empty list'],
-    'int list item' => ['workflows.business_time.weekdays', [1, 9], fn () => WorkflowsConfig::businessWeekdays(), 'non-empty list'],
-    'string' => ['workflows.owners.context', 42, fn () => WorkflowsConfig::ownerContext(), 'a string'],
-    'string map' => ['workflows.authorization.abilities', 'update', fn () => WorkflowsConfig::abilities(), 'a map of strings'],
-    'string map value' => ['workflows.authorization.abilities', ['set_field' => ''], fn () => WorkflowsConfig::abilities(), 'a map of strings'],
+    'int list' => ['workflows.business_time.weekdays', 'mon', fn () => WorkflowsConfig::businessWeekdays(), 'integer'],
+    'int list item' => ['workflows.business_time.weekdays', [1, 9], fn () => WorkflowsConfig::businessWeekdays(), 'between 1 and 7'],
+    'string' => ['workflows.queue.connection', 42, fn () => WorkflowsConfig::queueConnection(), 'a non-empty string'],
+    'string map' => ['workflows.authorization.abilities', 'update', fn () => WorkflowsConfig::abilities(), 'a map of names to non-empty strings'],
+    'string map value' => ['workflows.authorization.abilities', ['set_field' => ''], fn () => WorkflowsConfig::abilities(), 'workflows.authorization.abilities.set_field'],
     // C-113: a contract class that doesn't implement the contract throws, naming the key.
-    'implementation' => ['workflows.adapters.webhooks', stdClass::class, fn () => Adapters::webhooks(), 'class-string of [DeliversWebhooks]'],
+    'implementation' => ['workflows.adapters.webhooks', stdClass::class, fn () => Adapters::webhooks(), 'DeliversWebhooks]'],
 ]);
 
 it('reads defaults and fallbacks', function (): void {

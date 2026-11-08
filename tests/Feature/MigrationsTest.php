@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use RoundlyConsulting\Testing\Assertions\Migrations\MigrationRunner;
 use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
@@ -85,3 +86,20 @@ it('builds every model through its factory', function (string $model): void {
     WorkflowDefinition::class, WorkflowVersion::class, WorkflowInstance::class, StepRun::class,
     WorkflowWait::class, WorkflowEscalation::class, WorkflowIdempotencyKey::class, WorkflowDryRun::class,
 ]);
+
+// W-29: the toolkit's StoresUtcTimestamps keeps microseconds; the UtcDateTime cast stores whole
+// seconds, so the instant a model holds after save is the one the database holds — no
+// freshTimestamp() override is needed for claim and lease comparisons.
+it('stores timestamps as whole UTC seconds equal to what it reads back', function (): void {
+    config()->set('app.timezone', 'America/New_York');
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-08 10:00:00.987654', 'UTC'));
+
+    $instance = WorkflowInstance::factory()->create();
+    $raw = WorkflowInstance::query()->toBase()->where('id', $instance->id)->value('created_at');
+
+    expect($instance->created_at?->format('Y-m-d H:i:s.u e'))->toBe('2026-11-08 10:00:00.000000 UTC')
+        ->and($instance->fresh()?->created_at?->equalTo($instance->created_at))->toBeTrue()
+        ->and(substr((string) $raw, 0, 19))->toBe('2026-11-08 10:00:00');
+
+    CarbonImmutable::setTestNow();
+});

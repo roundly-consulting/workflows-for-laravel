@@ -102,7 +102,7 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
         $this->app->singleton(SyncRunner::class);
 
         $this->app->bind(AuthorizesSteps::class, static function (Application $app): AuthorizesSteps {
-            $class = WorkflowsConfig::implementation('workflows.authorization.authorizer', WorkflowsConfig::authorizer(), AuthorizesSteps::class) ?? GateStepAuthorizer::class;
+            $class = WorkflowsConfig::authorizer();
 
             $authorizer = $app->make($class);
 
@@ -110,7 +110,7 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
         });
 
         $this->app->bind(RestoresOwnerContext::class, static function (Application $app): RestoresOwnerContext {
-            $class = WorkflowsConfig::implementation('workflows.owners.context', WorkflowsConfig::ownerContext(), RestoresOwnerContext::class);
+            $class = WorkflowsConfig::ownerContext();
 
             $context = $app->make($class ?? TeamsBridge::defaultContext());
 
@@ -118,7 +118,7 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
         });
 
         $this->app->bind(ChecksOwnerMembership::class, static function (Application $app): ChecksOwnerMembership {
-            $class = WorkflowsConfig::implementation('workflows.owners.membership', WorkflowsConfig::ownerMembership(), ChecksOwnerMembership::class);
+            $class = WorkflowsConfig::ownerMembership();
 
             $membership = $app->make($class ?? TeamsBridge::defaultMembership());
 

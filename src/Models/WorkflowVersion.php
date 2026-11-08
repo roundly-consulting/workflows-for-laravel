@@ -10,9 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use RoundlyConsulting\PackageToolkit\Concerns\HasConfigurableKey;
+use RoundlyConsulting\PackageToolkit\Concerns\StoresUtcTimestamps;
 use RoundlyConsulting\Workflows\Casts\UtcDateTime;
-use RoundlyConsulting\Workflows\Concerns\HasConfigurableKey;
-use RoundlyConsulting\Workflows\Concerns\StoresUtcTimestamps;
 use RoundlyConsulting\Workflows\Database\Factories\WorkflowVersionFactory;
 use RoundlyConsulting\Workflows\DataTransferObjects\ReviewFlag;
 use RoundlyConsulting\Workflows\Enums\ActorMode;
@@ -67,6 +67,11 @@ class WorkflowVersion extends Model
     public const array MUTABLE_WHEN_PUBLISHED = ['status', 'schedule_cursor_at', 'updated_at', 'deleted_at'];
 
     protected $guarded = [];
+
+    protected function primaryKeyTypeConfigKey(): string
+    {
+        return 'workflows.primary_key_type';
+    }
 
     public function getTable(): string
     {

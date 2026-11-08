@@ -187,7 +187,7 @@ it('describes every kind of invalid configuration value', function (mixed $value
     'true' => [true, 'true'],
     'false' => [false, 'false'],
     'null' => [null, 'null'],
-    'object' => [new Company, 'Company'],
+    'object' => [new Company, Company::class],
     'array' => [[1], 'array'],
 ]);
 
