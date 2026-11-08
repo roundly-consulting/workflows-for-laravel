@@ -45,7 +45,7 @@
         "illuminate/validation": "^13.0",
         "roundly-consulting/crypto-for-laravel": "^2.0",
         "roundly-consulting/enums-for-laravel": "^2.0",
-        "roundly-consulting/package-toolkit-for-laravel": "^2.0"
+        "roundly-consulting/package-toolkit-for-laravel": "^2.1"
     },
     "require-dev": {
         "larastan/larastan": "^3.0",
@@ -56,14 +56,14 @@
         "pestphp/pest-plugin-arch": "^5.0",
         "pestphp/pest-plugin-laravel": "^5.0",
         "phpstan/extension-installer": "^1.4",
-        "roundly-consulting/approvals-for-laravel": "^2.0",
+        "roundly-consulting/approvals-for-laravel": "^2.1",
         "roundly-consulting/forms-for-laravel": "^2.0",
         "roundly-consulting/lifecycle-for-laravel": "^2.0",
         "roundly-consulting/notifications-for-laravel": "^1.1",
-        "roundly-consulting/opening-hours-for-laravel": "^2.0",
+        "roundly-consulting/opening-hours-for-laravel": "^2.1",
         "roundly-consulting/sentinel-for-laravel": "^2.0",
         "roundly-consulting/teams-for-laravel": "^2.0",
-        "roundly-consulting/testing-for-laravel": "^2.0"
+        "roundly-consulting/testing-for-laravel": "^2.1"
     },
     "suggest": {
         "roundly-consulting/approvals-for-laravel": "Approval steps: rules, stages, delegation, expiry; outcomes approved / rejected / expired.",
