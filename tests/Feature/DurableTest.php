@@ -20,6 +20,7 @@ use RoundlyConsulting\Workflows\Enums\WaitStatus;
 use RoundlyConsulting\Workflows\Exceptions\InstanceNotCancellableException;
 use RoundlyConsulting\Workflows\Exceptions\InstanceNotRetryableException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Graph\Build\When;
 use RoundlyConsulting\Workflows\Graph\GraphParser;
 use RoundlyConsulting\Workflows\Jobs\RunStepJob;
 use RoundlyConsulting\Workflows\Models\StepRun;
@@ -441,3 +442,31 @@ final class Memo extends Model
         return null;
     }
 }
+
+// W-22
+it('resumes only on an event whose payload matches', function (): void {
+    published('flow', graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('wait', 'wait', ['event' => 'doc.signed', 'where' => ['field' => 'trigger.role', 'op' => 'equals', 'value' => 'cfo']]),
+        node('done', 'end'),
+    ], [['start', 'wait'], ['wait', 'done', 'received']]));
+    $document = document();
+    $instance = Workflows::start('flow', $document)->dispatch()->instance ?? throw new LogicException;
+
+    expect(Workflows::emit('doc.signed', $document, ['role' => 'clerk'])->resumed)->toBe(0)
+        ->and($instance->refresh()->status)->toBe(InstanceStatus::Waiting)
+        ->and(Workflows::emit('doc.signed', $document, ['role' => 'cfo'])->resumed)->toBe(1)
+        ->and($instance->refresh()->status)->toBe(InstanceStatus::Completed);
+});
+
+it('validates a wait payload filter', function (): void {
+    $report = Workflows::versions()->validate(graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('wait', 'wait', ['condition' => ['field' => 'subject.title', 'op' => 'empty'], 'where' => ['field' => 'trigger.role', 'op' => 'equals', 'value' => 'cfo']]),
+        node('done', 'end'),
+    ], [['start', 'wait'], ['wait', 'done', 'met']]), 'document');
+
+    expect(collect($report->errorsOnly())->contains(fn ($error): bool => $error->path === '/where'))->toBeTrue()
+        ->and(Workflows::graph()->waitForEvent('w', 'doc.signed', where: When::field('trigger.role')->equals('cfo'))->toArray()['nodes'][0]['config'])
+        ->toBe(['event' => 'doc.signed', 'where' => ['field' => 'trigger.role', 'op' => 'equals', 'value' => 'cfo']]);
+});

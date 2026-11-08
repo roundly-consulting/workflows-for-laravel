@@ -12,9 +12,12 @@ use RoundlyConsulting\Workflows\Enums\WaitStatus;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowWait;
 use RoundlyConsulting\Workflows\Support\Clock;
+use RoundlyConsulting\Workflows\Support\Conditions\Evaluator;
 use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\Owners;
+use RoundlyConsulting\Workflows\Support\ValueScope;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
+use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 
 /**
  * Delivers an event key to the pending `event` waits listening for it. App events only reach
@@ -55,6 +58,10 @@ final readonly class Signals
                 continue;
             }
 
+            if (! self::matchesPayload($wait, $payload)) {
+                continue;
+            }
+
             $token = (string) Str::ulid();
 
             $claimed = $model::query()
@@ -75,6 +82,24 @@ final readonly class Signals
         }
 
         return $resumed;
+    }
+
+    /**
+     * A wait's `where` filter: a condition over `trigger.*`, read off the signal's payload.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private static function matchesPayload(WorkflowWait $wait, array $payload): bool
+    {
+        $where = $wait->match['where'] ?? null;
+
+        if (! is_array($where)) {
+            return true;
+        }
+
+        $scope = new ValueScope(null, null, null, null, [], $payload, static fn (string $node): ?array => null, Clock::now(), WorkflowsConfig::timezone());
+
+        return Evaluator::evaluate($where, $scope);
     }
 
     private function reaches(WorkflowWait $wait, WorkflowInstance $instance, ?Model $subject, ?Model $owner): bool

@@ -401,6 +401,9 @@
                         "any"
                     ]
                 },
+                "where": {
+                    "$ref": "#/$defs/condition"
+                },
                 "condition": {
                     "$ref": "#/$defs/condition"
                 },

@@ -16,7 +16,7 @@ Initial public release.
 - A published JSON Schema for the graph and the template, a step catalogue with per-type config schemas, and registered subject types with typed fields.
 - Graph validation with machine-readable codes: reachability, cycles, limits, config schemas, field and party references, calendars, trigger forms and missing adapters.
 - Triggers: manual (with validated input or a form), app events (`Workflows::emit()` and Laravel events mapped in config or in code with `Workflows::triggers()->map()` / `->listen()`, with a payload and an idempotency key), schedules (cron) and an opt-in signed inbound webhook route.
-- Built-in steps: condition, branch, set_field, transition, delay, wait (event, condition, timeout), loop, start_workflow and end; host step types through one `StepType` class, with `ConfigSchema` to write their config schema from the supported keywords only.
+- Built-in steps: condition, branch, set_field, transition, delay, wait (event — optionally filtered by its payload with `where` — condition, timeout), loop, start_workflow and end; host step types through one `StepType` class, with `ConfigSchema` to write their config schema from the supported keywords only.
 - A durable engine: step runs per attempt, waits as rows, leases, retries with backoff and a stable idempotency key, `once()` effect records, queue jobs or an inline runner, and `workflows:wake` for timers, retries, timeouts, polls, escalations and schedules.
 - Business time: weekday and opening-hours calendars, business-day delays and expiries, DST-safe.
 - Escalations per waiting step: notify, reassign and start_workflow, timed in business time.

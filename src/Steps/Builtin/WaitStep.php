@@ -54,6 +54,7 @@ final class WaitStep extends BuiltinStep
             'properties' => [
                 'event' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 191],
                 'match' => ['enum' => ['subject', 'any']],
+                'where' => ['$ref' => '#/$defs/condition'],
                 'condition' => ['$ref' => '#/$defs/condition'],
                 'poll' => ['$ref' => '#/$defs/duration'],
                 'timeout' => ['$ref' => '#/$defs/duration'],
@@ -92,6 +93,14 @@ final class WaitStep extends BuiltinStep
             }
         }
 
+        if (array_key_exists('where', $config)) {
+            if (! array_key_exists('event', $config)) {
+                return [ValidationError::make(ValidationCode::InvalidConfig, node: $node, path: '/where', params: ['keyword' => 'dependentRequired', 'expected' => 'event'])];
+            }
+
+            return ConditionValidator::validate($config['where'], $scope, '/where');
+        }
+
         return array_key_exists('condition', $config) ? ConditionValidator::validate($config['condition'], $scope, '/condition') : [];
     }
 
@@ -107,7 +116,13 @@ final class WaitStep extends BuiltinStep
             $poll = array_key_exists('poll', $config) ? Durations::parse($config['poll']) : null;
             $spec = WaitSpec::condition(GraphParser::stringKeyed($config['condition']), $poll ?? new Duration(amount: 15, unit: DurationUnit::Minutes));
         } else {
-            $spec = WaitSpec::event(Read::string($config, 'event'), ['subject' => ($config['match'] ?? 'subject') !== 'any']);
+            $match = ['subject' => ($config['match'] ?? 'subject') !== 'any'];
+
+            if (is_array($config['where'] ?? null)) {
+                $match['where'] = GraphParser::stringKeyed($config['where']);
+            }
+
+            $spec = WaitSpec::event(Read::string($config, 'event'), $match);
         }
 
         $timeout = array_key_exists('timeout', $config) ? Durations::parse($config['timeout']) : null;

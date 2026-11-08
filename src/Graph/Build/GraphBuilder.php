@@ -194,15 +194,20 @@ final class GraphBuilder implements Arrayable, JsonSerializable, Stringable
     }
 
     /**
-     * Wait for an app event about the subject (`match: any` — any subject of the owner).
-     * Outcomes `received` / `timed_out`.
+     * Wait for an app event about the subject (`match: any` — any subject of the owner); `where`
+     * keeps waiting until an event whose payload (`trigger.*`) matches. Outcomes `received` /
+     * `timed_out`.
      */
-    public function waitForEvent(string $id, string $event, string $match = 'subject', ?After $timeout = null): static
+    public function waitForEvent(string $id, string $event, string $match = 'subject', ?After $timeout = null, ?When $where = null): static
     {
         $config = ['event' => $event];
 
         if ($match !== 'subject') {
             $config['match'] = $match;
+        }
+
+        if ($where !== null) {
+            $config['where'] = $where->toArray();
         }
 
         if ($timeout !== null) {
