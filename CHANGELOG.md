@@ -13,6 +13,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 ### Fixed
 
 - `Workflows::emit()` no longer stops at the first matching definition that refuses to start (an `on_behalf_of` definition emitted without a user, one retired meanwhile): the other definitions still start, the waits on the event are still resumed, and the refusal is returned in the new `EmitResult::$failed` list (`EmitFailure` with the definition key and the exception). A mapped Laravel event reports the refusal to the exception handler instead of failing the host's request.
+- A `start_workflow` step (with or without `wait`) and a `start_workflow` escalation action no longer treat a child the start-rate limit refused as started: the step or escalation fails retryably with `child_not_started` and retries with backoff, starting the child once the window has room. Before, the step completed with `started` (or took `failed` with `wait: true`) and the escalation was marked fired, while the child never ran.
 
 ## 1.0.0 - 2026-11-08
 

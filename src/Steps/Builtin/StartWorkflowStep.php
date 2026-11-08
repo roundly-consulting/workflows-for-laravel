@@ -9,6 +9,7 @@ use RoundlyConsulting\Workflows\Actions\Instances\CancelInstanceAction;
 use RoundlyConsulting\Workflows\Actions\Instances\StartInstanceAction;
 use RoundlyConsulting\Workflows\DataTransferObjects\Signal;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartData;
+use RoundlyConsulting\Workflows\DataTransferObjects\StartResult;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
 use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
@@ -20,6 +21,7 @@ use RoundlyConsulting\Workflows\Exceptions\WorkflowsException;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
 use RoundlyConsulting\Workflows\Steps\Outcome;
+use RoundlyConsulting\Workflows\Steps\RetryableStepException;
 use RoundlyConsulting\Workflows\Steps\StepContext;
 use RoundlyConsulting\Workflows\Steps\StepFailedException;
 use RoundlyConsulting\Workflows\Steps\StepResult;
@@ -37,8 +39,9 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 /**
  * `{definition, subject: "same" | {field: ref} | null, input?, wait}`: starts another workflow of
  * the same owner, one level deeper (nesting is capped at `limits.max_depth`). Idempotent through
- * the start key `child:{visit key}`, so a retry never starts a second child. With `wait: true` the
- * step waits for the child to end and takes its outcome (`completed`, `failed`, `cancelled`).
+ * the start key `child:{visit key}`, so a retry never starts a second child. A child the start-rate
+ * limit refused is retried (`child_not_started`, with backoff). With `wait: true` the step waits for
+ * the child to end and takes its outcome (`completed`, `failed`, `cancelled`).
  *
  * @internal
  */
@@ -235,7 +238,24 @@ final class StartWorkflowStep extends BuiltinStep
             throw StepFailedException::because($exception->errorCode(), $exception->getMessage());
         }
 
+        self::assertNotRefused($result);
+
         return $result->instance ?? throw StepFailedException::because(FailureCode::ChildNotStarted, Messages::get('failures.child_not_started'));
+    }
+
+    /**
+     * A child the start-rate limit refused never ran (its idempotency key was left free): the
+     * step, or the escalation action, retries with backoff and starts it once the window has room.
+     *
+     * @internal
+     *
+     * @throws RetryableStepException
+     */
+    public static function assertNotRefused(StartResult $result): void
+    {
+        if ($result->wasRefused()) {
+            throw RetryableStepException::because(FailureCode::ChildNotStarted, Messages::get('failures.start_rate_exceeded', ['limit' => (int) WorkflowsConfig::maxStartsPerMinute()]));
+        }
     }
 
     private function parentOwner(StepContext $context): ?Model

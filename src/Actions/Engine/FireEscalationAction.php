@@ -20,6 +20,7 @@ use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowEscalation;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
+use RoundlyConsulting\Workflows\Steps\Builtin\StartWorkflowStep;
 use RoundlyConsulting\Workflows\Steps\StepContext;
 use RoundlyConsulting\Workflows\Steps\StepFailedException;
 use RoundlyConsulting\Workflows\Steps\StepType;
@@ -186,7 +187,7 @@ final readonly class FireEscalationAction
         $child = Definitions::query($owner)->where('key', $definitionKey)->first();
 
         try {
-            app(StartInstanceAction::class)->execute(new StartData(
+            $result = app(StartInstanceAction::class)->execute(new StartData(
                 key: $definitionKey,
                 subject: $child !== null && $child->subject_key === null ? null : $context->subject(),
                 owner: $owner,
@@ -198,6 +199,8 @@ final readonly class FireEscalationAction
         } catch (WorkflowsException $exception) {
             throw StepFailedException::because($exception->errorCode(), $exception->getMessage());
         }
+
+        StartWorkflowStep::assertNotRefused($result);
     }
 
     private function failed(WorkflowInstance $instance, StepRun $run, WorkflowEscalation $escalation, Node $node, Graph $graph, StepType $type, Throwable $exception): void
