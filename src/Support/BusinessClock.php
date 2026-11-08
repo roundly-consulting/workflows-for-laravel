@@ -45,9 +45,13 @@ final readonly class BusinessClock
                 $found++;
 
                 if ($found === $days) {
-                    $target = CarbonImmutable::create($date->year, $date->month, $date->day, $local->hour, $local->minute, $local->second, $timezone);
+                    $target = CarbonImmutable::create($date->year, $date->month, $date->day, $local->hour, $local->minute, $local->second, $timezone) ?? $date;
 
-                    return Clock::utc($target ?? $date);
+                    // PHP resolves a wall-clock time that occurs twice (DST fall-back) to its
+                    // later occurrence; the first one is the earlier instant an hour before.
+                    $earlier = $target->subHour();
+
+                    return Clock::utc($earlier->format('Y-m-d H:i:s') === $target->format('Y-m-d H:i:s') ? $earlier : $target);
                 }
             }
         }

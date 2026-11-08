@@ -28,12 +28,22 @@ abstract class TestCase extends PackageTestCase
 
     protected function setUp(): void
     {
+        // The core app boots no bridge package: pretend none is installed, so the suite runs the
+        // same with the bridges in vendor (the matrix) and without them (the no-bridges leg).
+        $this->bridges();
+
         parent::setUp();
 
         SpyStep::reset();
         CreateTaskStep::$calls = 0;
         FlakyState::$failing = true;
         FixtureServiceProvider::$allow = true;
+    }
+
+    protected function bridges(): void
+    {
+        Bridges::reset();
+        Bridges::pretendMissing();
     }
 
     protected function tearDown(): void
