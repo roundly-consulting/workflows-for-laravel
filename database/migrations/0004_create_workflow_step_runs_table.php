@@ -34,7 +34,7 @@ return new class extends Migration
             $table->string('error_code', 64)->nullable();
             $table->text('error_message')->nullable();
             $table->boolean('error_retryable')->nullable();
-            $table->char('claim_token', 26)->nullable();
+            $table->string('claim_token', 26)->nullable();
             $table->dateTime('lease_until')->nullable();
             $table->dateTime('scheduled_for')->nullable();
             $table->dateTime('dispatched_at')->nullable();

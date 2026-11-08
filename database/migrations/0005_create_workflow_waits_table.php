@@ -31,7 +31,7 @@ return new class extends Migration
             $table->string('outcome', 32)->nullable();
             $table->json('payload')->nullable();
             $table->string('status', 16);
-            $table->char('claim_token', 26)->nullable();
+            $table->string('claim_token', 26)->nullable();
             $table->dateTime('claimed_at')->nullable();
             $table->dateTime('fired_at')->nullable();
             $table->datetimes();

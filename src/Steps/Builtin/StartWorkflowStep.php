@@ -179,8 +179,13 @@ final class StartWorkflowStep extends BuiltinStep
      */
     private function start(StepContext $context, array $config): WorkflowInstance
     {
-        $subject = $this->childSubject($context, $config['subject'] ?? 'same');
         $owner = $this->parentOwner($context);
+        $key = Read::string($config, 'definition');
+        $childModel = WorkflowModels::definition();
+        $child = Definitions::query($owner)->where('key', $key)->first();
+
+        // A subject-less child takes no subject, whatever `same` would hand it.
+        $subject = $child instanceof $childModel && $child->subject_key === null ? null : $this->childSubject($context, $config['subject'] ?? 'same');
 
         if ($subject !== null && $context->owner() !== null && ! app(Owners::class)->matches($context->owner(), $subject)) {
             throw StepFailedException::because('owner_mismatch', Messages::get('failures.owner_mismatch'));

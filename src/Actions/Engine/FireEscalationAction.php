@@ -141,7 +141,12 @@ final readonly class FireEscalationAction
         }, $context->subject(), $node, $context->instance());
 
         match (true) {
-            $kind === 'reassign' => $type->reassign($context, PartyReference::listFrom($action['to'] ?? [])),
+            // Once per escalation action: a retried escalation never replaces the round twice.
+            $kind === 'reassign' => $context->once('reassign:'.$level.':'.$index, static function () use ($type, $context, $action): bool {
+                $type->reassign($context, PartyReference::listFrom($action['to'] ?? []));
+
+                return true;
+            }),
             $kind === 'start_workflow' => $this->startWorkflow($context, $action, $key),
             $this->actions->has($kind) => $this->actions->run($kind, $context, $action, $key),
             default => throw StepFailedException::because('unknown_escalation_action', Messages::get('failures.unknown_escalation_action', ['action' => $kind])),
@@ -159,11 +164,15 @@ final readonly class FireEscalationAction
             throw StepFailedException::because('nesting_depth_exceeded', Messages::get('failures.nesting_depth_exceeded', ['limit' => WorkflowsConfig::maxDepth()]));
         }
 
+        $owner = $definition === null ? null : Definitions::owner($definition);
+        $definitionKey = is_string($action['definition'] ?? null) ? $action['definition'] : '';
+        $child = Definitions::query($owner)->where('key', $definitionKey)->first();
+
         try {
             app(StartInstanceAction::class)->execute(new StartData(
-                key: is_string($action['definition'] ?? null) ? $action['definition'] : '',
-                subject: $context->subject(),
-                owner: $definition === null ? null : Definitions::owner($definition),
+                key: $definitionKey,
+                subject: $child !== null && $child->subject_key === null ? null : $context->subject(),
+                owner: $owner,
                 by: $context->actor()->user,
                 idempotencyKey: $key,
                 parent: $context->stepRun(),

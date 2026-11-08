@@ -28,7 +28,7 @@ return new class extends Migration
             $table->json('actions');
             $table->string('status', 16);
             $table->unsignedSmallInteger('attempts')->default(0);
-            $table->char('claim_token', 26)->nullable();
+            $table->string('claim_token', 26)->nullable();
             $table->dateTime('claimed_at')->nullable();
             $table->dateTime('fired_at')->nullable();
             $table->dateTime('cancelled_at')->nullable();
