@@ -75,8 +75,8 @@ final readonly class WakeAction
             polls: $counts['condition'],
             escalations: $escalations,
             schedules: $schedules,
-            reclaimed: $reclaimed['claims'] + $reclaimed['leases'],
-            requeued: $reclaimed['requeued'],
+            reclaimed: $reclaimed->claims + $reclaimed->leases,
+            requeued: $reclaimed->requeued,
         );
     }
 

@@ -12,6 +12,7 @@ use RoundlyConsulting\Workflows\Enums\WaitKind;
 use RoundlyConsulting\Workflows\Enums\WaitStatus;
 use RoundlyConsulting\Workflows\Support\Clock;
 use RoundlyConsulting\Workflows\Support\Engine\EngineQueue;
+use RoundlyConsulting\Workflows\Support\Engine\ReclaimReport;
 use RoundlyConsulting\Workflows\Support\Engine\StepFailure;
 use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\Messages;
@@ -32,10 +33,7 @@ final readonly class ReclaimAction
         private EngineQueue $queue,
     ) {}
 
-    /**
-     * @return array{claims: int, leases: int, requeued: int}
-     */
-    public function execute(): array
+    public function execute(): ReclaimReport
     {
         $now = Clock::now();
         $stale = Clock::format($now->sub(WorkflowsConfig::claimTtl()));
@@ -86,6 +84,6 @@ final readonly class ReclaimAction
             }
         }
 
-        return ['claims' => $claims, 'leases' => $leases, 'requeued' => $requeued];
+        return new ReclaimReport($claims, $leases, $requeued);
     }
 }
