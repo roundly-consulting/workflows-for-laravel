@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'unknown_definition' => 'Pracovný postup „:key“ sa nenašiel.',
+    'definition_key_taken' => 'Kľúč pracovného postupu „:key“ je už obsadený.',
+    'definition_key_trashed' => 'Kľúč pracovného postupu „:key“ drží odstránený pracovný postup: obnovte ho.',
+    'definition_not_active' => 'Pracovný postup „:key“ nie je aktívny.',
+    'nothing_to_publish' => 'Pracovný postup „:key“ nemá koncept na zverejnenie.',
+    'invalid_graph' => 'Graf pracovného postupu je neplatný (počet problémov: :count).',
+    'published_version_immutable' => 'Zverejnenú verziu nie je možné zmeniť (:column).',
+    'draft_conflict' => 'Koncept „:key“ medzitým zmenil niekto iný. Načítajte ho znova a skúste to znova.',
+    'unknown_step_type' => 'Typ kroku „:key“ nie je zaregistrovaný.',
+    'duplicate_step_type' => 'Typ kroku „:key“ je zaregistrovaný dvakrát.',
+    'invalid_step_key' => 'Kľúč typu kroku „:key“ nie je povolený (kľúče aplikácie potrebujú bodku, napr. acme.create_task).',
+    'unsupported_schema_keyword' => 'Schéma „:key“ používa nepodporované kľúčové slovo „:keyword“ na :path.',
+    'invalid_schema_pattern' => 'Schéma „:key“ má neplatný vzor na :path.',
+    'not_a_step_type' => '„:class“ nie je typ kroku.',
+    'unknown_subject_type' => 'Typ subjektu „:key“ nie je zaregistrovaný.',
+    'unregistered_subject_model' => ':model nie je zaregistrovaný subjekt pracovného postupu.',
+    'subject_type_mismatch' => 'Pracovný postup beží na :expected, nie na :given.',
+    'subject_owner_mismatch' => 'Subjekt sa nenašiel.',
+    'trigger_mismatch' => 'Pracovný postup „:key“ spúšťa jeho spúšťač :trigger, nie :path.',
+    'invalid_trigger_input' => 'Vstup pracovného postupu je neplatný.',
+    'missing_idempotency_key' => 'Webhook neobsahuje kľúč idempotencie.',
+    'missing_triggering_user' => 'Pracovný postup „:key“ beží v mene používateľa, no žiadny ho nespustil.',
+    'instance_not_retryable' => 'Opakovať sa dá iba zlyhaná inštancia (táto je :status).',
+    'instance_not_cancellable' => 'Inštancia už skončila (:status).',
+    'invalid_template' => 'Šablóna je neplatná (:reason).',
+    'invalid_diff' => 'Porovnať sa dajú iba verzie toho istého pracovného postupu.',
+    'calendar_never_open' => 'Pracovný kalendár nie je otvorený v rámci :days dní.',
+    'unknown_calendar' => 'Kalendár „:calendar“ neexistuje.',
+    'authorization_denied' => 'Pracovný postup nemá povolenie na :ability.',
+    'invalid_definition_key' => 'Kľúč pracovného postupu „:key“ nie je platný (malé písmená, číslice, ., _ a -).',
+    'definition_needs_subject' => 'Pracovný postup „:key“ potrebuje subjekt.',
+    'invalid_event_key' => '„:key“ nie je možné vyslať.',
+];

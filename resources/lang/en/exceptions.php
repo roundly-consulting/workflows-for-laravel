@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'unknown_definition' => 'The workflow ":key" was not found.',
+    'definition_key_taken' => 'The workflow key ":key" is already taken.',
+    'definition_key_trashed' => 'The workflow key ":key" is held by a deleted workflow: restore it instead.',
+    'definition_not_active' => 'The workflow ":key" is not active.',
+    'nothing_to_publish' => 'The workflow ":key" has no draft to publish.',
+    'invalid_graph' => 'The workflow graph is invalid (:count problems).',
+    'published_version_immutable' => 'A published version cannot be changed (:column).',
+    'draft_conflict' => 'The draft of ":key" was changed by someone else. Reload it and try again.',
+    'unknown_step_type' => 'The step type ":key" is not registered.',
+    'duplicate_step_type' => 'The step type ":key" is registered twice.',
+    'invalid_step_key' => 'The step type key ":key" is not allowed (host keys need a dot, e.g. acme.create_task).',
+    'unsupported_schema_keyword' => 'The schema of ":key" uses the unsupported keyword ":keyword" at :path.',
+    'invalid_schema_pattern' => 'The schema of ":key" has an invalid pattern at :path.',
+    'not_a_step_type' => '":class" is not a step type.',
+    'unknown_subject_type' => 'The subject type ":key" is not registered.',
+    'unregistered_subject_model' => 'A :model is not a registered workflow subject.',
+    'subject_type_mismatch' => 'The workflow runs on :expected, not on :given.',
+    'subject_owner_mismatch' => 'The subject was not found.',
+    'trigger_mismatch' => 'The workflow ":key" is started by its :trigger trigger, not by :path.',
+    'invalid_trigger_input' => 'The workflow input is invalid.',
+    'missing_idempotency_key' => 'The webhook carries no idempotency key.',
+    'missing_triggering_user' => 'The workflow ":key" runs on behalf of a user, but none started it.',
+    'instance_not_retryable' => 'Only a failed instance can be retried (this one is :status).',
+    'instance_not_cancellable' => 'The instance has already ended (:status).',
+    'invalid_template' => 'The template is invalid (:reason).',
+    'invalid_diff' => 'Only versions of the same workflow can be compared.',
+    'calendar_never_open' => 'The business calendar is not open within :days days.',
+    'unknown_calendar' => 'The calendar ":calendar" does not exist.',
+    'authorization_denied' => 'The workflow is not allowed to :ability.',
+    'invalid_definition_key' => 'The workflow key ":key" is not valid (lowercase letters, digits, ., _ and -).',
+    'definition_needs_subject' => 'The workflow ":key" needs a subject.',
+    'invalid_event_key' => '":key" cannot be emitted.',
+];

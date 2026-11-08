@@ -1,0 +1,33 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'adapter_missing' => 'Tento krok vyžaduje balík :package.',
+    'approval_cancelled' => 'Schvaľovanie bolo zrušené.',
+    'approval_missing' => 'Kolo schvaľovania už neexistuje.',
+    'child_not_started' => 'Pracovný postup sa nepodarilo spustiť.',
+    'delay_field_empty' => 'Dátumové pole „:field“ je prázdne.',
+    'ended_by_graph' => 'Pracovný postup skončil ako zlyhaný.',
+    'exception' => 'Krok neočakávane zlyhal.',
+    'field_write_refused' => 'Pole spravuje životný cyklus a nedá sa zapísať priamo.',
+    'invalid_output' => 'Krok vrátil výstup, ktorý nie je čistý JSON alebo je príliš veľký.',
+    'invalid_value' => 'Hodnota pre „:field“ má nesprávny typ.',
+    'lease_expired' => 'Krok sa nedokončil včas a zopakuje sa.',
+    'missing_edge' => 'Uzol „:node“ neexistuje.',
+    'missing_outcome_edge' => 'Uzol „:node“ nemá hranu pre výsledok „:outcome“.',
+    'missing_trigger' => 'Pracovný postup nemá spúšťač.',
+    'nesting_depth_exceeded' => 'Pracovné postupy môžu spúšťať ďalšie najviac do hĺbky :limit úrovní.',
+    'no_approvers' => 'Nikto to nemôže schváliť: schvaľovatelia sa neurčili.',
+    'no_result' => 'Krok nevrátil žiadny výsledok.',
+    'owner_mismatch' => 'Subjekt už nepatrí vlastníkovi pracovného postupu.',
+    'resume_unsupported' => 'Typ kroku „:type“ nemôže pokračovať.',
+    'roles_unavailable' => 'Rolu „:role“ nie je možné určiť.',
+    'start_rate_exceeded' => 'Pracovný postup bol spustený viac ako :limit-krát za minútu.',
+    'step_limit_exceeded' => 'Pracovný postup vykonal viac ako :limit krokov.',
+    'subject_missing' => 'Subjekt už neexistuje alebo ho vlastník nevidí.',
+    'unknown_escalation_action' => 'Eskalačná akcia „:action“ nie je dostupná.',
+    'unknown_step_type' => 'Typ kroku „:type“ nie je zaregistrovaný.',
+    'version_missing' => 'Verzia pracovného postupu už neexistuje.',
+    'worker_timeout' => 'Pri vykonávaní kroku vypršal čas spracovania.',
+];
