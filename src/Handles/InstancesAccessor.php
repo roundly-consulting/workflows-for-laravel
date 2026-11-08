@@ -4,16 +4,23 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Handles;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
 use RoundlyConsulting\PackageToolkit\Enums\KeyType;
 use RoundlyConsulting\Workflows\Actions\Instances\CancelInstanceAction;
 use RoundlyConsulting\Workflows\Actions\Instances\RetryInstanceAction;
 use RoundlyConsulting\Workflows\DataTransferObjects\PruneReport;
 use RoundlyConsulting\Workflows\DataTransferObjects\WakeReport;
+use RoundlyConsulting\Workflows\Enums\EscalationStatus;
+use RoundlyConsulting\Workflows\Enums\InstanceStatus;
+use RoundlyConsulting\Workflows\Enums\WaitStatus;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
 use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
+use RoundlyConsulting\Workflows\Support\Owners;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
@@ -74,6 +81,45 @@ final readonly class InstancesAccessor
             static fn (): WorkflowInstance => $instance,
             ['instance' => $instance, 'reason' => $reason],
         );
+    }
+
+    /**
+     * The newest instances, for operators: by status, by definition key (of any owner, unless an
+     * owner is given), by owner.
+     *
+     * @return Collection<int, WorkflowInstance>
+     */
+    public function recent(?InstanceStatus $status = null, ?string $definition = null, ?Model $owner = null, int $limit = 25): Collection
+    {
+        $model = WorkflowModels::instance();
+        $definitionModel = WorkflowModels::definition();
+
+        return $model::query()
+            ->when($status !== null, static fn (Builder $query) => $query->where('status', $status?->value))
+            ->when($definition !== null, static fn (Builder $query) => $query->whereIn('definition_id', $definitionModel::query()
+                ->where('key', $definition)
+                ->when($owner !== null, static fn (Builder $definitions) => $definitions->where('owner_scope', Owners::scope($owner)))
+                ->select('id')))
+            ->when($owner !== null, static fn (Builder $query) => $query->where('owner_type', $owner?->getMorphClass())->where('owner_id', $owner?->getKey()))
+            ->with(['definition', 'version'])
+            ->orderByDesc('id')
+            ->limit(max(1, $limit))
+            ->get();
+    }
+
+    /**
+     * Load what an instance detail view shows — the step log, the pending waits and the pending
+     * escalations — once, for InstanceResource.
+     */
+    public function detail(WorkflowInstance $instance): WorkflowInstance
+    {
+        return $instance->loadMissing([
+            'definition',
+            'version',
+            'stepRuns' => static fn (Relation $query) => $query->orderBy('id'),
+            'waits' => static fn (Relation $query) => $query->where('status', WaitStatus::Pending->value)->orderBy('due_at'),
+            'escalations' => static fn (Relation $query) => $query->where('status', EscalationStatus::Pending->value)->orderBy('due_at'),
+        ]);
     }
 
     /**

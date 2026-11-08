@@ -16,8 +16,10 @@ use RoundlyConsulting\Workflows\Commands\CancelCommand;
 use RoundlyConsulting\Workflows\Commands\CatalogueCommand;
 use RoundlyConsulting\Workflows\Commands\DoctorCommand;
 use RoundlyConsulting\Workflows\Commands\InstallCommand;
+use RoundlyConsulting\Workflows\Commands\ListCommand;
 use RoundlyConsulting\Workflows\Commands\PruneCommand;
 use RoundlyConsulting\Workflows\Commands\RetryCommand;
+use RoundlyConsulting\Workflows\Commands\ShowCommand;
 use RoundlyConsulting\Workflows\Commands\ValidateCommand;
 use RoundlyConsulting\Workflows\Commands\WakeCommand;
 use RoundlyConsulting\Workflows\Contracts\AuthorizesSteps;
@@ -58,6 +60,8 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
                 CancelCommand::class,
                 DoctorCommand::class,
                 InstallCommand::class,
+                ListCommand::class,
+                ShowCommand::class,
             ])
             ->contributesToAbout(static fn (): array => [
                 'Step types' => (string) count(app(StepCatalogue::class)->all()),

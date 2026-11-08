@@ -278,3 +278,45 @@ it('exits non-zero on warnings under --strict', function (): void {
     $this->artisan('workflows:doctor')->assertSuccessful();
     $this->artisan('workflows:doctor', ['--strict' => true])->assertFailed();
 });
+
+// W-16
+it('lists failed instances of a definition', function (): void {
+    published('flow', graph([node('start', 'trigger', ['trigger' => 'manual']), node('spy', 'acme.spy', ['mode' => 'fail']), node('done', 'end')], [['start', 'spy'], ['spy', 'done']]), null, null);
+    published('other', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]), null, null);
+    $failed = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
+    $completed = Workflows::start('other')->dispatch()->instance ?? throw new LogicException;
+    $acme = company();
+
+    expect(Artisan::call('workflows:list', ['--status' => 'failed', '--definition' => 'flow']))->toBe(0)
+        ->and(Artisan::output())->toContain($failed->ulid, 'refused', 'flow')->not->toContain($completed->ulid)
+        ->and(Artisan::call('workflows:list', ['--limit' => 1]))->toBe(0)
+        ->and(Artisan::output())->toContain($completed->ulid)->not->toContain($failed->ulid);
+
+    $this->artisan('workflows:list', ['--owner-type' => $acme->getMorphClass(), '--owner-id' => (string) $acme->id])->expectsOutput('No instances.')->assertSuccessful();
+    $this->artisan('workflows:list', ['--owner-type' => 'nope', '--owner-id' => '1'])->expectsOutput('Owner not found.')->assertFailed();
+    $this->artisan('workflows:list', ['--status' => 'lost'])->expectsOutputToContain('Unknown status')->assertFailed();
+
+    expect(Workflows::instances()->recent(definition: 'flow', owner: $acme))->toBeEmpty();
+});
+
+it('shows an instance with its step log, waits and escalation', function (): void {
+    $document = document(company());
+    published('flow', escalatingWait());
+    $instance = Workflows::start('flow', $document)->dispatch()->instance ?? throw new LogicException;
+
+    expect(Artisan::call('workflows:show', ['instance' => $instance->ulid]))->toBe(0)
+        ->and(Artisan::output())->toContain('waiting', 'Document#'.$document->id, 'Company#', 'Path: start → wait', 'doc.signed', 'timeout', 'Next escalation: level 1')
+        ->not->toContain('Fixtures');
+
+    expect(Artisan::call('workflows:show', ['instance' => $instance->ulid, '--json' => true]))->toBe(0);
+
+    $detail = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+    expect(array_column($detail['steps'], 'node'))->toBe(['start', 'wait'])
+        ->and($detail['waits'])->toHaveCount(2)
+        ->and($detail['escalations'][0]['level'])->toBe(1);
+});
+
+it('shows nothing for an unknown instance and exits 1', function (): void {
+    $this->artisan('workflows:show', ['instance' => '01JC9ZZZZZZZZZZZZZZZZZZZZZ'])->expectsOutput('Instance not found.')->assertFailed();
+});

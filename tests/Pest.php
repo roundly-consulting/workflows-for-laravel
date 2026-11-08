@@ -103,6 +103,22 @@ function reviewGraph(int $reviewer): array
     ]);
 }
 
+/**
+ * A manual flow waiting on `doc.signed` (a 2-day timeout) with one escalation level after a day.
+ *
+ * @return array<string, mixed>
+ */
+function escalatingWait(): array
+{
+    published('chase', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]), null, null);
+
+    return graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('wait', 'wait', ['event' => 'doc.signed', 'timeout' => 'P2D'], ['escalations' => [['after' => 'P1D', 'actions' => [['type' => 'start_workflow', 'definition' => 'chase']]]]]),
+        node('done', 'end'),
+    ], [['start', 'wait'], ['wait', 'done', 'received'], ['wait', 'done', 'timed_out']]);
+}
+
 uses(BridgesTestCase::class)->group('bridges')->in('Bridges', 'Acceptance');
 
 /**

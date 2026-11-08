@@ -238,3 +238,48 @@ it('renders the same JSON after the DTO swap', function (): void {
 
     CarbonImmutable::setTestNow();
 });
+
+// W-17
+it('renders pending waits and the next escalation of an instance', function (): void {
+    published('flow', escalatingWait());
+    $instance = Workflows::start('flow', document())->dispatch()->instance ?? throw new LogicException;
+
+    $json = (new InstanceResource(Workflows::instances()->detail($instance)))->resolve(Request::create('/'));
+
+    expect(array_column(array_column($json['waits'], 'kind'), 'value'))->toEqualCanonicalizing(['event', 'timeout'])
+        ->and($json['waits'][0])->toHaveKeys(['kind', 'due_at', 'event', 'status'])
+        ->and($json['escalations'])->toHaveCount(1)
+        ->and($json['escalations'][0])->toMatchArray(['level' => 1, 'fired_at' => null])
+        ->and($json['escalations'][0]['status']['value'])->toBe('pending')
+        ->and(array_column($json['steps'], 'node'))->toBe(['start', 'wait'])
+        ->and((new InstanceResource($instance->fresh()))->resolve(Request::create('/')))->not->toHaveKeys(['waits', 'escalations', 'steps']);
+});
+
+it('renders an instance detail with a fixed number of queries', function (): void {
+    published('flow', escalatingWait());
+    $instance = Workflows::start('flow', document())->dispatch()->instance ?? throw new LogicException;
+    $fresh = WorkflowInstance::query()->findOrFail($instance->id);
+
+    DB::enableQueryLog();
+    DB::flushQueryLog();
+    $detail = Workflows::instances()->detail($fresh);
+    (new InstanceResource($detail))->resolve(Request::create('/'));
+    $queries = count(DB::getQueryLog());
+
+    DB::flushQueryLog();
+    (new InstanceResource($detail))->resolve(Request::create('/'));
+
+    expect($queries)->toBe(5)
+        ->and(DB::getQueryLog())->toBe([]);
+});
+
+it('renders waits and escalations without class names', function (): void {
+    published('flow', escalatingWait());
+    $instance = Workflows::start('flow', document())->dispatch()->instance ?? throw new LogicException;
+
+    $encoded = (string) json_encode((new InstanceResource(Workflows::instances()->detail($instance)))->resolve(Request::create('/')));
+
+    expect($encoded)->not->toContain('\\\\')
+        ->and($encoded)->not->toContain('Fixtures')
+        ->and($encoded)->toContain('"waits"');
+});
