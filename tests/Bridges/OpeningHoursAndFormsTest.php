@@ -14,6 +14,7 @@ use RoundlyConsulting\Workflows\Exceptions\UnknownCalendarException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Support\Doctor;
+use RoundlyConsulting\Workflows\Support\TriggerForms;
 
 function delayOn(string $calendar): array
 {
@@ -108,4 +109,15 @@ it('fails on an opening-hours calendar without HasOpeningHours', function (): vo
     WorkflowDefinition::query()->whereKey($definition->id)->update(['owner_type' => Team::class]);
 
     expect($checks())->toContain('fail opening hours');
+});
+
+// W-07
+it('reports an unknown form at publish', function (): void {
+    $report = Workflows::versions()->validate(graph([
+        node('start', 'trigger', ['trigger' => 'manual', 'form' => 'no-such-form']),
+        node('done', 'end'),
+    ], [['start', 'done']]));
+
+    expect($report->has(ValidationCode::UnknownForm, 'start'))->toBeTrue()
+        ->and(app(TriggerForms::class)->exists('no-such-form'))->toBeFalse();
 });

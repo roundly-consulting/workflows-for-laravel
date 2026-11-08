@@ -283,3 +283,13 @@ it('renders messages without class names', function (): void {
     expect($report->find(ValidationCode::UnknownNodeType, 'odd')?->message)->toBe('The node "odd" has an unknown type "acme.nope".')
         ->and(json_encode($report->toArray()))->not->toContain('\\\\');
 });
+
+// W-07: a form trigger needs forms-for-laravel.
+it('reports a form trigger without the forms package', function (): void {
+    $report = Workflows::versions()->validate(graph([
+        node('start', 'trigger', ['trigger' => 'manual', 'form' => 'purchase']),
+        node('done', 'end'),
+    ], [['start', 'done']]));
+
+    expect($report->has(ValidationCode::AdapterMissing, 'start'))->toBeTrue();
+});

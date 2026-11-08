@@ -14,6 +14,7 @@ use RoundlyConsulting\Workflows\Support\Conditions\ConditionValidator;
 use RoundlyConsulting\Workflows\Support\Schedule\CronExpression;
 use RoundlyConsulting\Workflows\Support\Schedule\InvalidCronException;
 use RoundlyConsulting\Workflows\Support\Schedule\Presets;
+use RoundlyConsulting\Workflows\Support\TriggerForms;
 use RoundlyConsulting\Workflows\Support\TriggerInputs;
 
 /**
@@ -131,6 +132,16 @@ final class TriggerStep extends BuiltinStep
 
         if ($trigger === 'schedule') {
             $errors = [...$errors, ...$this->schedule($config, $node)];
+        }
+
+        if (is_string($config['form'] ?? null)) {
+            $forms = app(TriggerForms::class);
+
+            if (! $forms->available()) {
+                $errors[] = ValidationError::make(ValidationCode::AdapterMissing, node: $node, path: '/form', params: ['type' => 'form', 'package' => 'roundly-consulting/forms-for-laravel']);
+            } elseif (! $forms->exists($config['form'])) {
+                $errors[] = ValidationError::make(ValidationCode::UnknownForm, node: $node, path: '/form', params: ['form' => $config['form']]);
+            }
         }
 
         $names = [];
