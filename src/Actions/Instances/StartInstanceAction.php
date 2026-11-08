@@ -142,9 +142,16 @@ final readonly class StartInstanceAction
             }
 
             if ($this->rateExceeded($definition)) {
+                // Back-pressure, not a duplicate: the key stays free, so the sender's own retry of
+                // this trigger starts it once the window has room.
+                if ($digest !== null) {
+                    $ledger = WorkflowModels::idempotencyKey();
+                    $ledger::query()->where('scope', 'start')->where('key', $digest)->delete();
+                }
+
                 $this->refuse($instance, $after);
 
-                return new StartResult($instance, true, definition: $definition->key);
+                return new StartResult($instance, false, definition: $definition->key, refused: FailureCode::StartRateExceeded->value);
             }
 
             $this->run($instance, $version, $after);

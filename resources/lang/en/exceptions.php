@@ -28,6 +28,7 @@ return [
     'missing_idempotency_key' => 'The webhook carries no idempotency key.',
     'missing_triggering_user' => 'The workflow ":key" runs on behalf of a user, but none started it.',
     'instance_not_retryable' => 'Only a failed instance can be retried (this one is :status).',
+    'instance_not_retryable_no_step' => 'This instance did not fail on a step, so there is nothing to retry: start it again instead.',
     'instance_not_cancellable' => 'The instance has already ended (:status).',
     'invalid_template' => 'The template is invalid (:reason).',
     'invalid_diff' => 'Only versions of the same workflow can be compared.',

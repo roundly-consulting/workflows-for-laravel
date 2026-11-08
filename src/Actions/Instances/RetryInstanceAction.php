@@ -46,8 +46,12 @@ final readonly class RetryInstanceAction
             $runModel = WorkflowModels::stepRun();
             $last = $runModel::query()->where('instance_id', $locked->getKey())->orderByDesc('id')->first();
 
-            if ($locked->status !== InstanceStatus::Failed || ! $last instanceof StepRun || $last->status !== StepRunStatus::Failed) {
+            if ($locked->status !== InstanceStatus::Failed) {
                 throw InstanceNotRetryableException::forStatus($locked->status->value);
+            }
+
+            if (! $last instanceof StepRun || $last->status !== StepRunStatus::Failed) {
+                throw InstanceNotRetryableException::noFailedStep();
             }
 
             $graph = $locked->version?->parsedGraph();

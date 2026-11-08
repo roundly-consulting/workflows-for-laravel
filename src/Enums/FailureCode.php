@@ -87,7 +87,7 @@ enum FailureCode: string
             self::Exception, self::LeaseExpired, self::WorkerTimeout, self::TransitionConflict,
             self::AdapterMissing, self::CalendarMissing, self::RolesUnavailable, self::AuthorizationDenied,
             self::NoApprovers, self::DelayFieldEmpty, self::SubjectMissing, self::OwnerMismatch,
-            self::UnknownStepType, self::ChildNotStarted, self::StartRateExceeded,
+            self::UnknownStepType, self::ChildNotStarted,
         ], true);
     }
 

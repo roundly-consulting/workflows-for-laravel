@@ -28,6 +28,7 @@ return [
     'missing_idempotency_key' => 'Webhook neobsahuje kľúč idempotencie.',
     'missing_triggering_user' => 'Pracovný postup „:key“ beží v mene používateľa, no žiadny ho nespustil.',
     'instance_not_retryable' => 'Opakovať sa dá iba zlyhaná inštancia (táto je :status).',
+    'instance_not_retryable_no_step' => 'Táto inštancia nezlyhala na kroku, takže nie je čo opakovať: spustite ju znova.',
     'instance_not_cancellable' => 'Inštancia už skončila (:status).',
     'invalid_template' => 'Šablóna je neplatná (:reason).',
     'invalid_diff' => 'Porovnať sa dajú iba verzie toho istého pracovného postupu.',

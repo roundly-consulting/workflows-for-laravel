@@ -13,4 +13,12 @@ final class InstanceNotRetryableException extends WorkflowsException
     {
         return self::make('instance_not_retryable', 409, ['status' => $status]);
     }
+
+    /**
+     * Failed, but not on a step (a start the rate limit refused, a missing trigger or edge).
+     */
+    public static function noFailedStep(): self
+    {
+        return self::make('instance_not_retryable', 409, line: 'instance_not_retryable_no_step');
+    }
 }

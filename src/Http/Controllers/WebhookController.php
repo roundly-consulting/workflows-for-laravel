@@ -13,7 +13,8 @@ use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
  * `POST {prefix}/hooks/{hook}`: starts the definition whose `webhook_id` is `{hook}` with the
- * JSON body as the trigger payload. 202 `{instance, created}`; 404 for an unknown or retired
+ * JSON body as the trigger payload. 202 `{instance, created}`; 429 (`Retry-After: 60`) for a start
+ * the rate limit refused (its key stays free); 404 for an unknown or retired
  * hook (and for a subject of another owner); 422 for a missing idempotency key or a body that is
  * not a JSON object within `webhooks.max_bytes`. Signatures are the route middleware's job.
  */
@@ -46,6 +47,16 @@ final readonly class WebhookController
             };
 
             return new JsonResponse(['code' => $exception->errorCode(), 'message' => $exception->getMessage()], $status);
+        }
+
+        if ($result->wasRefused()) {
+            // The rate limit refused it and left the key free: the sender should retry.
+            return new JsonResponse([
+                'code' => $result->refused,
+                'message' => $result->instance?->failure_message,
+                'instance' => $result->instance?->ulid,
+                'created' => false,
+            ], 429, ['Retry-After' => '60']);
         }
 
         return new JsonResponse(['instance' => $result->instance?->ulid, 'created' => $result->created], 202);
