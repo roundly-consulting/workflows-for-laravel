@@ -8,7 +8,11 @@ use RoundlyConsulting\Workflows\Enums\Severity;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Support\Bridges;
+use RoundlyConsulting\Workflows\Support\Schedule\CronExpression;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
+
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(CronExpression::class);
 
 function inspectGraph(array $graph, ?string $subjectType = 'document', $owner = null): ValidationReport
 {

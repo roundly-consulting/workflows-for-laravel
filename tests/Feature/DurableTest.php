@@ -27,8 +27,11 @@ use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowWait;
 use RoundlyConsulting\Workflows\Steps\StepResult;
+use RoundlyConsulting\Workflows\Support\BusinessClock;
 use RoundlyConsulting\Workflows\Support\Clock;
+use RoundlyConsulting\Workflows\Support\Conditions\Evaluator;
 use RoundlyConsulting\Workflows\Support\ConditionWaits;
+use RoundlyConsulting\Workflows\Support\Durations;
 use RoundlyConsulting\Workflows\Support\Engine\RetryPolicies;
 use RoundlyConsulting\Workflows\Support\StepCatalogue;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
@@ -38,6 +41,9 @@ use RoundlyConsulting\Workflows\Tests\Fixtures\App\Steps\CreateTaskStep;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Steps\FlakyState;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Steps\SpyStep;
 use RoundlyConsulting\Workflows\WorkflowsManager;
+
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(BusinessClock::class, Durations::class, Evaluator::class);
 
 function flow(array $nodes, array $edges, array $settings = []): array
 {

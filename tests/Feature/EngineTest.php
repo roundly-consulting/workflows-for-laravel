@@ -35,6 +35,7 @@ use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Support\Clock;
+use RoundlyConsulting\Workflows\Support\Conditions\Evaluator;
 use RoundlyConsulting\Workflows\Support\Engine\EngineQueue;
 use RoundlyConsulting\Workflows\Support\Engine\StepFailure;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
@@ -43,6 +44,9 @@ use RoundlyConsulting\Workflows\Tests\Fixtures\App\FixtureServiceProvider;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Task;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Steps\SpyStep;
+
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(Evaluator::class);
 
 function manual(array $nodes, array $edges, array $trigger = [], array $settings = []): array
 {

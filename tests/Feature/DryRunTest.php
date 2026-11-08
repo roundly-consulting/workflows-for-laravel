@@ -12,6 +12,11 @@ use RoundlyConsulting\Workflows\Http\Resources\OverlayResource;
 use RoundlyConsulting\Workflows\Models\WorkflowDryRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Steps\StepResult;
+use RoundlyConsulting\Workflows\Support\Conditions\Evaluator;
+use RoundlyConsulting\Workflows\Support\Durations;
+
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(Evaluator::class, Durations::class);
 
 /**
  * @param  array<string, mixed>  $trigger

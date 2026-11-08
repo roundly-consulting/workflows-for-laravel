@@ -11,6 +11,7 @@ use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationExceptio
 use RoundlyConsulting\Workflows\Exceptions\SubjectOwnerMismatchException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
+use RoundlyConsulting\Workflows\Support\Conditions\Evaluator;
 use RoundlyConsulting\Workflows\Support\Doctor;
 use RoundlyConsulting\Workflows\Support\EventMappings;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
@@ -18,6 +19,9 @@ use RoundlyConsulting\Workflows\Tests\Fixtures\App\Events\DocumentPriced;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Events\DocumentSigned;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Document;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
+
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(Evaluator::class);
 
 final class DocumentSubmitted
 {

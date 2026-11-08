@@ -8,11 +8,12 @@ use RoundlyConsulting\Workflows\Enums\FieldType;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Support\Conditions\Evaluator;
+use RoundlyConsulting\Workflows\Support\Decimals;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
 use RoundlyConsulting\Workflows\Support\ValueScope;
 
 // W-27: `composer mutate` mutates the pure core these tests pin.
-mutates(Evaluator::class);
+mutates(Evaluator::class, Decimals::class);
 
 /**
  * @param  array<string, mixed>  $condition

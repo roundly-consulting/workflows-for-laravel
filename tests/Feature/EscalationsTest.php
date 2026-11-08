@@ -13,7 +13,12 @@ use RoundlyConsulting\Workflows\Events\EscalationTriggered;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Models\WorkflowEscalation;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
+use RoundlyConsulting\Workflows\Support\BusinessClock;
+use RoundlyConsulting\Workflows\Support\Durations;
 use RoundlyConsulting\Workflows\Support\EscalationActions;
+
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(BusinessClock::class, Durations::class);
 
 function escalating(array $levels): array
 {

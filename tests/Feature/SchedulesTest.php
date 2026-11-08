@@ -8,6 +8,10 @@ use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Graph\Build\Trigger;
 use RoundlyConsulting\Workflows\Graph\Build\When;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
+use RoundlyConsulting\Workflows\Support\Schedule\CronExpression;
+
+// W-27: `composer mutate` mutates the pure core these tests pin.
+mutates(CronExpression::class);
 
 function scheduled(string $cron, string $timezone = 'UTC'): array
 {
