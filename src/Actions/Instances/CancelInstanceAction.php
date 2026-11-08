@@ -23,7 +23,7 @@ use Throwable;
 
 /**
  * Cancels a running or waiting instance: its waits and escalations are retired first, then the
- * waiting step's `cancel()` hook runs (an approval closes its round, whose resolution then finds
+ * live step's `cancel()` hook runs (waiting, queued for a retry or running) (an approval closes its round, whose resolution then finds
  * nothing to resume), and children it waits on are cancelled too (parent → child lock order).
  * A handler that finishes afterwards sees its result discarded.
  */
@@ -70,17 +70,20 @@ final readonly class CancelInstanceAction
         $runModel = WorkflowModels::stepRun();
         $runs = $runModel::query()
             ->where('instance_id', $instance->getKey())
-            ->whereIn('status', [StepRunStatus::Waiting->value, StepRunStatus::Queued->value])
+            ->whereIn('status', [StepRunStatus::Waiting->value, StepRunStatus::Queued->value, StepRunStatus::Running->value])
             ->get();
 
         foreach ($runs as $run) {
-            if ($run->status === StepRunStatus::Waiting) {
-                $this->hook($instance, $run);
-            }
+            // The step's clean-up runs whatever its live attempt is doing: waiting, queued for a
+            // retry (the approval round it opened is still pending) or running right now.
+            $this->hook($instance, $run);
 
-            $run->status = StepRunStatus::Cancelled;
-            $run->finished_at = Clock::now();
-            $run->save();
+            // A running attempt is left to its handler, whose result is then discarded.
+            if ($run->status !== StepRunStatus::Running) {
+                $run->status = StepRunStatus::Cancelled;
+                $run->finished_at = Clock::now();
+                $run->save();
+            }
         }
 
         $instance->status = InstanceStatus::Cancelled;
@@ -107,6 +110,36 @@ final readonly class CancelInstanceAction
         }
     }
 
+    /**
+     * A retry that starts afresh has no output yet: the hook sees the state the visit's latest
+     * earlier attempt left (the round it opened), on a copy that is never saved.
+     */
+    private function withState(StepRun $run): StepRun
+    {
+        if ($run->output !== null && $run->output !== []) {
+            return $run;
+        }
+
+        $model = WorkflowModels::stepRun();
+        $earlier = $model::query()
+            ->where('instance_id', $run->instance_id)
+            ->where('node_id', $run->node_id)
+            ->where('visit', $run->visit)
+            ->where('attempt', '<', $run->attempt)
+            ->whereNotNull('output')
+            ->orderByDesc('attempt')
+            ->first();
+
+        if (! $earlier instanceof StepRun) {
+            return $run;
+        }
+
+        $view = clone $run;
+        $view->output = $earlier->output;
+
+        return $view;
+    }
+
     private function hook(WorkflowInstance $instance, StepRun $run): void
     {
         $version = $instance->version;
@@ -120,7 +153,7 @@ final readonly class CancelInstanceAction
 
         try {
             $subject = $instance->subject_type === null ? null : Runtime::subject($instance);
-            $type->cancel(Runtime::context($instance, $run, $version, $graph, $node, $subject, Runtime::owner($instance)));
+            $type->cancel(Runtime::context($instance, $this->withState($run), $version, $graph, $node, $subject, Runtime::owner($instance)));
         } catch (Throwable) {
             // A failing clean-up never blocks the cancel.
         }
