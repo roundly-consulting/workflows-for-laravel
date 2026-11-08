@@ -483,6 +483,11 @@ final class WorkflowsConfig
         return str_starts_with($path, '/') ? $path : base_path($path);
     }
 
+    public static function lifecycleEmitTransitions(): bool
+    {
+        return self::reader()->boolean('workflows.bridges.lifecycle.emit_transitions', false);
+    }
+
     public static function dryRunLog(): bool
     {
         return self::reader()->boolean('workflows.dry_run.log', false);

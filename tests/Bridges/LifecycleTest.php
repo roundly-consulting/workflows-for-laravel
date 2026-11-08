@@ -6,8 +6,10 @@ use RoundlyConsulting\Lifecycle\Models\LifecycleTransition;
 use RoundlyConsulting\Teams\Facades\Teams;
 use RoundlyConsulting\Workflows\Bridges\Lifecycle\LifecycleTransitionAdapter;
 use RoundlyConsulting\Workflows\DataTransferObjects\Actor;
+use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Steps\RetryableStepException;
 use RoundlyConsulting\Workflows\Steps\StepFailedException;
 use RoundlyConsulting\Workflows\Support\Bridges;
@@ -109,4 +111,40 @@ it('is listed as "would run" in a dry run and needs lifecycle when it is missing
 
     expect($report->has(ValidationCode::AdapterMissing, 'go'))->toBeTrue()
         ->and(RetryableStepException::because('x', 'y')->retryAfter())->toBeNull();
+});
+
+// W-21
+it('emits transition event keys when enabled', function (): void {
+    config()->set('workflows.bridges.lifecycle.emit_transitions', 'on');
+    $team = team();
+    published('go', transitionGraph('approve'), $team, 'purchase_request');
+    $request = purchase($team);
+    $lifecycle = Teams::runAs($team, fn (): string => (string) LifecycleTransition::query()->value('lifecycle'));
+    published('after', graph([
+        node('start', 'trigger', ['trigger' => 'event', 'event' => 'lifecycle.'.$lifecycle.'.approve']),
+        node('done', 'end'),
+    ], [['start', 'done']]), $team, 'purchase_request');
+
+    Workflows::start('go', $request, $team)->dispatch();
+
+    $after = WorkflowInstance::query()->whereHas('definition', fn ($query) => $query->where('key', 'after'))->sole();
+
+    expect($after->status)->toBe(InstanceStatus::Completed)
+        ->and($after->trigger_payload['trigger']['payload']['to'] ?? null)->toBe('approved')
+        ->and($after->subject_id)->toBe($request->id);
+});
+
+it('stays silent by default', function (): void {
+    $team = team();
+    published('go', transitionGraph('approve'), $team, 'purchase_request');
+    $request = purchase($team);
+    $lifecycle = Teams::runAs($team, fn (): string => (string) LifecycleTransition::query()->value('lifecycle'));
+    published('after', graph([
+        node('start', 'trigger', ['trigger' => 'event', 'event' => 'lifecycle.'.$lifecycle.'.approve']),
+        node('done', 'end'),
+    ], [['start', 'done']]), $team, 'purchase_request');
+
+    Workflows::start('go', $request, $team)->dispatch();
+
+    expect(WorkflowInstance::query()->whereHas('definition', fn ($query) => $query->where('key', 'after'))->count())->toBe(0);
 });

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows;
 
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use RoundlyConsulting\PackageToolkit\Concerns\RegistersBlueprintMacros;
 use RoundlyConsulting\PackageToolkit\Package;
 use RoundlyConsulting\PackageToolkit\PackageServiceProvider;
 use RoundlyConsulting\Workflows\Bridges\Approvals\ApprovalsBridge;
+use RoundlyConsulting\Workflows\Bridges\Lifecycle\LifecycleBridge;
 use RoundlyConsulting\Workflows\Bridges\Teams\TeamsBridge;
 use RoundlyConsulting\Workflows\Calendars\CalendarRegistry;
 use RoundlyConsulting\Workflows\Commands\CancelCommand;
@@ -132,6 +134,10 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
         // providers, which boot after this one: wire them once everything has booted.
         $this->app->booted(function (Application $app): void {
             ApprovalsBridge::register($app);
+
+            if (Bridges::available('lifecycle')) {
+                LifecycleBridge::listen($app->make(Dispatcher::class));
+            }
 
             $mappings = $app->make(EventMappings::class);
 

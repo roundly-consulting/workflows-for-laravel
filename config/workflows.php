@@ -206,6 +206,13 @@ return [
     // What happens to running instances when their subject is deleted: cancel | keep.
     'subjects_on_deleted' => 'cancel',
 
+    'bridges' => [
+        'lifecycle' => [
+            // Emit `lifecycle.<lifecycle>.<transition>` for every lifecycle state change.
+            'emit_transitions' => env('WORKFLOWS_LIFECYCLE_EMIT_TRANSITIONS', 'off'),
+        ],
+    ],
+
     // Definition files (`workflows:sync` / `workflows:export`): absolute or relative to the base path.
     'sync' => [
         'path' => env('WORKFLOWS_SYNC_PATH', 'resources/workflows'),
