@@ -8,21 +8,29 @@
             "type": "trigger",
             "outcome": "next",
             "assumed": false,
-            "at": "2026-11-08T10:00:00+00:00"
+            "at": "2026-11-08T10:00:00+00:00",
+            "input": {
+                "input": [],
+                "trigger": []
+            }
         },
         {
             "node": "task",
             "type": "acme.create_task",
             "outcome": "next",
             "assumed": false,
-            "at": "2026-11-08T10:00:00+00:00"
+            "at": "2026-11-08T10:00:00+00:00",
+            "input": {
+                "title": "Order"
+            }
         },
         {
             "node": "done",
             "type": "end",
             "outcome": null,
             "assumed": false,
-            "at": "2026-11-08T10:00:00+00:00"
+            "at": "2026-11-08T10:00:00+00:00",
+            "input": []
         }
     ],
     "actions": [

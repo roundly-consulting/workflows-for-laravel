@@ -170,3 +170,20 @@ it('collects would-do side effects as SideEffect objects', function (): void {
         ->and($result->wouldDo[1]->description)->toBe('Notify');
 });
 
+// W-03
+it('shows each simulated step\'s input', function (): void {
+    $definition = published('flow', graph([
+        node('start', 'trigger', ['trigger' => 'manual', 'inputs' => [['name' => 'title', 'type' => 'string']]]),
+        node('task', 'acme.create_task', ['title' => 'Order']),
+        node('mark', 'set_field', ['field' => 'subject.title', 'value' => ['ref' => 'input.title']]),
+        node('done', 'end'),
+    ], [['start', 'task'], ['task', 'mark'], ['mark', 'done']]));
+
+    $path = Workflows::definition('flow')->dryRun()->subject(document())->input(['title' => 'Renamed'])->run()->path;
+
+    expect($path[0]->input)->toBe(['input' => ['title' => 'Renamed'], 'trigger' => []])
+        ->and($path[1]->input)->toBe(['title' => 'Order'])
+        ->and($path[2]->input)->toBe(['field' => 'subject.title', 'value' => 'Renamed'])
+        ->and($path[2]->toArray()['input'])->toBe(['field' => 'subject.title', 'value' => 'Renamed'])
+        ->and($definition->key)->toBe('flow');
+});

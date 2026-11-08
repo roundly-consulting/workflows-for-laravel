@@ -333,6 +333,11 @@ final class WorkflowsConfig
         return Config::integer('workflows.steps_output.max_bytes', 65536, min: 256, max: 16777216);
     }
 
+    public static function stepInputMaxBytes(): int
+    {
+        return Config::integer('workflows.steps_input.max_bytes', 65536, min: 1024, max: 1048576);
+    }
+
     public static function escalationsMaxLevels(): int
     {
         return Config::integer('workflows.escalations.max_levels', 5, min: 1, max: 20);

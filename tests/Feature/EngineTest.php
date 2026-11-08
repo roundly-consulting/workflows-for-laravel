@@ -566,3 +566,86 @@ it('cancels the instances of a deleted subject, or keeps them', function (): voi
     expect($first?->refresh()->status)->toBe(InstanceStatus::Cancelled)
         ->and($second?->refresh()->status)->toBe(InstanceStatus::Waiting);
 });
+
+// W-03: every attempt records the config it saw, with each reference resolved.
+it('records the resolved config as each attempt\'s input', function (): void {
+    $acme = company();
+    $ada = user('Ada');
+    $document = document($acme, ['amount' => '120.5', 'requester_id' => $ada->id]);
+    published('flow', spyFlow([
+        'mode' => 'ok',
+        'label' => 'Order',
+        'amount' => ['ref' => 'subject.amount'],
+        'title' => ['ref' => 'input.title'],
+        'who' => [['kind' => 'field', 'field' => 'subject.requester'], ['kind' => 'role', 'role' => 'legal']],
+    ]), $acme);
+
+    $instance = Workflows::start('flow', $document, $acme)->input(['title' => 'Laptops'])->dispatch()->instance ?? throw new LogicException;
+    $runs = Workflows::instances()->steps($instance)->keyBy('node_id');
+
+    expect($runs['spy']->input)->toBe([
+        'mode' => 'ok',
+        'label' => 'Order',
+        'amount' => '120.5',
+        'title' => 'Laptops',
+        'who' => [['kind' => 'field', 'field' => 'subject.requester', 'id' => $ada->id, 'type' => 'User'], ['kind' => 'role', 'role' => 'legal']],
+    ])->and($runs['start']->input)->toBe(['input' => ['title' => 'Laptops'], 'trigger' => []])
+        ->and($runs['done']->input)->toBe([])
+        ->and(Workflows::instances()->steps($instance)->whereNull('input'))->toBeEmpty();
+});
+
+it('renders models in a step input without class names', function (): void {
+    $document = document(null, ['requester_id' => user()->id]);
+    published('flow', spyFlow(['requester' => ['ref' => 'subject.requester'], 'by' => [['kind' => 'triggered_by']]]));
+
+    $instance = Workflows::start('flow', $document)->by(user('Bob'))->dispatch()->instance ?? throw new LogicException;
+    $input = Workflows::instances()->steps($instance)->firstWhere('node_id', 'spy')?->input;
+    $json = (string) json_encode($input);
+
+    expect($input['requester'] ?? null)->toMatchArray(['type' => 'User'])
+        ->and($input['by'][0] ?? null)->toMatchArray(['kind' => 'triggered_by', 'type' => 'User'])
+        ->and($json)->not->toContain('\\\\')
+        ->and($json)->not->toContain('Fixtures');
+});
+
+it('truncates an oversized step input', function (): void {
+    config()->set('workflows.steps_input.max_bytes', 1024);
+    published('flow', spyFlow(['blob' => str_repeat('x', 2000)]), null, null);
+
+    $instance = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
+    $input = Workflows::instances()->steps($instance)->firstWhere('node_id', 'spy')?->input;
+
+    expect($input['truncated'] ?? null)->toBeTrue()
+        ->and($input['bytes'] ?? 0)->toBeGreaterThan(2000);
+});
+
+it('re-resolves input on a retry attempt', function (): void {
+    $document = document(null, ['amount' => '10']);
+    published('flow', spyFlow(['mode' => 'throw', 'amount' => ['ref' => 'subject.amount']]));
+
+    $instance = Workflows::start('flow', $document)->dispatch()->instance ?? throw new LogicException;
+    $document->update(['amount' => '20']);
+    $this->travelAndWake('PT1H');
+    $attempts = Workflows::instances()->steps($instance)->where('node_id', 'spy')->values();
+
+    expect($attempts->count())->toBeGreaterThanOrEqual(2)
+        ->and($attempts[0]->input['amount'] ?? null)->toBe('10')
+        ->and($attempts[1]->input['amount'] ?? null)->toBe('20');
+});
+
+it('records the unresolved config when the subject is gone', function (): void {
+    $document = document();
+    published('flow', spyFlow(['amount' => ['ref' => 'subject.amount']]));
+    config()->set('workflows.subjects_on_deleted', 'keep');
+    config()->set('workflows.queue.enabled', 'on');
+    config()->set('queue.default', 'database');
+
+    $instance = Workflows::start('flow', $document)->dispatch()->instance ?? throw new LogicException;
+    $document->forceDelete();
+    config()->set('queue.default', 'sync');
+    $run = Workflows::instances()->steps($instance)->firstWhere('node_id', 'spy') ?? throw new LogicException;
+    app(RunStepAction::class)->execute($run->id);
+
+    expect($run->refresh()->input)->toBe(['amount' => ['ref' => 'subject.amount']])
+        ->and($instance->refresh())->toHaveFailedWith('subject_missing');
+});

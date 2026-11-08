@@ -19,6 +19,7 @@ use RoundlyConsulting\Workflows\Support\Authorization;
 use RoundlyConsulting\Workflows\Support\Messages;
 use RoundlyConsulting\Workflows\Support\Owners;
 use RoundlyConsulting\Workflows\Support\StepCatalogue;
+use RoundlyConsulting\Workflows\Support\StepInputs;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 use Throwable;
 
@@ -47,6 +48,8 @@ final readonly class Attempts
         $version = $instance->version;
 
         if (! $version instanceof WorkflowVersion) {
+            $this->recordInput($run, $signal, StepInputs::unresolved(null));
+
             return [StepFailure::permanent('version_missing', Messages::get('failures.version_missing')), null];
         }
 
@@ -55,6 +58,7 @@ final readonly class Attempts
         $type = $node === null ? null : $this->catalogue->find($node->type);
 
         if ($node === null || $type === null) {
+            $this->recordInput($run, $signal, StepInputs::unresolved($node));
             $package = $node === null ? null : $this->catalogue->missingAdapter($node->type);
 
             return [$package === null
@@ -69,15 +73,20 @@ final readonly class Attempts
             $subject = Runtime::subject($instance);
 
             if ($subject === null) {
+                $this->recordInput($run, $signal, StepInputs::unresolved($node));
+
                 return [StepFailure::permanent('subject_missing', Messages::get('failures.subject_missing')), null];
             }
 
             if ($instance->owner_type !== null && ! Owners::same($owner, $this->owners->ownerOf($subject))) {
+                $this->recordInput($run, $signal, StepInputs::unresolved($node));
+
                 return [StepFailure::permanent('owner_mismatch', Messages::get('failures.owner_mismatch')), null];
             }
         }
 
         $context = Runtime::context($instance, $run, $version, $graph, $node, $subject, $owner, $signal);
+        $this->recordInput($run, $signal, $context->resolvedConfig());
 
         if ($type->hasSideEffects()) {
             try {
@@ -93,6 +102,22 @@ final readonly class Attempts
         }
 
         return [$this->invoke($type, $context, $signal), null];
+    }
+
+    /**
+     * The first entry into an attempt records what it saw; a resume continues that attempt and
+     * keeps it. Refs resolve per attempt, so a retry records the values of its own start.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    private function recordInput(StepRun $run, ?Signal $signal, array $input): void
+    {
+        if ($signal !== null) {
+            return;
+        }
+
+        $run->input = $input;
+        $run->save();
     }
 
     public function invoke(StepType $type, StepContext $context, ?Signal $signal): StepResult|StepFailure

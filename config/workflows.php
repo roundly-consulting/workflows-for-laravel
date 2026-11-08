@@ -135,6 +135,12 @@ return [
         'max_bytes' => 65536,
     ],
 
+    // Each step run records its input: the node config with every value reference resolved,
+    // as the handler saw it. A larger input is stored as {"truncated": true, "bytes": n}.
+    'steps_input' => [
+        'max_bytes' => 65536,
+    ],
+
     'escalations' => [
         'max_levels' => 5,
     ],

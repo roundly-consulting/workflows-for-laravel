@@ -38,6 +38,7 @@ use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\KeyTypes;
 use RoundlyConsulting\Workflows\Support\Messages;
 use RoundlyConsulting\Workflows\Support\Owners;
+use RoundlyConsulting\Workflows\Support\StepInputs;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
 use RoundlyConsulting\Workflows\Support\TriggerForms;
 use RoundlyConsulting\Workflows\Support\TriggerInputs;
@@ -359,6 +360,7 @@ final readonly class StartInstanceAction
         $run->status = StepRunStatus::Completed;
         $run->outcome = 'next';
         $run->output = ['input' => $instance->trigger_payload['input'] ?? [], 'trigger' => $instance->trigger_payload['trigger'] ?? []];
+        $run->input = StepInputs::capped($run->output);
         $run->started_at = $now;
         $run->finished_at = $now;
         $run->save();

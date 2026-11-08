@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Support;
 
+use BackedEnum;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use RoundlyConsulting\Workflows\DataTransferObjects\SubjectTypeDefinition;
@@ -42,6 +44,22 @@ final class Values
         }
 
         return $value;
+    }
+
+    /**
+     * A resolved value as plain JSON: a model is `{id, type}` (its subject registry key, else the
+     * class basename — never a class name), a date its ISO-8601 string, an enum its value.
+     */
+    public static function plain(mixed $value): mixed
+    {
+        return match (true) {
+            $value instanceof Model => ['id' => $value->getKey(), 'type' => app(SubjectRegistry::class)->forModel($value)->key ?? class_basename($value)],
+            $value instanceof CarbonInterface => $value->toIso8601String(),
+            $value instanceof BackedEnum => $value->value,
+            is_array($value) => array_map(self::plain(...), $value),
+            is_object($value) => null,
+            default => $value,
+        };
     }
 
     /**

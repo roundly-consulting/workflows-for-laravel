@@ -18,7 +18,7 @@ Initial public release.
 - A durable engine: step runs per attempt, waits as rows, leases, retries with backoff and a stable idempotency key, `once()` effect records, queue jobs or an inline runner, and `workflows:wake` for timers, retries, timeouts, polls, escalations and schedules.
 - Business time: weekday and opening-hours calendars, business-day delays and expiries, DST-safe.
 - Escalations per waiting step: notify, reassign and start_workflow, timed in business time.
-- Dry runs that write nothing (with an opt-in log), a per-node run overlay and the step log.
+- Dry runs that write nothing (with an opt-in log) and show each step's resolved input, a per-node run overlay, and the step log, where every attempt records its input: the node config with each value reference resolved, models as `{id, type}`, capped by `workflows.steps_input.max_bytes`.
 - Owners and teams: per-owner definitions, owner-scoped instances run in the owner's context, role and membership checks.
 - Bridges, each optional: approvals, lifecycle, notifications, opening hours, forms and teams.
 - HTTP resources with swappable owner, subject and user reference resources — no class names over the wire.

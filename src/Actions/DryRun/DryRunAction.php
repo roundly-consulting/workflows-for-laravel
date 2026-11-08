@@ -38,6 +38,7 @@ use RoundlyConsulting\Workflows\Support\Engine\OutputBag;
 use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\Owners;
 use RoundlyConsulting\Workflows\Support\StepCatalogue;
+use RoundlyConsulting\Workflows\Support\StepInputs;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
 use RoundlyConsulting\Workflows\Support\TriggerInputs;
 use RoundlyConsulting\Workflows\Support\ValueScope;
@@ -132,7 +133,7 @@ final readonly class DryRunAction
         }
 
         $instance = $this->instance($data, $version, $owner, $subject);
-        $path = [new DryRunStep($trigger->id, 'trigger', 'next', false, $now->toIso8601String())];
+        $path = [new DryRunStep($trigger->id, 'trigger', 'next', false, $now->toIso8601String(), StepInputs::capped(['input' => $input, 'trigger' => $scope->trigger]))];
         $actions = [];
         $visits = [$trigger->id => 1];
         $outputs->set($trigger->id, ['input' => $input, 'trigger' => $scope->trigger]);
@@ -154,6 +155,7 @@ final readonly class DryRunAction
             $visits[$node->id] = ($visits[$node->id] ?? 0) + 1;
             $context = $this->context($instance, $version, $graph, $node, $visits[$node->id], $scope->at($now));
 
+            $stepInput = $context->resolvedConfig();
             [$outcome, $assumed, $output, $step] = $this->step($type, $node, $context, $data->assume);
             $actions = [...$actions, ...$step];
             $outputs->set($node->id, $output);
@@ -168,7 +170,7 @@ final readonly class DryRunAction
                 $now = CarbonImmutable::parse($output['due_at'])->utc();
             }
 
-            $path[] = new DryRunStep($node->id, $node->type, $node->type === 'end' ? null : $outcome, $assumed, $now->toIso8601String());
+            $path[] = new DryRunStep($node->id, $node->type, $node->type === 'end' ? null : $outcome, $assumed, $now->toIso8601String(), $stepInput);
 
             if ($node->type === 'end') {
                 return new DryRunResult(true, true, $path, $actions, $node->id, 'end', $report);

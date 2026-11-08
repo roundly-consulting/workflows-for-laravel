@@ -20,6 +20,7 @@ use RoundlyConsulting\Workflows\Support\Clock;
 use RoundlyConsulting\Workflows\Support\Events;
 use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\Messages;
+use RoundlyConsulting\Workflows\Support\StepInputs;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 
@@ -114,6 +115,7 @@ final readonly class Advancer
 
         $run->status = StepRunStatus::Completed;
         $run->outcome = 'end';
+        $run->input = StepInputs::unresolved($node);
         $run->started_at = $now;
         $run->finished_at = $now;
         $run->save();

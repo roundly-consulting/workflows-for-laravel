@@ -21,6 +21,7 @@ use RoundlyConsulting\Workflows\Support\Authorization;
 use RoundlyConsulting\Workflows\Support\Effects;
 use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\PartyResolver;
+use RoundlyConsulting\Workflows\Support\StepInputs;
 use RoundlyConsulting\Workflows\Support\Values;
 use RoundlyConsulting\Workflows\Support\ValueScope;
 
@@ -232,6 +233,18 @@ final readonly class StepContext
     public function signal(): ?Signal
     {
         return $this->signal;
+    }
+
+    /**
+     * The config with every value reference resolved, as recorded in the step run's `input`.
+     *
+     * @internal
+     *
+     * @return array<string, mixed>
+     */
+    public function resolvedConfig(): array
+    {
+        return StepInputs::of($this->node, $this->scope);
     }
 
     /**
