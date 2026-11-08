@@ -187,3 +187,49 @@ it('shows each simulated step\'s input', function (): void {
         ->and($path[2]->toArray()['input'])->toBe(['field' => 'subject.title', 'value' => 'Renamed'])
         ->and($definition->key)->toBe('flow');
 });
+
+// W-23
+it('explores every branch of an approval', function (): void {
+    $this->fakeStep('approval', 'approved', outcomes: ['approved', 'rejected', 'expired']);
+    published('flow', graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('approve', 'approval', ['approvers' => [['kind' => 'triggered_by']], 'rule' => 'any']),
+        node('task', 'acme.create_task', ['title' => 'Order']),
+        node('chase', 'wait', ['event' => 'doc.signed', 'timeout' => 'P1D']),
+        node('done', 'end'),
+        node('no', 'end', ['status' => 'failed']),
+    ], [
+        ['start', 'approve'], ['approve', 'task', 'approved'], ['approve', 'no', 'rejected'], ['approve', 'chase', 'expired'],
+        ['task', 'done'], ['chase', 'done', 'received'], ['chase', 'no', 'timed_out'],
+    ]), null, null);
+
+    $tree = Workflows::definition('flow')->dryRun()->explore();
+    $paths = array_map(static fn ($result): array => $result->nodes(), $tree->paths());
+
+    expect($tree->branchesAt)->toBe('approve')
+        ->and(array_keys($tree->branches))->toBe(['approved', 'rejected', 'expired'])
+        ->and($paths)->toBe([
+            ['start', 'approve', 'task', 'done'],
+            ['start', 'approve', 'no'],
+            ['start', 'approve', 'chase', 'done'],
+            ['start', 'approve', 'chase', 'no'],
+        ])
+        ->and($tree->toArray()['branches']['expired']['branches_at'])->toBe('chase')
+        ->and(WorkflowDryRun::query()->count())->toBe(0);
+});
+
+it('stops exploring when the walk budget runs out', function (): void {
+    config()->set('workflows.graph.max_nodes', 5);
+    published('flow', graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('first', 'wait', ['event' => 'doc.signed', 'timeout' => 'P1D']),
+        node('second', 'wait', ['event' => 'doc.sealed', 'timeout' => 'P1D']),
+        node('done', 'end'),
+        node('late', 'end'),
+    ], [['start', 'first'], ['first', 'second', 'received'], ['first', 'second', 'timed_out'], ['second', 'done', 'received'], ['second', 'late', 'timed_out']]), null, null);
+
+    $tree = Workflows::definition('flow')->dryRun()->explore();
+
+    expect($tree->paths())->toHaveCount(3)
+        ->and($tree->branches['timed_out']->branches)->toBe([]);
+});

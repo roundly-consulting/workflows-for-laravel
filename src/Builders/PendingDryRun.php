@@ -9,13 +9,19 @@ use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Actions\DryRun\DryRunAction;
 use RoundlyConsulting\Workflows\DataTransferObjects\DryRunData;
 use RoundlyConsulting\Workflows\DataTransferObjects\DryRunResult;
+use RoundlyConsulting\Workflows\DataTransferObjects\DryRunTree;
 use RoundlyConsulting\Workflows\Enums\WorkflowOperation;
+use RoundlyConsulting\Workflows\Graph\GraphParser;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
+use RoundlyConsulting\Workflows\Steps\Outcome;
+use RoundlyConsulting\Workflows\Support\StepCatalogue;
+use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
  * A dry run being built: `->subject($model)` or `->sample([...])`, `->input()`, `->event()`,
- * `->assume(['approve' => 'rejected'])`, `->at($instant)`, `->log()`, then `->run()`.
+ * `->assume(['approve' => 'rejected'])`, `->at($instant)`, `->log()`, then `->run()` (one path)
+ * or `->explore()` (every branch).
  */
 final class PendingDryRun
 {
@@ -124,7 +130,63 @@ final class PendingDryRun
         return $this;
     }
 
+    /**
+     * Walk every way the graph can go: wherever an outcome had to be assumed (a side effect, a
+     * wait), branch into each outcome the step can end with. Bounded by `graph.max_nodes` walks;
+     * the log option is ignored (nothing is logged). `run()` stays the single path.
+     */
+    public function explore(): DryRunTree
+    {
+        $budget = WorkflowsConfig::graphMaxNodes();
+
+        return $this->branch($this->assume, $budget);
+    }
+
     public function run(): DryRunResult
+    {
+        return $this->walk($this->assume, $this->log);
+    }
+
+    /**
+     * @param  array<string, string>  $assume
+     */
+    private function branch(array $assume, int &$budget): DryRunTree
+    {
+        $budget--;
+        $result = $this->walk($assume, false);
+        $graph = GraphParser::parse($this->graph);
+        $catalogue = $this->manager->make(StepCatalogue::class);
+
+        foreach ($result->path as $step) {
+            $node = $graph->node($step->node);
+            $type = $node === null ? null : $catalogue->find($node->type);
+
+            if (! $step->assumed || isset($assume[$step->node]) || $node === null || $type === null) {
+                continue;
+            }
+
+            $outcomes = array_map(static fn (Outcome $outcome): string => $outcome->key, $type->outcomes($node->config));
+
+            if (count($outcomes) < 2 || $budget < count($outcomes)) {
+                continue;
+            }
+
+            $branches = [];
+
+            foreach ($outcomes as $outcome) {
+                $branches[$outcome] = $this->branch([...$assume, $step->node => $outcome], $budget);
+            }
+
+            return new DryRunTree($result, $step->node, $branches);
+        }
+
+        return new DryRunTree($result);
+    }
+
+    /**
+     * @param  array<string, string>  $assume
+     */
+    private function walk(array $assume, ?bool $log): DryRunResult
     {
         $data = new DryRunData(
             definition: $this->definition,
@@ -135,9 +197,9 @@ final class PendingDryRun
             input: $this->input,
             event: $this->event,
             payload: $this->payload,
-            assume: $this->assume,
+            assume: $assume,
             at: $this->at,
-            log: $this->log,
+            log: $log,
             requester: $this->requester,
         );
 
