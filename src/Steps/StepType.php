@@ -145,7 +145,9 @@ abstract class StepType
 
     /**
      * Clean-up when the instance is cancelled while this step is live: waiting, queued for a
-     * retry (the context carries the earlier attempt's output) or running. Keep it idempotent.
+     * retry (the context carries the earlier attempt's output) or running — a running attempt is
+     * cleaned up again with the output it returns once its discarded result is recorded. Keep it
+     * idempotent.
      */
     public function cancel(StepContext $context): void {}
 

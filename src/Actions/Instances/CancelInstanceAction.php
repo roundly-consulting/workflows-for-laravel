@@ -14,12 +14,11 @@ use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Support\Clock;
 use RoundlyConsulting\Workflows\Support\Engine\Advancer;
+use RoundlyConsulting\Workflows\Support\Engine\CancelHook;
 use RoundlyConsulting\Workflows\Support\Engine\Runtime;
 use RoundlyConsulting\Workflows\Support\Engine\Signals;
 use RoundlyConsulting\Workflows\Support\Events;
-use RoundlyConsulting\Workflows\Support\StepCatalogue;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
-use Throwable;
 
 /**
  * Cancels a running or waiting instance: its waits and escalations are retired first, then the
@@ -31,7 +30,7 @@ final readonly class CancelInstanceAction
 {
     public function __construct(
         private RestoresOwnerContext $context,
-        private StepCatalogue $catalogue,
+        private CancelHook $hook,
         private Signals $signals,
     ) {}
 
@@ -76,7 +75,7 @@ final readonly class CancelInstanceAction
         foreach ($runs as $run) {
             // The step's clean-up runs whatever its live attempt is doing: waiting, queued for a
             // retry (the approval round it opened is still pending) or running right now.
-            $this->hook($instance, $run);
+            $this->hook->run($instance, $this->withState($run));
 
             // A running attempt is left to its handler, whose result is then discarded.
             if ($run->status !== StepRunStatus::Running) {
@@ -138,24 +137,5 @@ final readonly class CancelInstanceAction
         $view->output = $earlier->output;
 
         return $view;
-    }
-
-    private function hook(WorkflowInstance $instance, StepRun $run): void
-    {
-        $version = $instance->version;
-        $graph = $version?->parsedGraph();
-        $node = $graph?->node($run->node_id);
-        $type = $node === null ? null : $this->catalogue->find($node->type);
-
-        if ($version === null || $graph === null || $node === null || $type === null) {
-            return;
-        }
-
-        try {
-            $subject = $instance->subject_type === null ? null : Runtime::subject($instance);
-            $type->cancel(Runtime::context($instance, $this->withState($run), $version, $graph, $node, $subject, Runtime::owner($instance)));
-        } catch (Throwable) {
-            // A failing clean-up never blocks the cancel.
-        }
     }
 }

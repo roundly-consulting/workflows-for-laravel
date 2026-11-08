@@ -24,6 +24,7 @@ use RoundlyConsulting\Workflows\Models\WorkflowVersion;
 use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Support\Clock;
 use RoundlyConsulting\Workflows\Support\Engine\Advancer;
+use RoundlyConsulting\Workflows\Support\Engine\CancelHook;
 use RoundlyConsulting\Workflows\Support\Engine\EngineQueue;
 use RoundlyConsulting\Workflows\Support\Engine\LockedRun;
 use RoundlyConsulting\Workflows\Support\Engine\Output;
@@ -52,6 +53,7 @@ final readonly class RecordStepResultAction
         private EngineQueue $queue,
         private StepCatalogue $catalogue,
         private LoggerInterface $logger,
+        private CancelHook $cancelHook,
     ) {}
 
     /**
@@ -81,6 +83,17 @@ final readonly class RecordStepResultAction
             if (! $instance->status->isActive()) {
                 $run->status = StepRunStatus::Cancelled;
                 $run->finished_at = Clock::now();
+
+                // The instance was cancelled while this attempt ran: the cancel saw none of what
+                // the handler did (the round it opened). Keep its output and clean up after it.
+                if ($result instanceof StepResult && $result->output !== [] && Output::valid($result->output)) {
+                    $run->output = array_replace($run->output ?? [], $result->output);
+                    $run->save();
+                    $this->cancelHook->run($instance, $run);
+
+                    return;
+                }
+
                 $run->save();
 
                 return;
