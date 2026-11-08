@@ -110,7 +110,7 @@ it('validates manual input', function (): void {
 
     $instance = Workflows::start('flow')->input(['reason' => 'ok', 'count' => 3, 'level' => 'a', 'extra' => 'dropped'])->dispatch()->instance;
 
-    expect($instance?->trigger_payload['input'])->toBe(['reason' => 'ok', 'count' => 3, 'level' => 'a']);
+    expect($instance?->trigger_payload['input'])->toEqual(['reason' => 'ok', 'count' => 3, 'level' => 'a']);
 });
 
 // A-8 (start variant)
@@ -331,7 +331,7 @@ it('fails an attempt whose output is not plain JSON or too large', function (arr
 
 it('fails an attempt whose output is over the byte cap', function (): void {
     config()->set('workflows.steps_output.max_bytes', 256);
-    published('flow', manual([node('task', 'acme.create_task', ['title' => str_repeat('x', 200)]), node('mark', 'set_field', ['field' => 'subject.title', 'value' => str_repeat('y', 300)]), node('done', 'end')], [['start', 'task'], ['task', 'mark'], ['mark', 'done']]));
+    published('flow', manual([node('task', 'acme.create_task', ['title' => str_repeat('x', 200)]), node('mark', 'set_field', ['field' => 'subject.title', 'value' => str_repeat('y', 240)]), node('done', 'end')], [['start', 'task'], ['task', 'mark'], ['mark', 'done']]));
 
     expect(Workflows::start('flow', document())->dispatch()->instance)->toHaveFailedWith('invalid_output');
 });

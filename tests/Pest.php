@@ -17,6 +17,7 @@ use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Models\PurchaseRequest;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Company;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Document;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
+use RoundlyConsulting\Workflows\Tests\Sentinel\SentinelTestCase;
 
 /**
  * A graph document from nodes and edges (`[from, to, outcome?]` tuples).
@@ -122,3 +123,5 @@ function workflowJson(string $name): array
 {
     return json_decode((string) file_get_contents(__DIR__.'/Fixtures/workflows/'.$name.'.json'), true, flags: JSON_THROW_ON_ERROR);
 }
+
+uses(SentinelTestCase::class)->group('bridges')->in('Sentinel');

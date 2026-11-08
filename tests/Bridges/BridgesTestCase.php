@@ -21,6 +21,7 @@ use RoundlyConsulting\Options\OptionsServiceProvider;
 use RoundlyConsulting\Teams\TeamsServiceProvider;
 use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\BridgesServiceProvider;
+use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Models\OfficeTeam;
 use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Types\DocumentNotice;
 use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Types\PurchaseApproved;
 use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Types\PurchaseEscalated;
@@ -108,6 +109,7 @@ abstract class BridgesTestCase extends TestCase
                 DocumentNotice::class, UncheckedNotice::class,
             ],
             'media.disk' => 'local',
+            'teams.models.team' => OfficeTeam::class,
         ];
     }
 }

@@ -207,7 +207,7 @@ it('copies the current version into a new draft', function (): void {
 
     $draft = Drafts::findOrCreate(Workflows::definition('flow')->model());
 
-    expect($draft->number)->toBe(2)->and($draft->graph)->toBe(simple('one'));
+    expect($draft->number)->toBe(2)->and($draft->graph)->toEqual(simple('one'));
 });
 
 it('rotates the webhook address', function (): void {

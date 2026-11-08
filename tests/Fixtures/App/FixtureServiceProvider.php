@@ -43,7 +43,7 @@ final class FixtureServiceProvider extends ServiceProvider
         Workflows::catalogue()->register(CreateTaskStep::class);
 
         foreach (['update', 'createTask'] as $ability) {
-            Gate::define($ability, static fn (?User $user, ?Document $document = null): bool => self::$allow);
+            Gate::define($ability, static fn (?User $user, mixed $subject = null): bool => self::$allow);
         }
     }
 }

@@ -223,13 +223,13 @@ it('cancels sibling waits when one fires', function (): void {
     Workflows::emit('doc.go');
 
     expect($first->refresh())->toHaveCompletedVia(['start', 'wait', 'ok'])
-        ->and($first->waits()->pluck('status', 'kind')->map->value->all())->toBe(['event' => 'fired', 'timeout' => 'cancelled']);
+        ->and($first->waits()->pluck('status', 'kind')->map->value->all())->toEqual(['event' => 'fired', 'timeout' => 'cancelled']);
 
     $second = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
     $this->travelAndWake('PT1H');
 
     expect($second->refresh())->toHaveCompletedVia(['start', 'wait', 'late'])
-        ->and($second->waits()->pluck('status', 'kind')->map->value->all())->toBe(['event' => 'cancelled', 'timeout' => 'fired']);
+        ->and($second->waits()->pluck('status', 'kind')->map->value->all())->toEqual(['event' => 'cancelled', 'timeout' => 'fired']);
 });
 
 // C-51

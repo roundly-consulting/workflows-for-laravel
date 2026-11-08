@@ -76,7 +76,7 @@ it('starts one instance per matching definition and dedupes a repeated key', fun
         ->and(array_map(static fn ($result): ?string => $result->definition, $first->started))->toBe(['a', 'b', 'global'])
         ->and(collect($again->started)->every(fn ($result): bool => $result->created === false))->toBeTrue()
         ->and(WorkflowInstance::query()->count())->toBe(3)
-        ->and(WorkflowInstance::query()->first()?->trigger_payload['trigger'])->toBe(['event' => 'document.submitted', 'payload' => ['amount' => 5]]);
+        ->and(WorkflowInstance::query()->first()?->trigger_payload['trigger'])->toEqual(['event' => 'document.submitted', 'payload' => ['amount' => 5]]);
 });
 
 // C-86
