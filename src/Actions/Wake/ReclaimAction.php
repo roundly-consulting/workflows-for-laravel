@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Actions\Wake;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use RoundlyConsulting\Workflows\Actions\Engine\RecordStepResultAction;
 use RoundlyConsulting\Workflows\Enums\EscalationStatus;
@@ -36,9 +37,9 @@ final readonly class ReclaimAction
         private EngineQueue $queue,
     ) {}
 
-    public function execute(): ReclaimReport
+    public function execute(?CarbonImmutable $now = null): ReclaimReport
     {
-        $now = Clock::now();
+        $now ??= Clock::now();
         $stale = Clock::format($now->sub(WorkflowsConfig::claimTtl()));
         $batch = WorkflowsConfig::wakeBatch();
 
@@ -46,7 +47,7 @@ final readonly class ReclaimAction
         $escalationModel = WorkflowModels::escalation();
         $runModel = WorkflowModels::stepRun();
 
-        $requeued = $this->redeliverEvents($stale, $batch);
+        $requeued = $this->redeliverEvents($now, $stale, $batch);
 
         $claims = $waitModel::query()
             ->where('status', WaitStatus::Claimed->value)
@@ -68,12 +69,12 @@ final readonly class ReclaimAction
             ->get();
 
         foreach ($expired as $run) {
-            if ($this->record->failExpired(Keys::of($run), StepFailure::transient(FailureCode::LeaseExpired, Messages::get('failures.lease_expired')))) {
+            if ($this->record->failExpired(Keys::of($run), StepFailure::transient(FailureCode::LeaseExpired, Messages::get('failures.lease_expired')), $now)) {
                 $leases++;
             }
         }
 
-        $requeued += $this->reprobe($batch);
+        $requeued += $this->reprobe($now, $batch);
 
         $lost = $runModel::query()
             ->where('status', StepRunStatus::Queued->value)
@@ -98,10 +99,10 @@ final readonly class ReclaimAction
      * is stored, and the event itself will not come twice. Re-claimed with a compare-and-set, so
      * overlapping wakes push it once; a duplicate resume finds the wait fired and does nothing.
      */
-    private function redeliverEvents(string $stale, int $batch): int
+    private function redeliverEvents(CarbonImmutable $at, string $stale, int $batch): int
     {
         $model = WorkflowModels::wait();
-        $now = Clock::format(Clock::now());
+        $now = Clock::format($at);
         $redelivered = 0;
 
         $waits = $model::query()
@@ -131,10 +132,9 @@ final readonly class ReclaimAction
      * A waiting step whose probe job was lost is probed again (the probe catches a source that
      * settled before the step's waits existed — nothing else would ever wake it).
      */
-    private function reprobe(int $batch): int
+    private function reprobe(CarbonImmutable $now, int $batch): int
     {
         $model = WorkflowModels::stepRun();
-        $now = Clock::now();
         $reprobed = 0;
 
         $runs = $model::query()

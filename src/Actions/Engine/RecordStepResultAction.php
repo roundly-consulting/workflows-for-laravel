@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Actions\Engine;
 
+use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Support\Str;
 use Psr\Log\LoggerInterface;
@@ -112,10 +113,13 @@ final readonly class RecordStepResultAction
     /**
      * Fail a running attempt whose lease has expired (a crashed worker, a worker timeout): a
      * compare-and-set on status and lease, so two reclaims — or a reclaim racing the job's
-     * failed() — fail it once, and a live handler is never touched.
+     * failed() — fail it once, and a live handler is never touched. `$now` is the time the lease is
+     * judged at (a `wake($now)`; the clock otherwise).
      */
-    public function failExpired(int|string $runId, StepFailure $failure): bool
+    public function failExpired(int|string $runId, StepFailure $failure, ?CarbonImmutable $now = null): bool
     {
+        $now ??= Clock::now();
+
         $runModel = WorkflowModels::stepRun();
         $run = $runModel::query()->find($runId);
 
@@ -128,13 +132,13 @@ final readonly class RecordStepResultAction
         $model = WorkflowModels::instance();
         $connection = (new $model)->getConnection();
 
-        $connection->transaction(function () use ($run, $failure, &$after, &$failed): void {
+        $connection->transaction(function () use ($run, $failure, $now, &$after, &$failed): void {
             $lock = $this->lock($run->instance_id, Keys::of($run));
             $instance = $lock->instance;
             $locked = $lock->run;
 
             if ($instance === null || $locked === null || $locked->status !== StepRunStatus::Running
-                || $locked->lease_until === null || $locked->lease_until->greaterThanOrEqualTo(Clock::now())) {
+                || $locked->lease_until === null || $locked->lease_until->greaterThanOrEqualTo($now)) {
                 return;
             }
 

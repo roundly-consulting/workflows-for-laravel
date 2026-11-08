@@ -16,6 +16,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 - A `start_workflow` step (with or without `wait`) and a `start_workflow` escalation action no longer treat a child the start-rate limit refused as started: the step or escalation fails retryably with `child_not_started` and retries with backoff, starting the child once the window has room. Before, the step completed with `started` (or took `failed` with `wait: true`) and the escalation was marked fired, while the child never ran.
 - A team-owned `for_each` schedule now reads its subjects and evaluates `where` inside the owner's context (`Teams::runAs()`), like the webhook subject lookup. `workflows:wake` runs with no team context, so a team-scoped subject model found no subjects (`teams.scoping.without_context = empty`) or aborted the wake pass (`throw`).
 - Under `Workflows::fake()`, `emit()` now refuses the event keys the real emit refuses (an internal `@` key, a malformed key such as `Order Placed`) with `InvalidEventKeyException` and records nothing — the fake and the real code share one key check — so `assertEmitted()` no longer passes for an emit that would throw in production.
+- `Workflows::wake($now)` now runs the whole pass at `$now`: it reclaims what has expired at `$now`, stamps its claims with `$now`, and a retry it fires runs in that pass. Before, a retry due before `$now` but after the real clock was marked fired while its attempt stayed queued until real time caught up. (`workflows:wake` passes no time and is unaffected.)
 
 ## 1.0.0 - 2026-11-08
 

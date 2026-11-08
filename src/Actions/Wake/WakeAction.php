@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use RoundlyConsulting\Workflows\DataTransferObjects\WakeReport;
 use RoundlyConsulting\Workflows\Enums\EscalationStatus;
 use RoundlyConsulting\Workflows\Enums\SignalKind;
+use RoundlyConsulting\Workflows\Enums\StepRunStatus;
 use RoundlyConsulting\Workflows\Enums\WaitKind;
 use RoundlyConsulting\Workflows\Enums\WaitStatus;
 use RoundlyConsulting\Workflows\Models\WorkflowEscalation;
@@ -26,6 +27,7 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  * the due timers, retries, timeouts, condition polls and escalations and hand each to its job
  * (which restores the owner context — wake never evaluates anything about a subject itself),
  * then the schedule triggers. Every claim is a compare-and-set, so overlapping wakes are safe.
+ * A given `$now` is the time of the whole pass: what is reclaimed, the claim stamps, the slots.
  */
 final readonly class WakeAction
 {
@@ -43,14 +45,14 @@ final readonly class WakeAction
         $now = $now === null ? Clock::now() : Clock::utc($now);
         $batch = min($limit ?? WorkflowsConfig::wakeBatch(), WorkflowsConfig::wakeBatch());
 
-        $reclaimed = $this->reclaim->execute();
+        $reclaimed = $this->reclaim->execute($now);
         $counts = ['timer' => 0, 'retry' => 0, 'timeout' => 0, 'condition' => 0];
 
         foreach ($this->claimWaits($now, $batch) as $wait) {
             $counts[$wait->kind->value] = ($counts[$wait->kind->value] ?? 0) + 1;
 
             match ($wait->kind) {
-                WaitKind::Retry => $this->retry($wait),
+                WaitKind::Retry => $this->retry($wait, $now),
                 WaitKind::Timeout => $this->queue->resume($wait->step_run_id, Keys::of($wait), SignalKind::Timeout),
                 WaitKind::Condition => $this->queue->resume($wait->step_run_id, Keys::of($wait), SignalKind::Condition),
                 default => $this->queue->resume($wait->step_run_id, Keys::of($wait), SignalKind::Timer),
@@ -105,7 +107,7 @@ final readonly class WakeAction
         $model::query()
             ->whereIn('id', $ids)
             ->where('status', WaitStatus::Pending->value)
-            ->update(['status' => WaitStatus::Claimed->value, 'claim_token' => $token, 'claimed_at' => Clock::format(Clock::now()), 'updated_at' => Clock::format(Clock::now())]);
+            ->update(['status' => WaitStatus::Claimed->value, 'claim_token' => $token, 'claimed_at' => Clock::format($now), 'updated_at' => Clock::format($now)]);
 
         return array_values($model::query()->where('claim_token', $token)->where('status', WaitStatus::Claimed->value)->orderBy('due_at')->get()->all());
     }
@@ -134,16 +136,31 @@ final readonly class WakeAction
         $model::query()
             ->whereIn('id', $ids)
             ->where('status', EscalationStatus::Pending->value)
-            ->update(['status' => EscalationStatus::Claimed->value, 'claim_token' => $token, 'claimed_at' => Clock::format(Clock::now()), 'updated_at' => Clock::format(Clock::now())]);
+            ->update(['status' => EscalationStatus::Claimed->value, 'claim_token' => $token, 'claimed_at' => Clock::format($now), 'updated_at' => Clock::format($now)]);
 
         return array_values($model::query()->where('claim_token', $token)->where('status', EscalationStatus::Claimed->value)->get()->all());
     }
 
-    private function retry(WorkflowWait $wait): void
+    private function retry(WorkflowWait $wait, CarbonImmutable $now): void
     {
-        $wait->status = WaitStatus::Fired;
-        $wait->fired_at = Clock::now();
-        $wait->save();
+        $model = WorkflowModels::stepRun();
+        $connection = (new $model)->getConnection();
+
+        $connection->transaction(static function () use ($wait, $now, $model): void {
+            $wait->status = WaitStatus::Fired;
+            $wait->fired_at = $now;
+            $wait->save();
+
+            // This wake found the retry due, so its attempt is due too: the run's claim compares
+            // `scheduled_for` with the clock, and a `$now` ahead of it would leave the attempt queued.
+            $due = Clock::format($now->min(Clock::now()));
+
+            $model::query()
+                ->whereKey($wait->step_run_id)
+                ->where('status', StepRunStatus::Queued->value)
+                ->where('scheduled_for', '>', $due)
+                ->update(['scheduled_for' => $due]);
+        });
 
         $this->queue->runStep($wait->step_run_id);
     }
