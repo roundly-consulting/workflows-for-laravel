@@ -143,6 +143,7 @@ return [
         'missing_outcome' => 'Chýbajúci výsledok',
         'unknown_outcome' => 'Neznámy výsledok',
         'duplicate_outcome' => 'Duplicitný výsledok',
+        'outcome_label_required' => 'Chýba označenie výsledku',
         'unreachable_node' => 'Nedosiahnuteľný uzol',
         'cycle_without_breaker' => 'Slučka bez prerušenia',
         'unknown_field' => 'Neznáme pole',

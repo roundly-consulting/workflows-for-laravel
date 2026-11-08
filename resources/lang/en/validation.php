@@ -19,6 +19,7 @@ return [
     'missing_outcome' => 'The node ":node" has no edge for the outcome ":outcome".',
     'unknown_outcome' => 'The node ":node" has an edge for an outcome it does not have (":outcome").',
     'duplicate_outcome' => 'The node ":node" has more than one edge for the outcome ":outcome".',
+    'outcome_label_required' => 'An edge from the node ":node" needs its outcome named (":outcome"): an unlabelled edge only stands for "next".',
     'unreachable_node' => 'The node ":node" can never be reached from the trigger.',
     'cycle_without_breaker' => 'The nodes :nodes form a loop without a delay or a loop counter.',
     'unknown_field' => 'The node ":node" refers to an unknown field ":field".',

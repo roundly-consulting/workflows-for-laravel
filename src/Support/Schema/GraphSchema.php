@@ -66,7 +66,7 @@ final class GraphSchema
                         'properties' => [
                             'from' => ['type' => 'string'],
                             'to' => ['type' => 'string'],
-                            'outcome' => ['type' => 'string', 'description' => 'Required when the source type has more than one outcome.'],
+                            'outcome' => ['type' => 'string', 'description' => 'Required unless the source type\'s only outcome is next.'],
                         ],
                         'additionalProperties' => false,
                     ],

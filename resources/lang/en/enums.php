@@ -143,6 +143,7 @@ return [
         'missing_outcome' => 'Missing outcome',
         'unknown_outcome' => 'Unknown outcome',
         'duplicate_outcome' => 'Duplicate outcome',
+        'outcome_label_required' => 'Outcome label required',
         'unreachable_node' => 'Unreachable node',
         'cycle_without_breaker' => 'Cycle without breaker',
         'unknown_field' => 'Unknown field',

@@ -342,13 +342,20 @@ final readonly class ValidateGraphAction
                 $declared[$outcome->key] = $outcome;
             }
 
-            $single = count($declared) === 1 ? array_key_first($declared) : null;
             $seen = [];
 
             foreach ($graph->outgoing($node->id) as $edge) {
-                $outcome = $edge->outcome ?? $single;
+                // An unlabelled edge stands for `next` only — the engine follows it for nothing else,
+                // so a single `started` or `received` outcome still needs its label.
+                if ($edge->outcome === null && array_keys($declared) !== ['next']) {
+                    $errors[] = ValidationError::make(ValidationCode::OutcomeLabelRequired, node: $node->id, edge: $edge->reference(), params: ['outcome' => implode(', ', array_keys($declared))]);
 
-                if ($outcome === null || ! isset($declared[$outcome])) {
+                    continue;
+                }
+
+                $outcome = $edge->outcome ?? 'next';
+
+                if (! isset($declared[$outcome])) {
                     $errors[] = ValidationError::make(ValidationCode::UnknownOutcome, node: $node->id, edge: $edge->reference(), params: ['outcome' => $edge->outcome ?? '']);
 
                     continue;

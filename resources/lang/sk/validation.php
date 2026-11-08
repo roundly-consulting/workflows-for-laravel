@@ -19,6 +19,7 @@ return [
     'missing_outcome' => 'Uzol „:node“ nemá hranu pre výsledok „:outcome“.',
     'unknown_outcome' => 'Uzol „:node“ má hranu pre výsledok, ktorý nemá („:outcome“).',
     'duplicate_outcome' => 'Uzol „:node“ má viac hrán pre výsledok „:outcome“.',
+    'outcome_label_required' => 'Hrana z uzla „:node“ musí mať pomenovaný výsledok („:outcome“): hrana bez označenia znamená iba „next“.',
     'unreachable_node' => 'Uzol „:node“ sa zo spúšťača nedá nikdy dosiahnuť.',
     'cycle_without_breaker' => 'Uzly :nodes tvoria slučku bez oneskorenia alebo počítadla opakovaní.',
     'unknown_field' => 'Uzol „:node“ odkazuje na neznáme pole „:field“.',

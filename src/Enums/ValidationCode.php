@@ -32,6 +32,7 @@ enum ValidationCode: string
     case MissingOutcome = 'missing_outcome';
     case UnknownOutcome = 'unknown_outcome';
     case DuplicateOutcome = 'duplicate_outcome';
+    case OutcomeLabelRequired = 'outcome_label_required';
     case UnreachableNode = 'unreachable_node';
     case CycleWithoutBreaker = 'cycle_without_breaker';
     case UnknownField = 'unknown_field';
