@@ -138,3 +138,50 @@ it('refuses an invalid preset', function (array $preset): void {
     [['every' => 'day', 'at' => '25:00']],
     [['every' => 'minutes']],
 ])->throws(InvalidCronException::class);
+
+// X-2 (chat review round): the parsed field sets, the edges of the token rules and the search windows.
+it('parses each field into its sorted, distinct value set', function (string $expression, string $field, array $values): void {
+    expect(CronExpression::parse($expression)->{$field})->toBe($values);
+})->with([
+    'every minute' => ['* * * * *', 'minutes', range(0, 59)],
+    'every hour' => ['* * * * *', 'hours', range(0, 23)],
+    'every day of the month' => ['* * * * *', 'days', range(1, 31)],
+    'every month' => ['* * * * *', 'months', range(1, 12)],
+    'every weekday' => ['* * * * *', 'weekdays', range(0, 6)],
+    'a list, sorted' => ['30,10 * * * *', 'minutes', [10, 30]],
+    'a repeated value once' => ['10,10 * * * *', 'minutes', [10]],
+    'sunday as 0 and 7 once' => ['* * * * 0,7', 'weekdays', [0]],
+    'weekdays sorted' => ['* * * * 5,1', 'weekdays', [1, 5]],
+    'sunday as 7 sorted first' => ['* * * * 5,7', 'weekdays', [0, 5]],
+    'a step from a value runs to the end' => ['50/2 * * * *', 'minutes', [50, 52, 54, 56, 58]],
+    'month names with L' => ['* * * JUL *', 'months', [7]],
+    'day names with W' => ['* * * * WED', 'weekdays', [3]],
+    'a macro in capitals' => ['@HOURLY', 'minutes', [0]],
+]);
+
+it('refuses malformed steps, ranges and macros naming the token', function (string $expression, string $token): void {
+    try {
+        CronExpression::parse($expression);
+        $this->fail('Expected an InvalidCronException.');
+    } catch (InvalidCronException $exception) {
+        expect($exception->token)->toBe($token);
+    }
+})->with([
+    ['*/5/2 * * * *', '*/5/2'],
+    ['1-2-3 * * * *', '1-2-3'],
+    ['@x * * * *', '@x * * * *'],
+]);
+
+it('looks a year ahead by default', function (string $after, ?string $next): void {
+    // 29 February 2028 is 366 days after 28 February 2027.
+    expect(CronExpression::parse('0 0 29 2 *')->nextAfter(CarbonImmutable::parse($after))?->format('Y-m-d H:i'))->toBe($next);
+})->with([
+    ['2027-02-28 00:00', '2028-02-29 00:00'],
+    ['2027-02-27 00:00', null],
+]);
+
+it('finds the latest match days after the floor', function (): void {
+    $cron = CronExpression::parse('59 23 11 11 *');
+
+    expect($cron->previousBefore(CarbonImmutable::parse('2026-11-12 00:00'), CarbonImmutable::parse('2026-11-09 00:00'))?->format('Y-m-d H:i'))->toBe('2026-11-11 23:59');
+});
