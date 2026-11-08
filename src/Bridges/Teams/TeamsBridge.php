@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Bridges\Teams;
 
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Teams\Models\Team;
 use RoundlyConsulting\Teams\Support\TeamModel;
@@ -24,14 +23,8 @@ use RoundlyConsulting\Workflows\Support\Owners;
  */
 final class TeamsBridge
 {
-    public static function register(Application $app): void
+    public static function owners(Owners $owners): void
     {
-        if (! Bridges::available('teams')) {
-            return;
-        }
-
-        $owners = $app->make(Owners::class);
-
         $owners->resolveUsing(static fn (Model $subject): Model|false|null => self::ownerOf($subject));
     }
 

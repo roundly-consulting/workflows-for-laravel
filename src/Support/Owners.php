@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Support;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use RoundlyConsulting\Workflows\Bridges\Teams\TeamsBridge;
 use RoundlyConsulting\Workflows\Contracts\HasWorkflowOwner;
 
 /**
@@ -21,6 +22,8 @@ final class Owners
     /** @var list<Closure(Model): (Model|false|null)> */
     private array $resolvers = [];
 
+    private bool $loaded = false;
+
     public function __construct(
         private readonly SubjectRegistry $subjects,
     ) {}
@@ -30,6 +33,7 @@ final class Owners
      */
     public function resolveUsing(Closure $resolver): void
     {
+        $this->load();
         $this->resolvers[] = $resolver;
     }
 
@@ -40,6 +44,8 @@ final class Owners
      */
     public function resolvable(string $class): bool
     {
+        $this->load();
+
         if (is_subclass_of($class, HasWorkflowOwner::class)) {
             return true;
         }
@@ -61,6 +67,8 @@ final class Owners
 
     public function ownerOf(Model $subject): ?Model
     {
+        $this->load();
+
         if ($subject instanceof HasWorkflowOwner) {
             return $subject->workflowOwner();
         }
@@ -93,6 +101,19 @@ final class Owners
         }
 
         return self::same($owner, $this->ownerOf($subject));
+    }
+
+    private function load(): void
+    {
+        if ($this->loaded) {
+            return;
+        }
+
+        $this->loaded = true;
+
+        if (Bridges::available('teams')) {
+            TeamsBridge::owners($this);
+        }
     }
 
     public static function same(?Model $a, ?Model $b): bool

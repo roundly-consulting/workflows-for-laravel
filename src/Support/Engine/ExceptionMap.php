@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Support\Engine;
 
 use Closure;
+use RoundlyConsulting\Workflows\Bridges\Approvals\ApprovalsBridge;
+use RoundlyConsulting\Workflows\Bridges\Lifecycle\LifecycleBridge;
+use RoundlyConsulting\Workflows\Bridges\Notifications\NotificationsBridge;
 use RoundlyConsulting\Workflows\Exceptions\BusinessCalendarNeverOpenException;
 use RoundlyConsulting\Workflows\Exceptions\StepAuthorizationDeniedException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownCalendarException;
 use RoundlyConsulting\Workflows\Exceptions\WorkflowsException;
 use RoundlyConsulting\Workflows\Steps\RetryableStepException;
 use RoundlyConsulting\Workflows\Steps\StepFailedException;
+use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Support\Clock;
 use Throwable;
 
@@ -27,16 +31,42 @@ final class ExceptionMap
     /** @var list<Closure(Throwable): ?StepFailure> */
     private array $mappers = [];
 
+    private bool $loaded = false;
+
     /**
      * @param  Closure(Throwable): ?StepFailure  $mapper
      */
     public function register(Closure $mapper): void
     {
+        $this->load();
         $this->mappers[] = $mapper;
+    }
+
+    private function load(): void
+    {
+        if ($this->loaded) {
+            return;
+        }
+
+        $this->loaded = true;
+
+        if (Bridges::available('approvals')) {
+            $this->mappers[] = ApprovalsBridge::exceptions();
+        }
+
+        if (Bridges::available('lifecycle')) {
+            $this->mappers[] = LifecycleBridge::exceptions();
+        }
+
+        if (Bridges::available('notifications')) {
+            $this->mappers[] = NotificationsBridge::exceptions();
+        }
     }
 
     public function map(Throwable $exception): StepFailure
     {
+        $this->load();
+
         foreach ($this->mappers as $mapper) {
             $failure = $mapper($exception);
 

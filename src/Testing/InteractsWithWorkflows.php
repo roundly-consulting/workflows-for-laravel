@@ -38,6 +38,9 @@ trait InteractsWithWorkflows
             '--max-jobs' => 1000,
             '--sleep' => 0,
             '--tries' => 1,
+            // A test process is often past the worker's default 128 MB already: the worker
+            // would stop after its first job.
+            '--memory' => 4096,
             '--quiet' => true,
         ]);
     }

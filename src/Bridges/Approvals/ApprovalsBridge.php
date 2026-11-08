@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Bridges\Approvals;
 
+use Closure;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use RoundlyConsulting\Approvals\Events\ApprovalRequestResolved;
 use RoundlyConsulting\Approvals\Exceptions\InvalidApprovalRequestException;
 use RoundlyConsulting\Approvals\Exceptions\UnknownWorkflowException;
 use RoundlyConsulting\Workflows\Support\Bridges;
-use RoundlyConsulting\Workflows\Support\Engine\ExceptionMap;
 use RoundlyConsulting\Workflows\Support\Engine\StepFailure;
-use RoundlyConsulting\Workflows\Support\StepCatalogue;
 use Throwable;
 
 /**
@@ -31,19 +30,18 @@ final class ApprovalsBridge
             return;
         }
 
-        $catalogue = $app->make(StepCatalogue::class);
+        $app->make(Dispatcher::class)->listen(ApprovalRequestResolved::class, [SignalResolvedApproval::class, 'handle']);
+    }
 
-        $catalogue->registerBuiltin(ApprovalStep::class);
-
-        $events = $app->make(Dispatcher::class);
-        $events->listen(ApprovalRequestResolved::class, [SignalResolvedApproval::class, 'handle']);
-
-        $map = $app->make(ExceptionMap::class);
-
-        $map->register(static fn (Throwable $exception): ?StepFailure => match (true) {
+    /**
+     * @return Closure(Throwable): ?StepFailure
+     */
+    public static function exceptions(): Closure
+    {
+        return static fn (Throwable $exception): ?StepFailure => match (true) {
             $exception instanceof InvalidApprovalRequestException => StepFailure::permanent('invalid_approval_request', $exception->getMessage()),
             $exception instanceof UnknownWorkflowException => StepFailure::permanent('unknown_approval_preset', $exception->getMessage()),
             default => null,
-        });
+        };
     }
 }

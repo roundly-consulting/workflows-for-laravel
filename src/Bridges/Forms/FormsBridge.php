@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Bridges\Forms;
 
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use RoundlyConsulting\Forms\FormsManager;
 use RoundlyConsulting\Workflows\Exceptions\InvalidTriggerInputException;
-use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Support\TriggerForms;
 use Throwable;
 
@@ -22,14 +20,8 @@ use Throwable;
  */
 final class FormsBridge
 {
-    public static function register(Application $app): void
+    public static function forms(TriggerForms $forms): void
     {
-        if (! Bridges::available('forms')) {
-            return;
-        }
-
-        $forms = $app->make(TriggerForms::class);
-
         $forms->using(
             static function (string $key, array $input, ?Request $request, bool $submit, ?Model $by): array {
                 $manager = app(FormsManager::class);

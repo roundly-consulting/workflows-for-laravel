@@ -6,8 +6,10 @@ namespace RoundlyConsulting\Workflows\Calendars;
 
 use Closure;
 use Illuminate\Database\Eloquent\Model;
+use RoundlyConsulting\Workflows\Bridges\OpeningHours\OpeningHoursBridge;
 use RoundlyConsulting\Workflows\Contracts\BusinessCalendar;
 use RoundlyConsulting\Workflows\Exceptions\UnknownCalendarException;
+use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 
 /**
@@ -21,6 +23,8 @@ final class CalendarRegistry
 
     /** @var array<string, array{resolve: Closure(string, ?Model, string): ?BusinessCalendar, exists: Closure(string, ?Model): bool}> */
     private array $prefixes = [];
+
+    private bool $loaded = false;
 
     /**
      * @param  Closure(?Model, string): BusinessCalendar  $resolver  receives the owner and the version timezone
@@ -40,6 +44,8 @@ final class CalendarRegistry
      */
     public function registerPrefix(string $prefix, Closure $resolve, Closure $exists): self
     {
+        $this->load();
+
         $this->prefixes[$prefix] = ['resolve' => $resolve, 'exists' => $exists];
 
         return $this;
@@ -50,6 +56,8 @@ final class CalendarRegistry
      */
     public function find(string $name, ?Model $owner, string $timezone): BusinessCalendar
     {
+        $this->load();
+
         if ($name === 'weekdays') {
             return new WeekdayCalendar($timezone, WorkflowsConfig::businessWeekdays(), WorkflowsConfig::businessMaxSearchDays());
         }
@@ -76,6 +84,8 @@ final class CalendarRegistry
      */
     public function has(string $name, ?Model $owner): bool
     {
+        $this->load();
+
         if ($name === 'weekdays' || isset($this->calendars[$name])) {
             return true;
         }
@@ -94,6 +104,8 @@ final class CalendarRegistry
      */
     public function isOwnerSpecific(string $name): bool
     {
+        $this->load();
+
         foreach (array_keys($this->prefixes) as $prefix) {
             if (str_starts_with($name, $prefix.':')) {
                 return true;
@@ -108,6 +120,21 @@ final class CalendarRegistry
      */
     public function names(): array
     {
+        $this->load();
+
         return ['weekdays', ...array_keys($this->calendars), ...array_map(static fn (string $prefix): string => $prefix.':*', array_keys($this->prefixes))];
+    }
+
+    private function load(): void
+    {
+        if ($this->loaded) {
+            return;
+        }
+
+        $this->loaded = true;
+
+        if (Bridges::available('opening-hours')) {
+            OpeningHoursBridge::calendars($this);
+        }
     }
 }

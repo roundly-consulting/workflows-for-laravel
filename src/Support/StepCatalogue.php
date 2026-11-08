@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Support;
 
 use Illuminate\Contracts\Container\Container;
+use RoundlyConsulting\Workflows\Bridges\Approvals\ApprovalStep;
+use RoundlyConsulting\Workflows\Bridges\Notifications\NotifyStep;
 use RoundlyConsulting\Workflows\Exceptions\DuplicateStepTypeException;
 use RoundlyConsulting\Workflows\Exceptions\InvalidStepTypeException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownStepTypeException;
@@ -177,6 +179,14 @@ final class StepCatalogue
         foreach ([TriggerStep::class, ConditionStep::class, BranchStep::class, SetFieldStep::class, TransitionStep::class,
             DelayStep::class, WaitStep::class, LoopStep::class, StartWorkflowStep::class, EndStep::class] as $builtin) {
             $this->add($builtin, builtin: true);
+        }
+
+        if (Bridges::available('approvals')) {
+            $this->add(ApprovalStep::class, builtin: true);
+        }
+
+        if (Bridges::available('notifications')) {
+            $this->add(NotifyStep::class, builtin: true);
         }
 
         if (Adapters::webhooks() !== null) {

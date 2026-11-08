@@ -11,10 +11,6 @@ use RoundlyConsulting\PackageToolkit\Concerns\RegistersBlueprintMacros;
 use RoundlyConsulting\PackageToolkit\Package;
 use RoundlyConsulting\PackageToolkit\PackageServiceProvider;
 use RoundlyConsulting\Workflows\Bridges\Approvals\ApprovalsBridge;
-use RoundlyConsulting\Workflows\Bridges\Forms\FormsBridge;
-use RoundlyConsulting\Workflows\Bridges\Lifecycle\LifecycleBridge;
-use RoundlyConsulting\Workflows\Bridges\Notifications\NotificationsBridge;
-use RoundlyConsulting\Workflows\Bridges\OpeningHours\OpeningHoursBridge;
 use RoundlyConsulting\Workflows\Bridges\Teams\TeamsBridge;
 use RoundlyConsulting\Workflows\Calendars\CalendarRegistry;
 use RoundlyConsulting\Workflows\Commands\CancelCommand;
@@ -128,11 +124,6 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
         // providers, which boot after this one: wire them once everything has booted.
         $this->app->booted(function (Application $app): void {
             ApprovalsBridge::register($app);
-            LifecycleBridge::register($app);
-            NotificationsBridge::register($app);
-            OpeningHoursBridge::register($app);
-            FormsBridge::register($app);
-            TeamsBridge::register($app);
 
             $events = $app->make(Dispatcher::class);
 
