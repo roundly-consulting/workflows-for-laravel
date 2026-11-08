@@ -6,6 +6,10 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 
 ## Unreleased
 
+### Fixed
+
+- `Workflows::emit()` no longer stops at the first matching definition that refuses to start (an `on_behalf_of` definition emitted without a user, one retired meanwhile): the other definitions still start, the waits on the event are still resumed, and the refusal is returned in the new `EmitResult::$failed` list (`EmitFailure` with the definition key and the exception). A mapped Laravel event reports the refusal to the exception handler instead of failing the host's request.
+
 ## 1.0.0 - 2026-11-08
 
 Initial public release.

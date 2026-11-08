@@ -7,13 +7,16 @@ namespace RoundlyConsulting\Workflows\Actions\Instances;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Contracts\RestoresOwnerContext;
 use RoundlyConsulting\Workflows\DataTransferObjects\EmitData;
+use RoundlyConsulting\Workflows\DataTransferObjects\EmitFailure;
 use RoundlyConsulting\Workflows\DataTransferObjects\EmitResult;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartData;
+use RoundlyConsulting\Workflows\DataTransferObjects\StartResult;
 use RoundlyConsulting\Workflows\Enums\DefinitionStatus;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
 use RoundlyConsulting\Workflows\Enums\VersionStatus;
 use RoundlyConsulting\Workflows\Exceptions\InvalidEventKeyException;
 use RoundlyConsulting\Workflows\Exceptions\SubjectOwnerMismatchException;
+use RoundlyConsulting\Workflows\Exceptions\WorkflowsException;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
 use RoundlyConsulting\Workflows\Steps\Builtin\TriggerStep;
 use RoundlyConsulting\Workflows\Support\Engine\Signals;
@@ -24,8 +27,8 @@ use RoundlyConsulting\Workflows\Support\WorkflowModels;
 /**
  * An app event: every active definition of the subject's owner (or app-wide) whose current
  * version is triggered by this key and covers the subject's type starts one instance, and the
- * pending waits on the key — of the same owner only — are signalled. Internal `@` keys are
- * refused.
+ * pending waits on the key — of the same owner only — are signalled. A definition that refuses to
+ * start is reported in `failed` and the rest carry on. Internal `@` keys are refused.
  */
 final readonly class EmitEventAction
 {
@@ -57,23 +60,35 @@ final readonly class EmitEventAction
 
         $subjectKey = $data->subject === null ? null : $this->subjects->forModel($data->subject)?->key;
         $started = [];
+        $failed = [];
 
         foreach ($this->definitions($data->event, $owner, $subjectKey) as $definition) {
-            $started[] = $this->start->execute(new StartData(
-                key: $definition->key,
-                subject: $definition->subject_key === null ? null : $data->subject,
-                owner: $definition->owner_scope === '*' ? null : $owner,
-                input: [],
-                by: $data->user,
-                idempotencyKey: $data->idempotencyKey === null ? null : 'event:'.$data->event.':'.$data->idempotencyKey,
-                trigger: TriggerType::Event,
-                payload: ['event' => $data->event, 'payload' => $data->payload],
-            ));
+            try {
+                $started[] = $this->start($definition, $data, $owner);
+            } catch (WorkflowsException $exception) {
+                // One definition's refusal (no triggering user, retired meanwhile) never stops
+                // the others or the waits listening for the event.
+                $failed[] = new EmitFailure($definition->key, $exception);
+            }
         }
 
         $resumed = $this->context->run($owner, fn (): int => $this->signals->send($data->event, $data->subject, $data->payload, $owner));
 
-        return new EmitResult($started, $resumed);
+        return new EmitResult($started, $resumed, $failed);
+    }
+
+    private function start(WorkflowDefinition $definition, EmitData $data, ?Model $owner): StartResult
+    {
+        return $this->start->execute(new StartData(
+            key: $definition->key,
+            subject: $definition->subject_key === null ? null : $data->subject,
+            owner: $definition->owner_scope === '*' ? null : $owner,
+            input: [],
+            by: $data->user,
+            idempotencyKey: $data->idempotencyKey === null ? null : 'event:'.$data->event.':'.$data->idempotencyKey,
+            trigger: TriggerType::Event,
+            payload: ['event' => $data->event, 'payload' => $data->payload],
+        ));
     }
 
     /**

@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Listeners;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Contracts\WorkflowEvent;
+use RoundlyConsulting\Workflows\DataTransferObjects\EmitResult;
 use RoundlyConsulting\Workflows\DataTransferObjects\EventMapping;
 use RoundlyConsulting\Workflows\Graph\GraphParser;
 use RoundlyConsulting\Workflows\Support\EventMappings;
@@ -28,7 +29,7 @@ final readonly class EmitMappedEvent implements ShouldHandleEventsAfterCommit
     public function handle(object $event): void
     {
         if ($event instanceof WorkflowEvent) {
-            $this->workflows->emit($event->workflowKey(), $event->workflowSubject(), $event->workflowPayload(), $event->workflowIdempotencyKey(), $event->workflowUser());
+            $this->report($this->workflows->emit($event->workflowKey(), $event->workflowSubject(), $event->workflowPayload(), $event->workflowIdempotencyKey(), $event->workflowUser()));
 
             return;
         }
@@ -42,13 +43,24 @@ final readonly class EmitMappedEvent implements ShouldHandleEventsAfterCommit
         $subject = $mapping->subject === null ? null : ($event->{$mapping->subject} ?? null);
         $user = $mapping->user === null ? null : ($event->{$mapping->user} ?? null);
 
-        $this->workflows->emit(
+        $this->report($this->workflows->emit(
             $mapping->key,
             $subject instanceof Model ? $subject : null,
             $this->payload($event, $mapping),
             $this->idempotencyKey($event, $mapping),
             $user instanceof Model ? $user : null,
-        );
+        ));
+    }
+
+    /**
+     * Nobody reads this emit's result, so a definition that refused to start goes to the
+     * exception handler (the log) instead of failing the host's request.
+     */
+    private function report(EmitResult $result): void
+    {
+        foreach ($result->failed as $failure) {
+            report($failure->exception);
+        }
     }
 
     /**
