@@ -7,13 +7,17 @@ namespace RoundlyConsulting\Workflows\Bridges\Webhooks;
 use Closure;
 use Illuminate\Contracts\Foundation\Application;
 use RoundlyConsulting\Webhooks\Accessors\HandlerRegistry;
+use RoundlyConsulting\Webhooks\DataTransferObjects\InboundWebhook;
 use RoundlyConsulting\Webhooks\Exceptions\EndpointNotAcceptingException;
 use RoundlyConsulting\Webhooks\Exceptions\EndpointNotFoundException;
 use RoundlyConsulting\Webhooks\Exceptions\InvalidEventTypeException;
 use RoundlyConsulting\Webhooks\Exceptions\PayloadTooLargeException;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
+use RoundlyConsulting\Workflows\DataTransferObjects\WebhookDelivery;
 use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
+use RoundlyConsulting\Workflows\Exceptions\EndpointOwnerMismatchException;
+use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Support\Adapters;
 use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Support\Engine\StepFailure;
@@ -50,7 +54,31 @@ final class WebhooksBridge
             return;
         }
 
-        $handlers->register($alias, StartWorkflowFromWebhook::class);
+        // A closure, not a class implementing InboundHandler: a class naming that interface can't
+        // even be loaded (arch scans, reflection) when webhooks-for-laravel is not installed.
+        $handlers->register($alias, self::receive(...));
+    }
+
+    /**
+     * The `workflows` handler: a verified delivery starts the workflow whose webhook trigger names
+     * the endpoint, with the delivery id as the idempotency key — a webhooks replay returns the
+     * first instance and never runs the workflow again. A refusal (no workflow wired, another
+     * owner's workflow) throws, so the delivery log shows it failed.
+     *
+     * @throws EndpointOwnerMismatchException
+     */
+    public static function receive(InboundWebhook $webhook): void
+    {
+        $endpoint = $webhook->endpoint;
+        $owner = $webhook->owner();
+
+        // An owned endpoint whose owner is gone never falls back to the app-wide workflows.
+        if ($owner === null && ($endpoint->owner_type !== null || $endpoint->owner_id !== null)) {
+            throw EndpointOwnerMismatchException::endpoint();
+        }
+
+        // Through the facade, so Workflows::fake() records it.
+        Workflows::triggers()->delivery(new WebhookDelivery($endpoint->id, $owner, $webhook->deliveryId, $webhook->payload));
     }
 
     /**

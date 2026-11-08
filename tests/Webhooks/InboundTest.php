@@ -5,13 +5,13 @@ declare(strict_types=1);
 use Illuminate\Database\Eloquent\Model;
 use PHPUnit\Framework\AssertionFailedError;
 use RoundlyConsulting\Webhooks\Accessors\HandlerRegistry;
+use RoundlyConsulting\Webhooks\Contracts\InboundHandler;
 use RoundlyConsulting\Webhooks\DataTransferObjects\InboundWebhook;
 use RoundlyConsulting\Webhooks\Enums\InboundStatus;
 use RoundlyConsulting\Webhooks\Facades\Webhooks;
 use RoundlyConsulting\Webhooks\Models\InboundDelivery;
 use RoundlyConsulting\Webhooks\Models\InboundEndpoint;
 use RoundlyConsulting\Webhooks\Testing\SignedWebhookRequest;
-use RoundlyConsulting\Workflows\Bridges\Webhooks\StartWorkflowFromWebhook;
 use RoundlyConsulting\Workflows\Bridges\Webhooks\WebhooksBridge;
 use RoundlyConsulting\Workflows\DataTransferObjects\WebhookDelivery;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
@@ -54,12 +54,12 @@ function inboundEndpoint(?Model $owner = null, ?string $handler = 'workflows'): 
  */
 function inboundRun(InboundEndpoint $endpoint, string $deliveryId = 'evt_1', array $payload = ['type' => 'invoice.paid'], bool $replay = false): void
 {
-    app(StartWorkflowFromWebhook::class)->handle(new InboundWebhook($deliveryId, $endpoint, 'invoice.paid', $payload, [], now()->toImmutable(), $replay, $replay ? 2 : 1, 1));
+    app(HandlerRegistry::class)->resolve('workflows')->handle(new InboundWebhook($deliveryId, $endpoint, 'invoice.paid', $payload, [], now()->toImmutable(), $replay, $replay ? 2 : 1, 1));
 }
 
 it('registers the workflows handler alias when webhooks-for-laravel is installed', function (): void {
     expect(app(HandlerRegistry::class)->has('workflows'))->toBeTrue()
-        ->and(app(HandlerRegistry::class)->resolve('workflows'))->toBeInstanceOf(StartWorkflowFromWebhook::class);
+        ->and(app(HandlerRegistry::class)->resolve('workflows'))->toBeInstanceOf(InboundHandler::class);
 });
 
 it('switches the handler alias off or renames it', function (mixed $value, ?string $alias): void {
@@ -129,7 +129,8 @@ it('starts the wired workflow exactly once from a signed inbound delivery', func
 
     expect($instance)->toHaveCompletedVia(['start', 'done'])
         ->and($instance->trigger_type)->toBe(TriggerType::Webhook)
-        ->and($instance->trigger_payload['trigger'])->toBe(['payload' => ['type' => 'order.paid', 'data' => ['order' => 42]]])
+        // toEqual: MySQL's json column stores object keys in its own order.
+        ->and($instance->trigger_payload['trigger'])->toEqual(['payload' => ['type' => 'order.paid', 'data' => ['order' => 42]]])
         ->and($delivery->status)->toBe(InboundStatus::Processed);
 });
 
