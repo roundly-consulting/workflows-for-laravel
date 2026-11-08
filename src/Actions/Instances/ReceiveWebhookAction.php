@@ -123,7 +123,7 @@ final readonly class ReceiveWebhookAction
         // The owner's own record: another owner may hold the same value (an invoice number is
         // unique per tenant, not across them), and without a global owner scope it may come first.
         foreach ($model::query()->where($field->path(), $value)->lazyById(100) as $candidate) {
-            if ($candidate instanceof Model && ($owner === null || $this->owners->matches($owner, $candidate))) {
+            if ($owner === null || $this->owners->matches($owner, $candidate)) {
                 return $candidate;
             }
         }
