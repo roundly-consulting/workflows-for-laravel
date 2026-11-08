@@ -6,6 +6,7 @@ namespace RoundlyConsulting\Workflows\Support;
 
 use Carbon\CarbonImmutable;
 use RoundlyConsulting\Workflows\Contracts\BusinessCalendar;
+use RoundlyConsulting\Workflows\Contracts\CountsBusinessTime;
 use RoundlyConsulting\Workflows\Exceptions\BusinessCalendarNeverOpenException;
 
 /**
@@ -20,7 +21,7 @@ use RoundlyConsulting\Workflows\Exceptions\BusinessCalendarNeverOpenException;
  *
  * @internal
  */
-final readonly class BusinessClock
+final readonly class BusinessClock implements CountsBusinessTime
 {
     public function __construct(
         private BusinessCalendar $calendar,

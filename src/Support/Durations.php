@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Calendars\CalendarRegistry;
+use RoundlyConsulting\Workflows\Contracts\CountsBusinessTime;
 use RoundlyConsulting\Workflows\DataTransferObjects\Duration;
 use RoundlyConsulting\Workflows\Enums\DurationUnit;
 use RoundlyConsulting\Workflows\Exceptions\BusinessCalendarNeverOpenException;
@@ -97,7 +98,8 @@ final class Durations
         }
 
         $calendar = app(CalendarRegistry::class)->find($duration->calendar ?? $defaultCalendar ?? 'weekdays', $owner, $timezone);
-        $clock = new BusinessClock($calendar);
+        // A calendar that counts its own business time (opening hours) does; else the package's clock.
+        $clock = $calendar instanceof CountsBusinessTime ? $calendar : new BusinessClock($calendar);
 
         return match ($duration->unit) {
             DurationUnit::BusinessDays => $clock->addBusinessDays($from, $duration->amount),
