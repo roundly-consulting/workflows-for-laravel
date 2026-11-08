@@ -15,7 +15,8 @@ use RoundlyConsulting\Workflows\WorkflowsManager;
 
 /**
  * A workflow subject: `$model->workflows()` (the SubjectHandle) and `workflowInstances()`.
- * After an update commits, its pending condition waits are re-evaluated (only when it has any);
+ * After an update commits, its pending condition waits are re-evaluated (only when a registered
+ * field changed and it has any);
  * when it is deleted, its running instances are cancelled (`workflows.subjects_on_deleted`).
  * Everything goes through the manager, so `Workflows::fake()` sees it.
  *
@@ -26,6 +27,10 @@ trait HasWorkflows
     public static function bootHasWorkflows(): void
     {
         static::updated(static function (Model $subject): void {
+            if (! ConditionWaits::affectedBy($subject)) {
+                return;
+            }
+
             $subject->getConnection()->afterCommit(static function () use ($subject): void {
                 if (ConditionWaits::exist($subject)) {
                     app(WorkflowsManager::class)->for($subject)->touch();

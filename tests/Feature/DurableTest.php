@@ -27,6 +27,7 @@ use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowWait;
 use RoundlyConsulting\Workflows\Steps\StepResult;
 use RoundlyConsulting\Workflows\Support\Clock;
+use RoundlyConsulting\Workflows\Support\ConditionWaits;
 use RoundlyConsulting\Workflows\Support\Engine\RetryPolicies;
 use RoundlyConsulting\Workflows\Support\StepCatalogue;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
@@ -401,3 +402,42 @@ it('cancels every running instance of a subject', function (): void {
         ->and($document->workflowInstances()->count())->toBe(2)
         ->and($document->workflows()->instances()->count())->toBe(2);
 });
+
+// W-20: an update that changes nothing a condition reads skips the probe query.
+it('does not probe condition waits when no registered field changed', function (): void {
+    app()->forgetInstance(SubjectRegistry::class);
+    Workflows::subjects()->register(Workflows::subject('document', Document::class)
+        ->field('title', 'string', 'Title')
+        ->field('requester', 'party', 'Requester'));
+    $document = document(null, ['title' => 'Draft']);
+    $probes = static function (Closure $update): int {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $update();
+        $count = collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], 'workflow_waits'))->count();
+        DB::disableQueryLog();
+
+        return $count;
+    };
+
+    expect($probes(fn () => $document->update(['secret' => 'unread'])))->toBe(0)
+        ->and($probes(fn () => $document->update(['title' => 'Changed'])))->toBe(1)
+        ->and($probes(fn () => $document->update(['requester_id' => user()->id])))->toBe(1)
+        ->and($probes(fn () => $document->update(['approver_id' => user('Bob')->id])))->toBe(0);
+
+    Workflows::subjects()->register(Workflows::subject('memo', Memo::class)->field('author', 'party', 'Author')->field('boss', 'party', 'Boss', path: 'author.manager'));
+
+    expect(ConditionWaits::affectedBy((new Memo)->forceFill(['id' => 1])))->toBeTrue()
+        ->and(ConditionWaits::affectedBy(company()))->toBeTrue();
+});
+
+/**
+ * A subject whose party field is an untyped method: never called, so it always counts.
+ */
+final class Memo extends Model
+{
+    public function author()
+    {
+        return null;
+    }
+}

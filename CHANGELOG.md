@@ -23,6 +23,7 @@ Initial public release.
 - Errors a developer can act on: an invalid-graph message lists its first problems, an unknown definition says which scope it was looked up in, an unknown step type, subject type or calendar suggests the closest registered key (or names the package a bridged step needs), and every exception adds its code and key to the log context.
 - Typed failure codes: the `FailureCode` enum (every code the engine, built-ins and bridges write, each with an English and Slovak message), `WorkflowInstance::failure()` and `StepRun::error()`; host step codes stay plain strings.
 - Dry runs that write nothing (with an opt-in log) and show each step's resolved input, a per-node run overlay, and the step log, where every attempt records its input: the node config with each value reference resolved, models as `{id, type}`, capped by `workflows.steps_input.max_bytes`.
+- Condition waits re-check a subject after an update only when the update changed a registered field (or a belongs-to field's foreign key), so ordinary saves add no query.
 - Owners and teams: per-owner definitions, owner-scoped instances run in the owner's context, role and membership checks.
 - Bridges, each optional: approvals, lifecycle, notifications, opening hours, forms and teams.
 - HTTP resources with swappable owner, subject and user reference resources — no class names over the wire; `Workflows::instances()->detail()` loads an instance's step log, pending waits and pending escalations in a fixed number of queries for `InstanceResource` (`WaitResource`, `EscalationResource`).
