@@ -7,8 +7,13 @@ use RoundlyConsulting\Workflows\Tests\TestCase;
 uses(TestCase::class)->in('Arch', 'Feature', 'Unit', 'RealEngine');
 
 use Illuminate\Database\Eloquent\Model;
+use RoundlyConsulting\Teams\DataTransferObjects\CreateTeamData;
+use RoundlyConsulting\Teams\Facades\Teams;
+use RoundlyConsulting\Teams\Models\Team;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
+use RoundlyConsulting\Workflows\Tests\Bridges\BridgesTestCase;
+use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Models\PurchaseRequest;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Company;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Document;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
@@ -73,4 +78,47 @@ function document(?Company $company = null, array $attributes = []): Document
 function user(string $name = 'Ada', array $attributes = []): User
 {
     return User::query()->create(['name' => $name, ...$attributes]);
+}
+
+uses(BridgesTestCase::class)->group('bridges')->in('Bridges', 'Acceptance');
+
+/**
+ * A team (teams-for-laravel) and its members by role.
+ *
+ * @param  array<string, User>  $members  role => user
+ */
+function team(string $name = 'Acme', array $members = []): Team
+{
+    $team = Teams::create(new CreateTeamData(name: $name));
+
+    foreach ($members as $role => $user) {
+        Teams::for($team)->members()->add($user, $role);
+    }
+
+    return $team;
+}
+
+/**
+ * A purchase request of a team (created inside the team context).
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function purchase(Team $team, array $attributes = []): PurchaseRequest
+{
+    return Teams::runAs($team, static fn (): PurchaseRequest => PurchaseRequest::query()->create([
+        'team_id' => $team->getKey(),
+        'title' => 'Laptops',
+        'amount' => '1000',
+        ...$attributes,
+    ]));
+}
+
+/**
+ * A workflow JSON fixture.
+ *
+ * @return array<string, mixed>
+ */
+function workflowJson(string $name): array
+{
+    return json_decode((string) file_get_contents(__DIR__.'/Fixtures/workflows/'.$name.'.json'), true, flags: JSON_THROW_ON_ERROR);
 }

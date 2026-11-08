@@ -1,0 +1,26 @@
+{ "schema": "roundly.workflows.graph/v1",
+  "settings": { "actor": "system", "timezone": "Europe/Bratislava", "calendar": "weekdays" },
+  "nodes": [
+    { "id": "start", "type": "trigger", "config": { "trigger": "event", "event": "purchase_request.submitted" } },
+    { "id": "approve", "type": "approval",
+      "config": { "approvers": [ { "kind": "field", "field": "subject.approver" } ], "rule": "any",
+                  "expires_in": { "amount": 5, "unit": "business_days" } },
+      "escalations": [ { "after": { "amount": 2, "unit": "business_days" }, "actions": [
+          { "type": "reassign", "to": [ { "kind": "field", "field": "subject.approver_manager" } ] },
+          { "type": "notify", "notification": "purchase.escalated", "recipients": [ { "kind": "field", "field": "subject.requester" } ] } ] } ] },
+    { "id": "mark_approved", "type": "transition", "config": { "transition": "approve" } },
+    { "id": "tell_approved", "type": "notify", "config": { "notification": "purchase.approved", "recipients": [ { "kind": "field", "field": "subject.requester" } ] } },
+    { "id": "mark_rejected", "type": "transition", "config": { "transition": "reject" } },
+    { "id": "tell_rejected", "type": "notify", "config": { "notification": "purchase.rejected", "recipients": [ { "kind": "field", "field": "subject.requester" } ] } },
+    { "id": "tell_expired", "type": "notify", "config": { "notification": "purchase.expired", "recipients": [ { "kind": "field", "field": "subject.requester" } ] } },
+    { "id": "done", "type": "end" } ],
+  "edges": [
+    { "from": "start", "to": "approve" },
+    { "from": "approve", "to": "mark_approved", "outcome": "approved" },
+    { "from": "approve", "to": "mark_rejected", "outcome": "rejected" },
+    { "from": "approve", "to": "tell_expired", "outcome": "expired" },
+    { "from": "mark_approved", "to": "tell_approved", "outcome": "transitioned" },
+    { "from": "tell_approved", "to": "done" },
+    { "from": "mark_rejected", "to": "tell_rejected", "outcome": "transitioned" },
+    { "from": "tell_rejected", "to": "done" },
+    { "from": "tell_expired", "to": "done" } ] }
