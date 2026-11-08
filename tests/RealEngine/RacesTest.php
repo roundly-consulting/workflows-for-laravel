@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use RoundlyConsulting\Testing\Concurrency\Racer;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
-use RoundlyConsulting\Workflows\Tests\Support\Racer;
 
 /**
  * Two sessions at once on a real engine (pgsql, mysql): the parent holds its transaction open
@@ -69,7 +69,7 @@ it('keeps one draft per definition when two editors race', function (): void {
     DB::transaction(function () use ($racer): void {
         Workflows::definition('flow')->edit(racingFlow());
 
-        $racer->run(static fn (): string => (string) Workflows::definition('flow')->edit(racingFlow())?->number)->waitUntilBlockedOrDone();
+        $racer->run(static fn (): string => (string) Workflows::definition('flow')->edit(racingFlow())->number)->waitUntilBlockedOrDone();
     });
 
     // The published v1 plus exactly one draft, which both editors wrote.

@@ -32,7 +32,7 @@ it('exports a subject type field schema with registry keys only', function (): v
 
     expect($export->key)->toBe('document')
         ->and($export->toArray())->not->toHaveKey('model')
-        ->and(json_encode($export->toArray()))->not->toContain('\\\\')
+        ->and($export->toArray())->toExposeNoClassNames()
         ->and($export->field('department')?->options)->toBe(['legal', 'finance', 'sales'])
         ->and($export->field('approver_manager')?->path())->toBe('approver.manager')
         ->and(Workflows::subjects()->find('nope'))->toBeNull()

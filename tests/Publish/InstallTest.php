@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+it('publishes into the sandbox, never the shared skeleton', function (): void {
+    $this->assertPublishesIntoSandbox('workflows-config', 'workflows-migrations');
+});
+
 it('refuses to install over existing tables', function (): void {
     $this->artisan('workflows:install')->expectsOutputToContain('already exists')->assertFailed();
 

@@ -68,9 +68,9 @@ it('renders an instance and its step log with references and no class names', fu
         'started_by' => ['id' => $rita->id, 'type' => 'User'],
         'failure' => null,
     ])
-        ->and(json(new InstanceResource($instance)))->not->toContain('\\\\')
+        ->and(new InstanceResource($instance))->toExposeNoClassNames()
         ->and(StepRunResource::collection(Workflows::instances()->steps($instance))->resolve())->toHaveCount(3)
-        ->and(json(new StepRunResource(Workflows::instances()->steps($instance)->last())))->not->toContain('\\\\');
+        ->and(new StepRunResource(Workflows::instances()->steps($instance)->last()))->toExposeNoClassNames();
 });
 
 // C-120
@@ -190,7 +190,7 @@ it('renders definitions, versions, diffs, reports, templates and catalogue expor
         ->and((new TemplateResource($handle->export()))->resolve())->toHaveKey('graph')
         ->and(CatalogueEntryResource::collection(Workflows::catalogue()->export()->types)->resolve())->not->toBeEmpty()
         ->and((new SubjectTypeResource(Workflows::subjects()->export('document')))->resolve())->toHaveKey('fields')
-        ->and(json(new TemplateResource($handle->export())))->not->toContain('\\\\');
+        ->and(new TemplateResource($handle->export()))->toExposeNoClassNames();
 });
 
 it('publishes the graph and template JSON schemas', function (): void {
@@ -277,9 +277,8 @@ it('renders waits and escalations without class names', function (): void {
     published('flow', escalatingWait());
     $instance = Workflows::start('flow', document())->dispatch()->instance ?? throw new LogicException;
 
-    $encoded = (string) json_encode((new InstanceResource(Workflows::instances()->detail($instance)))->resolve(Request::create('/')));
+    $detail = (new InstanceResource(Workflows::instances()->detail($instance)))->resolve(Request::create('/'));
 
-    expect($encoded)->not->toContain('\\\\')
-        ->and($encoded)->not->toContain('Fixtures')
-        ->and($encoded)->toContain('"waits"');
+    expect($detail)->toExposeNoClassNames()
+        ->and($detail)->toHaveKeys(['steps', 'waits', 'escalations']);
 });

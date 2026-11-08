@@ -41,7 +41,7 @@ it('clears and flags owner-specific values, and blocks publish until they are re
 
     expect($template->toArray()['review'])->toBe([['node' => 'review', 'path' => '/config/reviewer', 'reason' => 'owner_specific']])
         ->and($template->toArray())->not->toHaveKey('owner')
-        ->and(json_encode($template->toArray()))->not->toContain('\\\\');
+        ->and($template->toArray())->toExposeNoClassNames();
 
     $result = Workflows::versions()->import($template, $globex) ?? throw new LogicException;
     $flags = collect($result->flags)->map(fn ($flag): string => $flag->path.' '.$flag->reason)->all();

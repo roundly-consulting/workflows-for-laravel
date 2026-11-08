@@ -285,7 +285,7 @@ it('renders messages without class names', function (): void {
     $report = inspectGraph(graph([start(), node('odd', 'acme.nope'), node('done', 'end')], [['start', 'odd'], ['odd', 'done']]));
 
     expect($report->find(ValidationCode::UnknownNodeType, 'odd')?->message)->toBe('The node "odd" has an unknown type "acme.nope".')
-        ->and(json_encode($report->toArray()))->not->toContain('\\\\');
+        ->and($report->toArray())->toExposeNoClassNames();
 });
 
 // W-07: a form trigger needs forms-for-laravel.

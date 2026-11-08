@@ -610,12 +610,10 @@ it('renders models in a step input without class names', function (): void {
 
     $instance = Workflows::start('flow', $document)->by(user('Bob'))->dispatch()->instance ?? throw new LogicException;
     $input = Workflows::instances()->steps($instance)->firstWhere('node_id', 'spy')?->input;
-    $json = (string) json_encode($input);
 
     expect($input['requester'] ?? null)->toMatchArray(['type' => 'User'])
         ->and($input['by'][0] ?? null)->toMatchArray(['kind' => 'triggered_by', 'type' => 'User'])
-        ->and($json)->not->toContain('\\\\')
-        ->and($json)->not->toContain('Fixtures');
+        ->and($input)->toExposeNoClassNames();
 });
 
 it('truncates an oversized step input', function (): void {
