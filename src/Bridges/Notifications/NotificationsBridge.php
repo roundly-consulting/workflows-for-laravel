@@ -10,6 +10,7 @@ use RoundlyConsulting\Notifications\Exceptions\InvalidNotificationSubjectExcepti
 use RoundlyConsulting\Notifications\Exceptions\InvalidRecipientException;
 use RoundlyConsulting\Notifications\Exceptions\MissingAccessCheckException;
 use RoundlyConsulting\Notifications\Exceptions\UnknownNotificationTypeException;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Steps\StepContext;
 use RoundlyConsulting\Workflows\Steps\ValidationScope;
 use RoundlyConsulting\Workflows\Support\Engine\StepFailure;
@@ -49,7 +50,7 @@ final class NotificationsBridge
                 || $exception instanceof InvalidNotificationDataException
                 || $exception instanceof InvalidRecipientException;
 
-            return $permanent ? StepFailure::permanent('notification_refused:'.$exception->errorCode(), $exception->getMessage()) : null;
+            return $permanent ? StepFailure::permanent(FailureCode::NotificationRefused->value.':'.$exception->errorCode(), $exception->getMessage()) : null;
         };
     }
 }

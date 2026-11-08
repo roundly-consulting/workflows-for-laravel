@@ -6,6 +6,7 @@ namespace RoundlyConsulting\Workflows\Steps\Builtin;
 
 use Carbon\CarbonImmutable;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\FieldType;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Steps\StepContext;
@@ -124,7 +125,7 @@ final class DelayStep extends BuiltinStep
         $date = FieldReader::date($value, $context->timezone());
 
         if ($date === null) {
-            throw StepFailedException::because('delay_field_empty', Messages::get('failures.delay_field_empty', ['field' => Read::string($config, 'until_field')]));
+            throw StepFailedException::because(FailureCode::DelayFieldEmpty, Messages::get('failures.delay_field_empty', ['field' => Read::string($config, 'until_field')]));
         }
 
         $offset = array_key_exists('offset', $config) ? Durations::parse($config['offset']) : null;

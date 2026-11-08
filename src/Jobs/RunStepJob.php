@@ -8,6 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use RoundlyConsulting\Workflows\Actions\Engine\RecordStepResultAction;
 use RoundlyConsulting\Workflows\Actions\Engine\RunStepAction;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Support\Engine\StepFailure;
 use RoundlyConsulting\Workflows\Support\Messages;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
@@ -47,7 +48,7 @@ final class RunStepJob implements ShouldQueue
     {
         app(RecordStepResultAction::class)->failExpired(
             $this->stepRunId,
-            StepFailure::transient('worker_timeout', Messages::get('failures.worker_timeout')),
+            StepFailure::transient(FailureCode::WorkerTimeout, Messages::get('failures.worker_timeout')),
         );
     }
 }

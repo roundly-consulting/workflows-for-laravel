@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Support\Engine;
 
 use Carbon\CarbonImmutable;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 
 /**
  * A failed attempt: its code and message, whether it may be retried (and not before when), and
@@ -21,13 +22,13 @@ final readonly class StepFailure
         public ?CarbonImmutable $retryAfter = null,
     ) {}
 
-    public static function permanent(string $code, string $message): self
+    public static function permanent(FailureCode|string $code, string $message): self
     {
-        return new self($code, $message, false);
+        return new self($code instanceof FailureCode ? $code->value : $code, $message, false);
     }
 
-    public static function transient(string $code, string $message, ?CarbonImmutable $retryAfter = null): self
+    public static function transient(FailureCode|string $code, string $message, ?CarbonImmutable $retryAfter = null): self
     {
-        return new self($code, $message, true, $retryAfter);
+        return new self($code instanceof FailureCode ? $code->value : $code, $message, true, $retryAfter);
     }
 }

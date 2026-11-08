@@ -16,6 +16,7 @@ use RoundlyConsulting\Workflows\Concerns\HasConfigurableKey;
 use RoundlyConsulting\Workflows\Concerns\StoresUtcTimestamps;
 use RoundlyConsulting\Workflows\Database\Factories\WorkflowInstanceFactory;
 use RoundlyConsulting\Workflows\Enums\ActorMode;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
@@ -75,6 +76,15 @@ class WorkflowInstance extends Model
     use StoresUtcTimestamps;
 
     protected $guarded = [];
+
+    /**
+     * The failure code as its FailureCode case (a `code:detail` code by its prefix), a host
+     * step's own code as a string, or null when the instance has not failed.
+     */
+    public function failure(): FailureCode|string|null
+    {
+        return $this->failure_code === null ? null : FailureCode::fromStored($this->failure_code);
+    }
 
     public function getTable(): string
     {

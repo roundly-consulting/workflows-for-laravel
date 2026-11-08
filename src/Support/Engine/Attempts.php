@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Support\Engine;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\DataTransferObjects\Signal;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Graph\Graph;
 use RoundlyConsulting\Workflows\Models\StepRun;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
@@ -50,7 +51,7 @@ final readonly class Attempts
         if (! $version instanceof WorkflowVersion) {
             $this->recordInput($run, $signal, StepInputs::unresolved(null));
 
-            return [StepFailure::permanent('version_missing', Messages::get('failures.version_missing')), null];
+            return [StepFailure::permanent(FailureCode::VersionMissing, Messages::get('failures.version_missing')), null];
         }
 
         $graph = $version->parsedGraph();
@@ -62,8 +63,8 @@ final readonly class Attempts
             $package = $node === null ? null : $this->catalogue->missingAdapter($node->type);
 
             return [$package === null
-                ? StepFailure::permanent('unknown_step_type', Messages::get('failures.unknown_step_type', ['type' => $node->type ?? $run->node_type]))
-                : StepFailure::permanent('adapter_missing', Messages::get('failures.adapter_missing', ['package' => $package])), null];
+                ? StepFailure::permanent(FailureCode::UnknownStepType, Messages::get('failures.unknown_step_type', ['type' => $node->type ?? $run->node_type]))
+                : StepFailure::permanent(FailureCode::AdapterMissing, Messages::get('failures.adapter_missing', ['package' => $package])), null];
         }
 
         $owner = Runtime::owner($instance);
@@ -75,13 +76,13 @@ final readonly class Attempts
             if ($subject === null) {
                 $this->recordInput($run, $signal, StepInputs::unresolved($node));
 
-                return [StepFailure::permanent('subject_missing', Messages::get('failures.subject_missing')), null];
+                return [StepFailure::permanent(FailureCode::SubjectMissing, Messages::get('failures.subject_missing')), null];
             }
 
             if ($instance->owner_type !== null && ! Owners::same($owner, $this->owners->ownerOf($subject))) {
                 $this->recordInput($run, $signal, StepInputs::unresolved($node));
 
-                return [StepFailure::permanent('owner_mismatch', Messages::get('failures.owner_mismatch')), null];
+                return [StepFailure::permanent(FailureCode::OwnerMismatch, Messages::get('failures.owner_mismatch')), null];
             }
         }
 

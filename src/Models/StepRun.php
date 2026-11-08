@@ -14,6 +14,7 @@ use RoundlyConsulting\Workflows\Casts\UtcDateTime;
 use RoundlyConsulting\Workflows\Concerns\HasConfigurableKey;
 use RoundlyConsulting\Workflows\Concerns\StoresUtcTimestamps;
 use RoundlyConsulting\Workflows\Database\Factories\StepRunFactory;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
@@ -62,6 +63,14 @@ class StepRun extends Model
     public function getTable(): string
     {
         return WorkflowsConfig::table('step_runs');
+    }
+
+    /**
+     * The attempt's error code as its FailureCode case, a host code as a string, or null.
+     */
+    public function error(): FailureCode|string|null
+    {
+        return $this->error_code === null ? null : FailureCode::fromStored($this->error_code);
     }
 
     /**

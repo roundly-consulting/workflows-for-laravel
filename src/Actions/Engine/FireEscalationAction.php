@@ -9,6 +9,7 @@ use RoundlyConsulting\Workflows\Contracts\RestoresOwnerContext;
 use RoundlyConsulting\Workflows\DataTransferObjects\PartyReference;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartData;
 use RoundlyConsulting\Workflows\Enums\EscalationStatus;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
 use RoundlyConsulting\Workflows\Events\EscalationFailed;
 use RoundlyConsulting\Workflows\Events\EscalationTriggered;
@@ -149,7 +150,7 @@ final readonly class FireEscalationAction
             }),
             $kind === 'start_workflow' => $this->startWorkflow($context, $action, $key),
             $this->actions->has($kind) => $this->actions->run($kind, $context, $action, $key),
-            default => throw StepFailedException::because('unknown_escalation_action', Messages::get('failures.unknown_escalation_action', ['action' => $kind])),
+            default => throw StepFailedException::because(FailureCode::UnknownEscalationAction, Messages::get('failures.unknown_escalation_action', ['action' => $kind])),
         };
     }
 
@@ -161,7 +162,7 @@ final readonly class FireEscalationAction
         $definition = $context->instance()->definition;
 
         if ($context->instance()->depth + 1 > WorkflowsConfig::maxDepth()) {
-            throw StepFailedException::because('nesting_depth_exceeded', Messages::get('failures.nesting_depth_exceeded', ['limit' => WorkflowsConfig::maxDepth()]));
+            throw StepFailedException::because(FailureCode::NestingDepthExceeded, Messages::get('failures.nesting_depth_exceeded', ['limit' => WorkflowsConfig::maxDepth()]));
         }
 
         $owner = $definition === null ? null : Definitions::owner($definition);
@@ -235,6 +236,6 @@ final readonly class FireEscalationAction
     {
         $run = $escalation->stepRun;
 
-        return $run instanceof StepRun ? $run : throw StepFailedException::because('step_missing', Messages::get('failures.version_missing'));
+        return $run instanceof StepRun ? $run : throw StepFailedException::because(FailureCode::StepMissing, Messages::get('failures.version_missing'));
     }
 }

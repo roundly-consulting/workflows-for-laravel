@@ -6,6 +6,7 @@ namespace RoundlyConsulting\Workflows\Bridges\Lifecycle;
 
 use Closure;
 use RoundlyConsulting\Lifecycle\Exceptions\DirectStateWriteException;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Support\Engine\StepFailure;
 use RoundlyConsulting\Workflows\Support\Messages;
@@ -33,7 +34,7 @@ final class LifecycleBridge
     public static function exceptions(): Closure
     {
         return static fn (Throwable $exception): ?StepFailure => $exception instanceof DirectStateWriteException
-            ? StepFailure::permanent('field_write_refused', Messages::get('failures.field_write_refused'))
+            ? StepFailure::permanent(FailureCode::FieldWriteRefused, Messages::get('failures.field_write_refused'))
             : null;
     }
 }

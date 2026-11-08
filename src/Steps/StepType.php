@@ -8,6 +8,7 @@ use RoundlyConsulting\Workflows\DataTransferObjects\PartyReference;
 use RoundlyConsulting\Workflows\DataTransferObjects\RetryPolicy;
 use RoundlyConsulting\Workflows\DataTransferObjects\Signal;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\SignalKind;
 use RoundlyConsulting\Workflows\Support\Messages;
 
@@ -120,7 +121,7 @@ abstract class StepType
         return match ($signal->kind) {
             SignalKind::Timeout => StepResult::complete($signal->outcome ?? 'timed_out'),
             SignalKind::Timer => StepResult::complete(),
-            default => throw StepFailedException::because('resume_unsupported', Messages::get('failures.resume_unsupported', ['type' => $this->key()])),
+            default => throw StepFailedException::because(FailureCode::ResumeUnsupported, Messages::get('failures.resume_unsupported', ['type' => $this->key()])),
         };
     }
 

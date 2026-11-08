@@ -6,6 +6,7 @@ namespace RoundlyConsulting\Workflows\Steps\Builtin;
 
 use RoundlyConsulting\Workflows\Contracts\TransitionAdapter;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Steps\Outcome;
 use RoundlyConsulting\Workflows\Steps\RetryableStepException;
@@ -79,7 +80,7 @@ final class TransitionStep extends BuiltinStep
         $config = $context->config();
 
         if ($subject === null) {
-            throw StepFailedException::because('subject_missing', Messages::get('failures.subject_missing'));
+            throw StepFailedException::because(FailureCode::SubjectMissing, Messages::get('failures.subject_missing'));
         }
 
         $reason = is_string($config['reason'] ?? null) && $config['reason'] !== ''
@@ -106,10 +107,10 @@ final class TransitionStep extends BuiltinStep
         }
 
         if ($outcome->retryable) {
-            throw RetryableStepException::because('transition_denied:'.$code, (string) $outcome->deniedMessage, $outcome->retryAfter);
+            throw RetryableStepException::because(FailureCode::TransitionDenied->value.':'.$code, (string) $outcome->deniedMessage, $outcome->retryAfter);
         }
 
-        throw StepFailedException::because('transition_denied:'.$code, (string) $outcome->deniedMessage);
+        throw StepFailedException::because(FailureCode::TransitionDenied->value.':'.$code, (string) $outcome->deniedMessage);
     }
 
     public function simulate(StepContext $context): ?StepResult
@@ -119,6 +120,6 @@ final class TransitionStep extends BuiltinStep
 
     private function adapter(): TransitionAdapter
     {
-        return Adapters::transition() ?? throw StepFailedException::because('adapter_missing', Messages::get('failures.adapter_missing', ['package' => 'lifecycle-for-laravel']));
+        return Adapters::transition() ?? throw StepFailedException::because(FailureCode::AdapterMissing, Messages::get('failures.adapter_missing', ['package' => 'lifecycle-for-laravel']));
     }
 }

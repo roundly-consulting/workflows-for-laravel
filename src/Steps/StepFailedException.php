@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RoundlyConsulting\Workflows\Steps;
 
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RuntimeException;
 
 /**
@@ -19,9 +20,12 @@ class StepFailedException extends RuntimeException
         parent::__construct($message);
     }
 
-    public static function because(string $code, string $message): static
+    /**
+     * A FailureCode case, or the host step's own code.
+     */
+    public static function because(FailureCode|string $code, string $message): static
     {
-        return new static($code, $message);
+        return new static($code instanceof FailureCode ? $code->value : $code, $message);
     }
 
     public function failureCode(): string

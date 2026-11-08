@@ -10,6 +10,7 @@ use Illuminate\Contracts\Foundation\Application;
 use RoundlyConsulting\Approvals\Events\ApprovalRequestResolved;
 use RoundlyConsulting\Approvals\Exceptions\InvalidApprovalRequestException;
 use RoundlyConsulting\Approvals\Exceptions\UnknownWorkflowException;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Support\Engine\StepFailure;
 use Throwable;
@@ -39,8 +40,8 @@ final class ApprovalsBridge
     public static function exceptions(): Closure
     {
         return static fn (Throwable $exception): ?StepFailure => match (true) {
-            $exception instanceof InvalidApprovalRequestException => StepFailure::permanent('invalid_approval_request', $exception->getMessage()),
-            $exception instanceof UnknownWorkflowException => StepFailure::permanent('unknown_approval_preset', $exception->getMessage()),
+            $exception instanceof InvalidApprovalRequestException => StepFailure::permanent(FailureCode::InvalidApprovalRequest, $exception->getMessage()),
+            $exception instanceof UnknownWorkflowException => StepFailure::permanent(FailureCode::UnknownApprovalPreset, $exception->getMessage()),
             default => null,
         };
     }

@@ -6,6 +6,7 @@ namespace RoundlyConsulting\Workflows\Actions\Wake;
 
 use RoundlyConsulting\Workflows\Actions\Engine\RecordStepResultAction;
 use RoundlyConsulting\Workflows\Enums\EscalationStatus;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
 use RoundlyConsulting\Workflows\Enums\WaitKind;
 use RoundlyConsulting\Workflows\Enums\WaitStatus;
@@ -63,7 +64,7 @@ final readonly class ReclaimAction
             ->get();
 
         foreach ($expired as $run) {
-            if ($this->record->failExpired(Keys::of($run), StepFailure::transient('lease_expired', Messages::get('failures.lease_expired')))) {
+            if ($this->record->failExpired(Keys::of($run), StepFailure::transient(FailureCode::LeaseExpired, Messages::get('failures.lease_expired')))) {
                 $leases++;
             }
         }

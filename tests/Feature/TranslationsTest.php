@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Arr;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 
 $files = ['enums', 'exceptions', 'failures', 'fields', 'steps', 'validation'];
@@ -40,3 +41,19 @@ it('pluralises for every count', function (int $count, string $en, string $sk): 
     [3, '3 instances', '3 inštancie'],
     [5, '5 instances', '5 inštancií'],
 ]);
+
+// W-13
+it('has a failure message for every failure code', function (): void {
+    $messages = array_keys(require __DIR__.'/../../resources/lang/en/failures.php');
+
+    foreach (FailureCode::cases() as $code) {
+        expect($messages)->toContain($code->value)
+            ->and($code->message())->not->toBe('failures.'.$code->value);
+    }
+});
+
+it('has a case for every failure message', function (): void {
+    $messages = array_keys(require __DIR__.'/../../resources/lang/en/failures.php');
+
+    expect(FailureCode::values()->all())->toEqualCanonicalizing($messages);
+});

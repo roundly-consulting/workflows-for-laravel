@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Support\Engine;
 use Closure;
 use Illuminate\Support\Str;
 use RoundlyConsulting\Workflows\Enums\EscalationStatus;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
 use RoundlyConsulting\Workflows\Enums\WaitStatus;
@@ -46,7 +47,7 @@ final readonly class Advancer
         $node = $graph->node($target);
 
         if ($node === null) {
-            $this->fail($instance, 'missing_edge', Messages::get('failures.missing_edge', ['node' => $target]), $target, $after);
+            $this->fail($instance, FailureCode::MissingEdge, Messages::get('failures.missing_edge', ['node' => $target]), $target, $after);
 
             return;
         }
@@ -54,7 +55,7 @@ final readonly class Advancer
         $limit = self::maxSteps($graph);
 
         if ($instance->steps_count + 1 > $limit) {
-            $this->fail($instance, 'step_limit_exceeded', Messages::get('failures.step_limit_exceeded', ['limit' => $limit]), $target, $after);
+            $this->fail($instance, FailureCode::StepLimitExceeded, Messages::get('failures.step_limit_exceeded', ['limit' => $limit]), $target, $after);
 
             return;
         }
@@ -122,7 +123,7 @@ final readonly class Advancer
 
         if (($node->config['status'] ?? 'completed') === 'failed') {
             $reason = $node->config['reason'] ?? null;
-            $this->fail($instance, 'ended_by_graph', is_string($reason) && $reason !== '' ? $reason : Messages::get('failures.ended_by_graph'), $node->id, $after);
+            $this->fail($instance, FailureCode::EndedByGraph, is_string($reason) && $reason !== '' ? $reason : Messages::get('failures.ended_by_graph'), $node->id, $after);
 
             return;
         }
@@ -141,8 +142,9 @@ final readonly class Advancer
     /**
      * @param  list<Closure(): mixed>  $after
      */
-    public function fail(WorkflowInstance $instance, string $code, string $message, ?string $node, array &$after): void
+    public function fail(WorkflowInstance $instance, FailureCode|string $code, string $message, ?string $node, array &$after): void
     {
+        $code = $code instanceof FailureCode ? $code->value : $code;
         $instance->status = InstanceStatus::Failed;
         $instance->failure_code = Str::limit($code, 64, '');
         $instance->failure_message = $message;

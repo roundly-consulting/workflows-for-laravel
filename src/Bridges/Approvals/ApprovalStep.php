@@ -16,6 +16,7 @@ use RoundlyConsulting\Approvals\Support\ApprovalRequestModelResolver;
 use RoundlyConsulting\Workflows\DataTransferObjects\PartyReference;
 use RoundlyConsulting\Workflows\DataTransferObjects\Signal;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\SignalKind;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Enums\WaitStatus;
@@ -151,12 +152,12 @@ final class ApprovalStep extends BuiltinStep
 
     public function handle(StepContext $context): StepResult
     {
-        $subject = $context->subject() ?? throw StepFailedException::because('subject_missing', Messages::get('failures.subject_missing'));
+        $subject = $context->subject() ?? throw StepFailedException::because(FailureCode::SubjectMissing, Messages::get('failures.subject_missing'));
         $config = $context->config();
         $expiresAt = $this->expiry($context, $config);
 
         $id = $context->once('round', fn (): int|string => Keys::of($this->open($context, $subject, $config, $expiresAt, null)));
-        $id = is_int($id) || is_string($id) ? $id : throw StepFailedException::because('approval_missing', Messages::get('failures.approval_missing'));
+        $id = is_int($id) || is_string($id) ? $id : throw StepFailedException::because(FailureCode::ApprovalMissing, Messages::get('failures.approval_missing'));
 
         return StepResult::wait($this->spec($id, $expiresAt)->probe(), [
             'request_id' => $id,
@@ -171,7 +172,7 @@ final class ApprovalStep extends BuiltinStep
         $request = $this->request($id);
 
         if ($request === null) {
-            throw StepFailedException::because('approval_missing', Messages::get('failures.approval_missing'));
+            throw StepFailedException::because(FailureCode::ApprovalMissing, Messages::get('failures.approval_missing'));
         }
 
         if ($request->status === ApprovalStatus::Pending) {
@@ -189,7 +190,7 @@ final class ApprovalStep extends BuiltinStep
             ApprovalStatus::Expired => StepResult::complete('expired', ['request_id' => Keys::of($request)]),
             default => $context->graph()->edgeFor($context->node()->id, 'cancelled') !== null
                 ? StepResult::complete('cancelled', ['request_id' => Keys::of($request)])
-                : throw StepFailedException::because('approval_cancelled', Messages::get('failures.approval_cancelled')),
+                : throw StepFailedException::because(FailureCode::ApprovalCancelled, Messages::get('failures.approval_cancelled')),
         };
     }
 
@@ -296,7 +297,7 @@ final class ApprovalStep extends BuiltinStep
 
             return $pending->from($approvers)->rule($rule, $quorum)->open();
         } catch (ClosedApprovalRequestException $exception) {
-            throw StepFailedException::because('approval_closed', $exception->getMessage());
+            throw StepFailedException::because(FailureCode::ApprovalClosed, $exception->getMessage());
         }
     }
 
@@ -338,7 +339,7 @@ final class ApprovalStep extends BuiltinStep
             $stages[] = new StageDefinition($approvers, $rule, $quorum, is_string($stage['name'] ?? null) ? $stage['name'] : null, $required);
         }
 
-        return $stages === [] ? throw StepFailedException::because('no_approvers', Messages::get('failures.no_approvers')) : $stages;
+        return $stages === [] ? throw StepFailedException::because(FailureCode::NoApprovers, Messages::get('failures.no_approvers')) : $stages;
     }
 
     /**
@@ -350,7 +351,7 @@ final class ApprovalStep extends BuiltinStep
         $approvers = $context->parties($parties);
 
         if ($approvers === []) {
-            throw StepFailedException::because('no_approvers', Messages::get('failures.no_approvers'));
+            throw StepFailedException::because(FailureCode::NoApprovers, Messages::get('failures.no_approvers'));
         }
 
         return $approvers;
@@ -406,6 +407,6 @@ final class ApprovalStep extends BuiltinStep
 
     private function subject(StepContext $context): Model
     {
-        return $context->subject() ?? throw StepFailedException::because('subject_missing', Messages::get('failures.subject_missing'));
+        return $context->subject() ?? throw StepFailedException::because(FailureCode::SubjectMissing, Messages::get('failures.subject_missing'));
     }
 }

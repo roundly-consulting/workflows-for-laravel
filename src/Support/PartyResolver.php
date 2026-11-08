@@ -8,6 +8,7 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Contracts\ChecksOwnerMembership;
 use RoundlyConsulting\Workflows\DataTransferObjects\PartyReference;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\FieldType;
 use RoundlyConsulting\Workflows\Steps\StepFailedException;
 
@@ -84,7 +85,7 @@ final readonly class PartyResolver
         $resolver = Adapters::roles();
 
         if ($resolver === null) {
-            throw StepFailedException::because('roles_unavailable', Messages::get('failures.roles_unavailable', ['role' => $role]));
+            throw StepFailedException::because(FailureCode::RolesUnavailable, Messages::get('failures.roles_unavailable', ['role' => $role]));
         }
 
         return $resolver->members($scope->owner, $role);

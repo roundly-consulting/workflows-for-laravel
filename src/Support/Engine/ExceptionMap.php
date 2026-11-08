@@ -8,6 +8,7 @@ use Closure;
 use RoundlyConsulting\Workflows\Bridges\Approvals\ApprovalsBridge;
 use RoundlyConsulting\Workflows\Bridges\Lifecycle\LifecycleBridge;
 use RoundlyConsulting\Workflows\Bridges\Notifications\NotificationsBridge;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Exceptions\BusinessCalendarNeverOpenException;
 use RoundlyConsulting\Workflows\Exceptions\StepAuthorizationDeniedException;
 use RoundlyConsulting\Workflows\Exceptions\UnknownCalendarException;
@@ -82,11 +83,11 @@ final class ExceptionMap
                 $exception->getMessage(),
                 $exception->retryAfter() === null ? null : Clock::utc($exception->retryAfter()),
             ),
-            $exception instanceof StepAuthorizationDeniedException => StepFailure::permanent('authorization_denied', $exception->getMessage()),
-            $exception instanceof BusinessCalendarNeverOpenException => StepFailure::permanent('calendar_never_open', $exception->getMessage()),
-            $exception instanceof UnknownCalendarException => StepFailure::permanent('calendar_missing', $exception->getMessage()),
+            $exception instanceof StepAuthorizationDeniedException => StepFailure::permanent(FailureCode::AuthorizationDenied, $exception->getMessage()),
+            $exception instanceof BusinessCalendarNeverOpenException => StepFailure::permanent(FailureCode::CalendarNeverOpen, $exception->getMessage()),
+            $exception instanceof UnknownCalendarException => StepFailure::permanent(FailureCode::CalendarMissing, $exception->getMessage()),
             $exception instanceof WorkflowsException => StepFailure::permanent($exception->errorCode(), $exception->getMessage()),
-            default => StepFailure::transient('exception', $exception->getMessage()),
+            default => StepFailure::transient(FailureCode::Exception, $exception->getMessage()),
         };
     }
 }

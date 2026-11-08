@@ -18,6 +18,7 @@ use RoundlyConsulting\PackageToolkit\Support\Config;
 use RoundlyConsulting\Workflows\Contracts\TransitionAdapter;
 use RoundlyConsulting\Workflows\DataTransferObjects\Actor;
 use RoundlyConsulting\Workflows\DataTransferObjects\TransitionOutcome;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Steps\RetryableStepException;
 use RoundlyConsulting\Workflows\Steps\StepFailedException;
 use Throwable;
@@ -47,11 +48,11 @@ final readonly class LifecycleTransitionAdapter implements TransitionAdapter
                 ->idempotencyKey(Str::limit($idempotencyKey, 191, ''))
                 ->attempt($transition);
         } catch (IdempotencyConflictException $exception) {
-            throw StepFailedException::because('idempotency_conflict', $exception->getMessage());
+            throw StepFailedException::because(FailureCode::IdempotencyConflict, $exception->getMessage());
         } catch (ConcurrentTransitionException $exception) {
-            throw RetryableStepException::because('transition_conflict', $exception->getMessage());
+            throw RetryableStepException::because(FailureCode::TransitionConflict, $exception->getMessage());
         } catch (InvalidLifecycleUsageException|UnknownLifecycleException|SubjectTrashedException|SubjectNotPersistedException $exception) {
-            throw StepFailedException::because('transition_unusable', $exception->getMessage());
+            throw StepFailedException::because(FailureCode::TransitionUnusable, $exception->getMessage());
         }
 
         if ($attempt->succeeded) {

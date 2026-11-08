@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Support\Str;
 use Psr\Log\LoggerInterface;
 use RoundlyConsulting\Workflows\DataTransferObjects\Signal;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\SignalKind;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
@@ -85,7 +86,7 @@ final readonly class RecordStepResultAction
                 $result = $transactional();
             }
 
-            $this->apply($instance, $run, $result ?? StepFailure::permanent('no_result', Messages::get('failures.no_result')), $signal, $after);
+            $this->apply($instance, $run, $result ?? StepFailure::permanent(FailureCode::NoResult, Messages::get('failures.no_result')), $signal, $after);
         });
 
         foreach ($after as $callback) {
@@ -148,8 +149,8 @@ final readonly class RecordStepResultAction
         $node = $graph?->node($run->node_id);
 
         if (! $version instanceof WorkflowVersion || $graph === null || $node === null) {
-            $this->failRun($run, StepFailure::permanent('version_missing', Messages::get('failures.version_missing')));
-            $this->advancer->fail($instance, 'version_missing', Messages::get('failures.version_missing'), $run->node_id, $after);
+            $this->failRun($run, StepFailure::permanent(FailureCode::VersionMissing, Messages::get('failures.version_missing')));
+            $this->advancer->fail($instance, FailureCode::VersionMissing, Messages::get('failures.version_missing'), $run->node_id, $after);
 
             return;
         }
@@ -159,7 +160,7 @@ final readonly class RecordStepResultAction
         }
 
         if ($result instanceof StepResult && ! Output::valid($result->output)) {
-            $result = StepFailure::permanent('invalid_output', Messages::get('failures.invalid_output'));
+            $result = StepFailure::permanent(FailureCode::InvalidOutput, Messages::get('failures.invalid_output'));
         }
 
         match (true) {
@@ -194,7 +195,7 @@ final readonly class RecordStepResultAction
         $edge = $graph->edgeFor($node->id, $result->outcome);
 
         if ($edge === null) {
-            $this->advancer->fail($instance, 'missing_edge', Messages::get('failures.missing_outcome_edge', ['node' => $node->id, 'outcome' => $result->outcome]), $node->id, $after);
+            $this->advancer->fail($instance, FailureCode::MissingOutcomeEdge, Messages::get('failures.missing_outcome_edge', ['node' => $node->id, 'outcome' => $result->outcome]), $node->id, $after);
 
             return;
         }

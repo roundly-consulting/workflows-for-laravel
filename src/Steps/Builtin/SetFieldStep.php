@@ -6,6 +6,7 @@ namespace RoundlyConsulting\Workflows\Steps\Builtin;
 
 use RoundlyConsulting\Workflows\DataTransferObjects\FieldDefinition;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\FieldType;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Steps\StepContext;
@@ -103,13 +104,13 @@ final class SetFieldStep extends BuiltinStep
         $definition = $type?->field(substr($field, 8));
 
         if ($subject === null || $definition === null) {
-            throw StepFailedException::because('subject_missing', Messages::get('failures.subject_missing'));
+            throw StepFailedException::because(FailureCode::SubjectMissing, Messages::get('failures.subject_missing'));
         }
 
         $value = self::normalize($context->resolve($context->config()['value'] ?? null), $definition);
 
         if ($value === false) {
-            throw StepFailedException::because('invalid_value', Messages::get('failures.invalid_value', ['field' => $field]));
+            throw StepFailedException::because(FailureCode::InvalidValue, Messages::get('failures.invalid_value', ['field' => $field]));
         }
 
         $subject->forceFill([$definition->path() => $value])->save();

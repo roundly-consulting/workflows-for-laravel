@@ -9,6 +9,7 @@ use RoundlyConsulting\Workflows\Actions\Instances\StartInstanceAction;
 use RoundlyConsulting\Workflows\DataTransferObjects\Signal;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartData;
 use RoundlyConsulting\Workflows\DataTransferObjects\ValidationError;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\Severity;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
@@ -127,7 +128,7 @@ final class StartWorkflowStep extends BuiltinStep
         $instance = $context->instance();
 
         if ($instance->depth + 1 > WorkflowsConfig::maxDepth()) {
-            throw StepFailedException::because('nesting_depth_exceeded', Messages::get('failures.nesting_depth_exceeded', ['limit' => WorkflowsConfig::maxDepth()]));
+            throw StepFailedException::because(FailureCode::NestingDepthExceeded, Messages::get('failures.nesting_depth_exceeded', ['limit' => WorkflowsConfig::maxDepth()]));
         }
 
         $child = $this->start($context, $config);
@@ -188,7 +189,7 @@ final class StartWorkflowStep extends BuiltinStep
         $subject = $child instanceof $childModel && $child->subject_key === null ? null : $this->childSubject($context, $config['subject'] ?? 'same');
 
         if ($subject !== null && $context->owner() !== null && ! app(Owners::class)->matches($context->owner(), $subject)) {
-            throw StepFailedException::because('owner_mismatch', Messages::get('failures.owner_mismatch'));
+            throw StepFailedException::because(FailureCode::OwnerMismatch, Messages::get('failures.owner_mismatch'));
         }
 
         try {
@@ -207,7 +208,7 @@ final class StartWorkflowStep extends BuiltinStep
             throw StepFailedException::because($exception->errorCode(), $exception->getMessage());
         }
 
-        return $result->instance ?? throw StepFailedException::because('child_not_started', Messages::get('failures.child_not_started'));
+        return $result->instance ?? throw StepFailedException::because(FailureCode::ChildNotStarted, Messages::get('failures.child_not_started'));
     }
 
     private function parentOwner(StepContext $context): ?Model

@@ -13,6 +13,7 @@ use RoundlyConsulting\Workflows\Contracts\RestoresOwnerContext;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartData;
 use RoundlyConsulting\Workflows\DataTransferObjects\StartResult;
 use RoundlyConsulting\Workflows\Enums\ActorMode;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
@@ -350,7 +351,7 @@ final readonly class StartInstanceAction
         Events::dispatch(new InstanceStarted($instance, $instance, Runtime::actor($instance)));
 
         if ($trigger === null) {
-            $this->advancer->fail($instance, 'missing_trigger', Messages::get('failures.missing_trigger'), null, $after);
+            $this->advancer->fail($instance, FailureCode::MissingTrigger, Messages::get('failures.missing_trigger'), null, $after);
 
             return;
         }
@@ -372,7 +373,7 @@ final readonly class StartInstanceAction
         $edge = $graph->edgeFor($trigger->id, 'next');
 
         if ($edge === null) {
-            $this->advancer->fail($instance, 'missing_edge', Messages::get('failures.missing_outcome_edge', ['node' => $trigger->id, 'outcome' => 'next']), $trigger->id, $after);
+            $this->advancer->fail($instance, FailureCode::MissingOutcomeEdge, Messages::get('failures.missing_outcome_edge', ['node' => $trigger->id, 'outcome' => 'next']), $trigger->id, $after);
 
             return;
         }

@@ -11,6 +11,7 @@ use RoundlyConsulting\Testing\Fixtures\LockRecordingGrammar;
 use RoundlyConsulting\Workflows\Actions\Engine\RecordStepResultAction;
 use RoundlyConsulting\Workflows\Actions\Engine\RunStepAction;
 use RoundlyConsulting\Workflows\Contracts\AuthorizesSteps;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RoundlyConsulting\Workflows\Enums\InstanceStatus;
 use RoundlyConsulting\Workflows\Enums\SignalKind;
 use RoundlyConsulting\Workflows\Enums\StepRunStatus;
@@ -729,3 +730,21 @@ it('throws the package configuration exception for every invalid key', function 
     'prune.instances_after' => ['workflows.prune.instances_after', 'soon', fn () => WorkflowsConfig::pruneInstancesAfter()],
     'prune.dry_runs_after' => ['workflows.prune.dry_runs_after', 'soon', fn () => WorkflowsConfig::pruneDryRunsAfter()],
 ]);
+
+// W-13
+it('reads a prefixed failure code as its enum case and detail', function (): void {
+    $instance = WorkflowInstance::factory()->create(['failure_code' => 'transition_denied:guard_failed']);
+    $host = WorkflowInstance::factory()->create(['failure_code' => 'downstream_refused']);
+    $run = StepRun::factory()->create(['instance_id' => $instance->id, 'error_code' => 'lease_expired']);
+
+    expect($instance->failure())->toBe(FailureCode::TransitionDenied)
+        ->and(FailureCode::detail('transition_denied:guard_failed'))->toBe('guard_failed')
+        ->and(FailureCode::detail('lease_expired'))->toBeNull()
+        ->and($host->failure())->toBe('downstream_refused')
+        ->and(WorkflowInstance::factory()->create()->failure())->toBeNull()
+        ->and($run->error())->toBe(FailureCode::LeaseExpired)
+        ->and(StepRun::factory()->create(['instance_id' => $instance->id, 'node_id' => 'other'])->error())->toBeNull()
+        ->and(FailureCode::LeaseExpired->retryable())->toBeTrue()
+        ->and(FailureCode::EndedByGraph->retryable())->toBeFalse()
+        ->and(FailureCode::NestingDepthExceeded->message(['limit' => 3]))->toContain('3');
+});

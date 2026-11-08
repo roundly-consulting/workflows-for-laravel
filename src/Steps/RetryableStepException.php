@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Steps;
 
 use Carbon\CarbonInterface;
+use RoundlyConsulting\Workflows\Enums\FailureCode;
 use RuntimeException;
 
 /**
@@ -21,9 +22,9 @@ final class RetryableStepException extends RuntimeException
         parent::__construct($message);
     }
 
-    public static function because(string $code, string $message, ?CarbonInterface $retryAfter = null): self
+    public static function because(FailureCode|string $code, string $message, ?CarbonInterface $retryAfter = null): self
     {
-        return new self($code, $message, $retryAfter);
+        return new self($code instanceof FailureCode ? $code->value : $code, $message, $retryAfter);
     }
 
     public function failureCode(): string
