@@ -11,8 +11,9 @@ use Throwable;
 
 /**
  * Runs a step type's `cancel()` clean-up for one attempt of a cancelled instance — from the
- * cancel itself, and from the record of an attempt that was still running then (whose output,
- * an approval round say, the cancel could not see). A failing clean-up never blocks either.
+ * cancel itself, and from the record (or lease expiry) of an attempt that was still running then,
+ * whatever it returned: its output, or a failure whose effects the hook reads through `recall()`.
+ * A failing clean-up never blocks either.
  *
  * @internal
  */

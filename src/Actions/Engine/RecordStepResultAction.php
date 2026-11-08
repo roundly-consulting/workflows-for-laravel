@@ -85,16 +85,14 @@ final readonly class RecordStepResultAction
                 $run->finished_at = Clock::now();
 
                 // The instance was cancelled while this attempt ran: the cancel saw none of what
-                // the handler did (the round it opened). Keep its output and clean up after it.
+                // the handler did (the round it opened). Keep its output and clean up after it —
+                // also after a failure, whose effects the hook finds through recall().
                 if ($result instanceof StepResult && $result->output !== [] && Output::valid($result->output)) {
                     $run->output = array_replace($run->output ?? [], $result->output);
-                    $run->save();
-                    $this->cancelHook->run($instance, $run);
-
-                    return;
                 }
 
                 $run->save();
+                $this->cancelHook->run($instance, $run);
 
                 return;
             }
@@ -143,6 +141,9 @@ final readonly class RecordStepResultAction
             if (! $instance->status->isActive()) {
                 $locked->status = StepRunStatus::Cancelled;
                 $locked->save();
+
+                // Its worker died after the cancel: clean up whatever it did (through recall()).
+                $this->cancelHook->run($instance, $locked);
 
                 return;
             }
