@@ -53,6 +53,7 @@ it('rejects invalid configuration values, naming the key', function (string $key
     'string' => ['workflows.owners.context', 42, fn () => WorkflowsConfig::ownerContext(), 'a string'],
     'string map' => ['workflows.authorization.abilities', 'update', fn () => WorkflowsConfig::abilities(), 'a map of strings'],
     'string map value' => ['workflows.authorization.abilities', ['set_field' => ''], fn () => WorkflowsConfig::abilities(), 'a map of strings'],
+    // C-113: a contract class that doesn't implement the contract throws, naming the key.
     'implementation' => ['workflows.adapters.webhooks', stdClass::class, fn () => Adapters::webhooks(), 'class-string of [DeliversWebhooks]'],
 ]);
 

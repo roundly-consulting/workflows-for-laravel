@@ -76,3 +76,29 @@ it('keeps one draft per definition when two editors race', function (): void {
     expect($racer->outcome())->toBe('2')
         ->and(Workflows::definition('flow')->versions())->toHaveCount(2);
 })->skip(fn (): bool => ! Racer::available(), 'needs a real engine and pcntl')->group('real-engine');
+
+// C-142: the child's record transaction never locks its parent, so a parent cancel (parent → child)
+// and a child finishing at the same moment can't deadlock.
+it('never deadlocks a waited child ending against its parent being cancelled', function (): void {
+    published('child', racingFlow(), null, null);
+    published('parent', graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('child', 'start_workflow', ['definition' => 'child', 'wait' => true]),
+        node('done', 'end'),
+        node('failed', 'end'),
+    ], [['start', 'child'], ['child', 'done', 'completed'], ['child', 'failed', 'failed']]), null, null);
+    $parent = Workflows::start('parent')->dispatch()->instance ?? throw new LogicException;
+    $child = WorkflowInstance::query()->where('parent_instance_id', $parent->id)->sole();
+    $racer = new Racer;
+
+    DB::transaction(function () use ($parent, $racer): void {
+        Workflows::instances()->cancel($parent, 'stop');
+
+        $racer->run(static fn (): string => 'resumed '.Workflows::emit('go.on')->resumed)->waitUntilBlockedOrDone();
+    });
+
+    expect($racer->outcome())->toStartWith('resumed ')
+        ->and($parent->refresh()->status)->toBe(InstanceStatus::Cancelled)
+        ->and($child->refresh()->status)->toBe(InstanceStatus::Cancelled)
+        ->and($child->stepRuns()->where('node_id', 'spy')->count())->toBe(0);
+})->skip(fn (): bool => ! Racer::available(), 'needs a real engine and pcntl')->group('real-engine');

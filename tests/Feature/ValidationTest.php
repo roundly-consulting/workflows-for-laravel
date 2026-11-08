@@ -72,6 +72,7 @@ it('reports a missing end', function (): void {
     expect(codes(inspectGraph(graph([start(), node('task', 'acme.create_task', ['title' => 'x'])], [['start', 'task']]))))->toContain('no_end');
 });
 
+// C-30
 it('reports adapters whose package is missing', function (): void {
     $report = inspectGraph(graph([start(), node('approve', 'approval', []), node('go', 'transition', ['transition' => 'x']), node('done', 'end')], [['start', 'approve'], ['approve', 'go', 'approved'], ['go', 'done', 'transitioned']]));
 
