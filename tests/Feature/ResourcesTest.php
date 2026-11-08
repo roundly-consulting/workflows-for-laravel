@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
 use RoundlyConsulting\Workflows\Exceptions\SubjectOwnerMismatchException;
 use RoundlyConsulting\Workflows\Facades\Workflows;
+use RoundlyConsulting\Workflows\Graph\Canonicalizer;
 use RoundlyConsulting\Workflows\Http\Resources\CatalogueEntryResource;
 use RoundlyConsulting\Workflows\Http\Resources\DefinitionResource;
 use RoundlyConsulting\Workflows\Http\Resources\DryRunResultResource;
@@ -231,7 +232,8 @@ it('renders the same JSON after the DTO swap', function (): void {
             file_put_contents($file, $encoded);
         }
 
-        expect($encoded)->toBe(file_get_contents($file), $name);
+        // Compared by content: MySQL's json column hands stored graphs back with its own key order.
+        expect(Canonicalizer::encode($json))->toBe(Canonicalizer::encode(json_decode((string) file_get_contents($file), true)), $name);
     }
 
     CarbonImmutable::setTestNow();

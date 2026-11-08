@@ -587,13 +587,14 @@ it('records the resolved config as each attempt\'s input', function (): void {
     $instance = Workflows::start('flow', $document, $acme)->input(['title' => 'Laptops'])->dispatch()->instance ?? throw new LogicException;
     $runs = Workflows::instances()->steps($instance)->keyBy('node_id');
 
-    expect($runs['spy']->input)->toBe([
+    // toEqual: MySQL's json column reorders object keys.
+    expect($runs['spy']->input)->toEqual([
         'mode' => 'ok',
         'label' => 'Order',
         'amount' => '120.5',
         'title' => 'Laptops',
         'who' => [['kind' => 'field', 'field' => 'subject.requester', 'id' => $ada->id, 'type' => 'User'], ['kind' => 'role', 'role' => 'legal']],
-    ])->and($runs['start']->input)->toBe(['input' => ['title' => 'Laptops'], 'trigger' => []])
+    ])->and($runs['start']->input)->toEqual(['input' => ['title' => 'Laptops'], 'trigger' => []])
         ->and($runs['done']->input)->toBe([])
         ->and(Workflows::instances()->steps($instance)->whereNull('input'))->toBeEmpty();
 });
