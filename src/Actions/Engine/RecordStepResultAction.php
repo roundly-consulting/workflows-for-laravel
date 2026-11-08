@@ -263,6 +263,9 @@ final readonly class RecordStepResultAction
         Events::dispatch(new InstanceWaiting($instance, $run, $waits, $instance, Runtime::actor($instance)));
 
         if ($spec?->probe === true) {
+            $run->probe_pushed_at = Clock::now();
+            $run->save();
+
             $after[] = fn () => $this->queue->resume($runId, null, SignalKind::Probe);
         }
     }

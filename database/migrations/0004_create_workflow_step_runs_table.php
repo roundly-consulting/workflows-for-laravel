@@ -40,6 +40,8 @@ return new class extends Migration
             $table->dateTime('lease_until')->nullable();
             $table->dateTime('scheduled_for')->nullable();
             $table->dateTime('dispatched_at')->nullable();
+            // A waiting step's probe is pushed and not yet claimed (wake re-pushes a lost one).
+            $table->dateTime('probe_pushed_at')->nullable();
             $table->dateTime('started_at')->nullable();
             $table->dateTime('finished_at')->nullable();
             $table->datetimes();
@@ -48,6 +50,7 @@ return new class extends Migration
             $table->unique(['instance_id', 'node_id', 'visit', 'attempt'], 'wstep_attempt_unique');
             $table->index(['status', 'lease_until'], 'wstep_lease_idx');
             $table->index(['status', 'updated_at'], 'wstep_queued_idx');
+            $table->index(['status', 'probe_pushed_at'], 'wstep_probe_idx');
             $table->foreign('instance_id', 'wstep_instance_fk')->references('id')->on(WorkflowsConfig::table('instances'))->cascadeOnDelete();
         });
     }

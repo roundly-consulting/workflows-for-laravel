@@ -42,6 +42,7 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  * @property CarbonImmutable|null $lease_until
  * @property CarbonImmutable|null $scheduled_for
  * @property CarbonImmutable|null $dispatched_at
+ * @property CarbonImmutable|null $probe_pushed_at
  * @property CarbonImmutable|null $started_at
  * @property CarbonImmutable|null $finished_at
  * @property CarbonImmutable|null $created_at
@@ -119,6 +120,7 @@ class StepRun extends Model
             'lease_until' => UtcDateTime::class,
             'scheduled_for' => UtcDateTime::class,
             'dispatched_at' => UtcDateTime::class,
+            'probe_pushed_at' => UtcDateTime::class,
             'started_at' => UtcDateTime::class,
             'finished_at' => UtcDateTime::class,
             'created_at' => UtcDateTime::class,
