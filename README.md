@@ -29,10 +29,16 @@ published.
 Requires PHP 8.4, Laravel 13, and a MySQL or PostgreSQL database.
 
 ```bash
-composer require roundly-consulting/workflows-for-laravel
+composer require roundly-consulting/workflows-for-laravel roundly-consulting/approvals-for-laravel
 php artisan workflows:install
+php artisan vendor:publish --tag="approvals-migrations"
 php artisan migrate
 ```
+
+Approvals powers the approval step in the example below; leave it out if you don't need approvals.
+Steps run on your queue, and a step may run for up to 570 seconds, so raise the connection's
+`retry_after` above that (`DB_QUEUE_RETRY_AFTER=600` for Laravel's default `database` queue) —
+`php artisan workflows:doctor` checks it.
 
 Delays, timeouts, retries, escalations and schedules wake on the scheduler, so add one line:
 
@@ -80,7 +86,7 @@ $result = Workflows::start('purchase-approval', subject: $request, owner: $team)
     ->idempotencyKey("submit:{$request->id}")
     ->dispatch();
 
-$result->instance->status;   // InstanceStatus::Waiting — at the approval step
+$result->instance->status;   // InstanceStatus::Running — a queue worker runs it on to the approval step, where it waits
 ```
 
 Approval, notify, transition, opening-hours and form steps light up when the matching Roundly

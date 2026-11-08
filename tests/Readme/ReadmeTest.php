@@ -7,15 +7,18 @@ use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Graph\Build\Party;
 use RoundlyConsulting\Workflows\Graph\Build\Trigger;
 use RoundlyConsulting\Workflows\Graph\Build\When;
-use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Models\PurchaseRequest;
+use RoundlyConsulting\Workflows\Tests\Readme\Fixtures\PurchaseRequest;
+use RoundlyConsulting\Workflows\Tests\Readme\ReadmeTestCase;
 
-// The README's one usage example, as written (and its block must still parse).
+// The README's one usage example, as written, on a host that followed the README's Installation
+// only (chat review C-9): the bridges it installs, the default database queue and its worker.
+
 it('runs the README example', function (): void {
     $admin = user('Ada');
     $requester = user('Rita');
     $approver = user('Adam');
-    $team = team('Acme', ['admin' => $admin, 'user' => $approver]);
-    $request = purchase($team, ['requester_id' => $requester->id, 'approver_id' => $approver->id]);
+    $team = company('Acme');
+    $request = PurchaseRequest::query()->create(['team_id' => $team->id, 'amount' => '1000', 'requester_id' => $requester->id, 'approver_id' => $approver->id]);
 
     // --- README ---
     // Once, in a service provider: what a purchase request looks like to the engine.
@@ -49,20 +52,34 @@ it('runs the README example', function (): void {
         ->idempotencyKey("submit:{$request->id}")
         ->dispatch();
 
-    $result->instance->status;   // InstanceStatus::Waiting — at the approval step
+    $result->instance->status;   // InstanceStatus::Running — a queue worker runs it on to the approval step, where it waits
     // --- /README ---
 
     expect($definition->key)->toBe('purchase-approval')
         ->and($result->created)->toBeTrue()
-        ->and($result->instance?->status)->toBe(InstanceStatus::Waiting)
+        ->and($result->instance?->status)->toBe(InstanceStatus::Running);
+
+    // The worker the README's queue implies.
+    $this->runWorkflows();
+
+    expect($result->instance?->refresh()->status)->toBe(InstanceStatus::Waiting)
         ->and($result->instance?->current_node_id)->toBe('approve');
 });
 
-it('keeps the README block in step with this test', function (): void {
-    preg_match('/## Usage.*?```php\n(.*?)```/s', (string) file_get_contents(__DIR__.'/../../README.md'), $match);
-    $readme = $match[1] ?? '';
+it('keeps the README block identical to the example this test runs', function (): void {
+    preg_match('/## Usage.*?```php\n(.*?)```/s', ReadmeTestCase::readme(), $readme);
+    preg_match('#// --- README ---\n(.*?)\n\s*// --- /README ---#s', (string) file_get_contents(__FILE__), $test);
 
-    expect($readme)->toContain('Workflows::graph()')
-        ->and($readme)->toContain("->connect('approve', 'done', on: ['approved', 'rejected', 'expired']));")
-        ->and(substr_count($readme, "\n"))->toBeLessThanOrEqual(40);
+    $body = static fn (string $code): string => trim((string) preg_replace('/^\s+/m', '', (string) preg_replace('/^use .*;$/m', '', $code)));
+
+    expect($body($readme[1] ?? ''))->toBe($body($test[1] ?? ''))
+        ->and(substr_count($readme[1] ?? '', "\n"))->toBeLessThanOrEqual(40);
+});
+
+it('installs every Roundly package the example uses', function (): void {
+    preg_match('/## Usage.*?```php\n(.*?)```/s', ReadmeTestCase::readme(), $readme);
+
+    expect(str_contains($readme[1] ?? '', '->approval('))->toBeTrue()
+        ->and(ReadmeTestCase::installedBridges())->toContain('approvals')
+        ->and(ReadmeTestCase::installation())->toContain('php artisan vendor:publish --tag="approvals-migrations"');
 });

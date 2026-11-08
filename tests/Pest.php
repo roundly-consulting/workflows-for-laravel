@@ -14,6 +14,7 @@ use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Models\PurchaseRequest;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Company;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Document;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
+use RoundlyConsulting\Workflows\Tests\Readme\ReadmeTestCase;
 use RoundlyConsulting\Workflows\Tests\Sentinel\SentinelTestCase;
 use RoundlyConsulting\Workflows\Tests\TestCase;
 
@@ -120,6 +121,8 @@ function escalatingWait(): array
 }
 
 uses(BridgesTestCase::class)->group('bridges')->in('Bridges', 'Acceptance');
+// The README test case boots only the bridges the README installs; group `bridges` (approvals).
+uses(ReadmeTestCase::class)->group('bridges')->in('Readme');
 
 /**
  * A team (teams-for-laravel) and its members by role.
