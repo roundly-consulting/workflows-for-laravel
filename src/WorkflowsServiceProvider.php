@@ -20,6 +20,7 @@ use RoundlyConsulting\Workflows\Commands\DoctorCommand;
 use RoundlyConsulting\Workflows\Commands\ExportCommand;
 use RoundlyConsulting\Workflows\Commands\InstallCommand;
 use RoundlyConsulting\Workflows\Commands\ListCommand;
+use RoundlyConsulting\Workflows\Commands\MakeStepCommand;
 use RoundlyConsulting\Workflows\Commands\PruneCommand;
 use RoundlyConsulting\Workflows\Commands\RetryCommand;
 use RoundlyConsulting\Workflows\Commands\ShowCommand;
@@ -68,6 +69,7 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
                 ShowCommand::class,
                 SyncCommand::class,
                 ExportCommand::class,
+                MakeStepCommand::class,
             ])
             ->contributesToAbout(static fn (): array => [
                 'Step types' => (string) count(app(StepCatalogue::class)->all()),

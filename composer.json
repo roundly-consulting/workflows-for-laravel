@@ -35,6 +35,7 @@
         "illuminate/contracts": "^13.0",
         "illuminate/database": "^13.0",
         "illuminate/events": "^13.0",
+        "illuminate/filesystem": "^13.0",
         "illuminate/http": "^13.0",
         "illuminate/pagination": "^13.0",
         "illuminate/queue": "^13.0",

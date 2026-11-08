@@ -1,0 +1,54 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use RoundlyConsulting\Workflows\Steps\Schema\ConfigSchema;
+use RoundlyConsulting\Workflows\Steps\StepContext;
+use RoundlyConsulting\Workflows\Steps\StepResult;
+use RoundlyConsulting\Workflows\Steps\StepType;
+
+/**
+ * Register it in a service provider's boot(): Workflows::catalogue()->register({{ class }}::class).
+ */
+final class {{ class }} extends StepType
+{
+    public function key(): string
+    {
+        return '{{ key }}';
+    }
+
+    public function label(): string
+    {
+        return '{{ label }}';
+    }
+
+    public function hasSideEffects(): bool
+    {
+        return true;
+    }
+
+    /**
+     * The ability the authorization hook checks before each run (null = none).
+     */
+    public function ability(): ?string
+    {
+        return null;
+    }
+
+    public function configSchema(): array
+    {
+        return ConfigSchema::object()
+            ->string('title', required: true, maxLength: 200)
+            ->toArray();
+    }
+
+    public function handle(StepContext $context): StepResult
+    {
+        // Run each external effect once per visit: $context->once('name', fn () => ...), and pass
+        // $context->idempotencyKey() to anything outside the database.
+
+        return StepResult::complete(output: []);
+    }
+}
