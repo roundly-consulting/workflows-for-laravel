@@ -88,7 +88,7 @@ it('loads a version and keeps an empty settings block it was given', function ()
 
     $builder = GraphBuilder::from($definition->currentVersion ?? throw new LogicException);
 
-    expect($builder->toArray())->toBe($source)
+    expect(Canonicalizer::encode($builder->toArray()))->toBe(Canonicalizer::encode($source))
         ->and(GraphBuilder::from(['nodes' => ['x', ['id' => 'a', 'type' => 'end']], 'edges' => 'x'])->toArray())->toBe(['schema' => 'roundly.workflows.graph/v1', 'nodes' => [['id' => 'a', 'type' => 'end']], 'edges' => []]);
 });
 
