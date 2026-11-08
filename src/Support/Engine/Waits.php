@@ -76,7 +76,9 @@ final class Waits
 
     /**
      * The first escalation level of a visit, timed from its first attempt's start. Only once per
-     * visit, and only on types that support escalations.
+     * visit, and only on types that support escalations — unless the visit's chain was cut off
+     * (its latest level cancelled when the step failed): a manually retried step escalates again,
+     * from level 1, timed from the retried attempt.
      */
     public static function escalate(WorkflowInstance $instance, StepRun $run, Node $node, string $timezone, ?string $calendar, ?Model $owner): ?WorkflowEscalation
     {
@@ -96,15 +98,20 @@ final class Waits
 
         $first = $first instanceof StepRun ? $first : $run;
 
-        $exists = $escalationModel::query()
+        $latest = $escalationModel::query()
             ->whereIn('step_run_id', $runModel::query()->where('instance_id', Keys::of($instance))->where('node_id', $run->node_id)->where('visit', $run->visit)->select('id'))
-            ->exists();
+            ->orderByDesc('id')
+            ->first();
 
-        if ($exists) {
+        if ($latest === null) {
+            return self::level($instance, $first, $node, 1, $first->started_at ?? Clock::now(), $timezone, $calendar, $owner);
+        }
+
+        if ($latest->status !== EscalationStatus::Cancelled) {
             return null;
         }
 
-        return self::level($instance, $first, $node, 1, $first->started_at ?? Clock::now(), $timezone, $calendar, $owner);
+        return self::level($instance, $run, $node, 1, $run->started_at ?? Clock::now(), $timezone, $calendar, $owner);
     }
 
     public static function level(WorkflowInstance $instance, StepRun $run, Node $node, int $level, CarbonImmutable $from, string $timezone, ?string $calendar, ?Model $owner): ?WorkflowEscalation

@@ -86,6 +86,22 @@ final readonly class FireEscalationAction
             }
 
             $run = $this->liveRun($escalation);
+
+            // Between two attempts (a retry in its backoff) the step is still alive: come back
+            // once the next attempt has started instead of dropping the chain.
+            $queued = $run === null && $instance->status->isActive() ? $this->visitRun($escalation, [StepRunStatus::Queued]) : null;
+
+            if ($queued !== null) {
+                $now = Clock::now();
+                $after = $queued->scheduled_for !== null && $queued->scheduled_for->greaterThan($now) ? $queued->scheduled_for : $now;
+                $escalation->status = EscalationStatus::Pending;
+                $escalation->claim_token = null;
+                $escalation->due_at = $after->addMinute();
+                $escalation->save();
+
+                return;
+            }
+
             $version = $instance->version;
             $graph = $version?->parsedGraph();
             $node = $run === null ? null : $graph?->node($run->node_id);
@@ -213,6 +229,16 @@ final readonly class FireEscalationAction
      */
     private function liveRun(WorkflowEscalation $escalation): ?StepRun
     {
+        return $this->visitRun($escalation, [StepRunStatus::Running, StepRunStatus::Waiting]);
+    }
+
+    /**
+     * The visit's latest attempt in one of these states.
+     *
+     * @param  list<StepRunStatus>  $statuses
+     */
+    private function visitRun(WorkflowEscalation $escalation, array $statuses): ?StepRun
+    {
         $first = $escalation->stepRun;
 
         if (! $first instanceof StepRun) {
@@ -224,7 +250,7 @@ final readonly class FireEscalationAction
             ->where('instance_id', $first->instance_id)
             ->where('node_id', $first->node_id)
             ->where('visit', $first->visit)
-            ->whereIn('status', [StepRunStatus::Running->value, StepRunStatus::Waiting->value])
+            ->whereIn('status', array_map(static fn (StepRunStatus $status): string => $status->value, $statuses))
             ->orderByDesc('attempt')
             ->lockForUpdate()
             ->first();
