@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Support;
 
 use Illuminate\Contracts\Validation\Factory;
+use Illuminate\Validation\Rule;
 use RoundlyConsulting\Workflows\Enums\FieldType;
 use RoundlyConsulting\Workflows\Exceptions\InvalidTriggerInputException;
 use RoundlyConsulting\Workflows\Graph\GraphParser;
@@ -78,7 +79,8 @@ final class TriggerInputs
             };
 
             if (is_array($definition['options'] ?? null) && $definition['options'] !== []) {
-                $fieldRules[] = 'in:'.implode(',', array_map(static fn (mixed $option): string => is_scalar($option) ? (string) $option : '', $definition['options']));
+                // A rule object, never an `in:` string: Laravel splits that on commas.
+                $fieldRules[] = Rule::in(array_values(array_filter($definition['options'], is_scalar(...))));
             }
 
             foreach (is_array($definition['rules'] ?? null) ? $definition['rules'] : [] as $rule) {
