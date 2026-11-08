@@ -209,10 +209,17 @@ final class ApprovalStep extends BuiltinStep
     }
 
     /**
-     * Replace the open round: retire its waits first (so its own resolution event resumes
-     * nothing), close it as cancelled, then open a new round for the target parties with the
-     * original absolute expiry — on a staged round only the stages not yet cleared, the current
-     * one with its approvers replaced — and wait on that one.
+     * Hand the open approval to the target parties.
+     *
+     * On a staged round whose open stage has a name, in place (approvals' replaceApprovers()):
+     * the decisions already made keep counting, the round keeps its absolute expiry, and only
+     * ApprovalStageOpened fires — never a resolution — so the step keeps waiting on the same
+     * round. A dropped approver's late decision is refused by approvals.
+     *
+     * A flat round or an unnamed stage (which approvals can't replace in place): retire its waits
+     * first (so its own resolution event resumes nothing), close it as cancelled, then open a new
+     * round for the target parties with the original absolute expiry — on a staged round only the
+     * stages not yet cleared, the current one with its approvers replaced — and wait on that one.
      */
     public function reassign(StepContext $context, array $to): ?StepResult
     {
@@ -225,6 +232,20 @@ final class ApprovalStep extends BuiltinStep
         }
 
         $subject = $this->subject($context);
+        $stage = $old->staged ? $old->currentStage() : null;
+
+        if ($stage !== null && is_string($stage->name) && $stage->name !== '') {
+            $name = $stage->name;
+
+            $context->once('replace:'.Keys::of($old).':'.Keys::of($stage), function () use ($context, $subject, $old, $name, $to): bool {
+                $this->approvals->for($subject)->within($old)->replaceApprovers($name, $this->resolve($context, $to));
+
+                return true;
+            });
+
+            return null;
+        }
+
         $expiresAt = $this->expiresAt($context);
         $waitModel = WorkflowModels::wait();
 
