@@ -46,7 +46,13 @@ jobs:
   # Real-engine legs: locks, unique-violation races, json and datetime precision.
   test-pgsql:
     runs-on: ubuntu-latest
-    name: P8.4 - pgsql real-engine
+    # Every primary key type: uuid/ulid ids compile to different DDL than bigint (1.2.1: a
+    # fluent uuid/ulid primary key broke a fresh migrate on Postgres under a green bigint leg).
+    strategy:
+      fail-fast: false
+      matrix:
+        key_type: [bigint, uuid, ulid]
+    name: P8.4 - pgsql real-engine - ${{ matrix.key_type }} ids
 
     steps:
       # Started first so the engine boots while PHP installs. tmpfs + durability off: the same
@@ -86,6 +92,7 @@ jobs:
           # TESTING_DB_DRIVER is what moves the suite off sqlite; the location vars alone only
           # say where the engine is.
           TESTING_DB_DRIVER: pgsql
+          WORKFLOWS_PRIMARY_KEY_TYPE: ${{ matrix.key_type }}
           TESTING_DB_HOST: 127.0.0.1
           TESTING_DB_PORT: 5432
           TESTING_DB_DATABASE: testing
@@ -97,7 +104,13 @@ jobs:
 
   test-mysql:
     runs-on: ubuntu-latest
-    name: P8.4 - mysql real-engine
+    # Every primary key type: uuid/ulid ids compile to different DDL than bigint (1.2.1: a
+    # fluent uuid/ulid primary key broke a fresh migrate on Postgres under a green bigint leg).
+    strategy:
+      fail-fast: false
+      matrix:
+        key_type: [bigint, uuid, ulid]
+    name: P8.4 - mysql real-engine - ${{ matrix.key_type }} ids
 
     steps:
       # Started first, tmpfs datadir, binlog off and no flush per commit — the same InnoDB,
@@ -136,6 +149,7 @@ jobs:
       - name: Execute tests against mysql
         env:
           TESTING_DB_DRIVER: mysql
+          WORKFLOWS_PRIMARY_KEY_TYPE: ${{ matrix.key_type }}
           TESTING_DB_HOST: 127.0.0.1
           TESTING_DB_PORT: 3306
           TESTING_DB_DATABASE: testing
