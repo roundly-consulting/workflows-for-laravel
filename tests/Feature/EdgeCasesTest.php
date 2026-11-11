@@ -247,7 +247,7 @@ it('fails a run of a bridged type whose package is missing at run time', functio
 it('ignores a run that is gone, not queued, scheduled later or of a cancelled instance', function (): void {
     $run = queuedSpy();
 
-    app(RunStepAction::class)->execute(999999);
+    app(RunStepAction::class)->execute(missingId());
 
     $run->scheduled_for = CarbonImmutable::now()->addHour();
     $run->save();
@@ -273,8 +273,8 @@ it('ignores a resume of a gone run and cancels the wait of a finished one', func
     $instance = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
     $wait = WorkflowWait::query()->where('instance_id', $instance->id)->firstOrFail();
 
-    app(ResumeStepAction::class)->execute(999999, null, SignalKind::Event);
-    app(ResumeStepAction::class)->execute($wait->step_run_id, 999999, SignalKind::Event);
+    app(ResumeStepAction::class)->execute(missingId(), null, SignalKind::Event);
+    app(ResumeStepAction::class)->execute($wait->step_run_id, missingId(), SignalKind::Event);
 
     expect($instance->refresh()->status)->toBe(InstanceStatus::Waiting);
 
@@ -294,7 +294,7 @@ it('cancels an escalation whose step or instance is gone', function (): void {
     $instance = Workflows::start('flow')->dispatch()->instance ?? throw new LogicException;
     $escalation = WorkflowEscalation::query()->where('instance_id', $instance->id)->firstOrFail();
 
-    app(FireEscalationAction::class)->execute(999999);
+    app(FireEscalationAction::class)->execute(missingId());
     WorkflowInstance::query()->whereKey($instance->id)->update(['status' => InstanceStatus::Cancelled->value]);
     app(FireEscalationAction::class)->execute($escalation->id);
 

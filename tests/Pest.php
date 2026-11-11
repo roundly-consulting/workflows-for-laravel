@@ -3,12 +3,15 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
+use RoundlyConsulting\PackageToolkit\Enums\KeyType;
 use RoundlyConsulting\Teams\DataTransferObjects\CreateTeamData;
 use RoundlyConsulting\Teams\Facades\Teams;
 use RoundlyConsulting\Teams\Models\Team;
 use RoundlyConsulting\Testing\Concerns\UsesPublishSandbox;
 use RoundlyConsulting\Workflows\Facades\Workflows;
 use RoundlyConsulting\Workflows\Models\WorkflowDefinition;
+use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 use RoundlyConsulting\Workflows\Tests\Bridges\BridgesTestCase;
 use RoundlyConsulting\Workflows\Tests\Bridges\Fixtures\Models\PurchaseRequest;
 use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\Company;
@@ -155,6 +158,19 @@ function purchase(Team $team, array $attributes = []): PurchaseRequest
         'amount' => '1000',
         ...$attributes,
     ]));
+}
+
+/**
+ * An id no row has, in the configured primary key type: a native Postgres `uuid` column refuses
+ * an integer literal outright, where a real job only ever carries a well-formed id.
+ */
+function missingId(): int|string
+{
+    return match (WorkflowsConfig::primaryKeyType()) {
+        KeyType::BigInt => 999999,
+        KeyType::Uuid => (string) Str::uuid(),
+        KeyType::Ulid => (string) Str::ulid(),
+    };
 }
 
 /**
