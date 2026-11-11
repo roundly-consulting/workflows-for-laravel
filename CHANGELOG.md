@@ -6,6 +6,8 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 
 ## Unreleased
 
+## 1.2.1 - 2026-11-11
+
 ### Changed
 
 - Maintenance: the PostgreSQL and MySQL CI legs now run the suite under every `primary_key_type` (`bigint`, `uuid`, `ulid`), and the migrations are applied on both engines under each.
