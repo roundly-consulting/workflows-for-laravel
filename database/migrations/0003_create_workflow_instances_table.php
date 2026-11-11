@@ -17,9 +17,16 @@ return new class extends Migration
         Schema::create(WorkflowsConfig::table('instances'), function (Blueprint $table) use ($primary): void {
             match ($primary) {
                 KeyType::BigInt => $table->id(),
-                KeyType::Uuid => $table->uuid('id')->primary(),
-                KeyType::Ulid => $table->ulid('id')->primary(),
+                KeyType::Uuid => $table->uuid('id'),
+                KeyType::Ulid => $table->ulid('id'),
             };
+
+            // An explicit command, not a fluent ->primary(): Laravel compiles fluent indexes after
+            // the closure's own commands, so on Postgres the parent_instance_id self-reference
+            // below would run before the key it points at exists.
+            if ($primary !== KeyType::BigInt) {
+                $table->primary('id');
+            }
 
             $table->char('ulid', 26)->unique('winst_ulid_unique');
             $table->ownerKey('definition_id', $primary, false, false);

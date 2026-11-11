@@ -6,6 +6,15 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 
 ## Unreleased
 
+### Changed
+
+- Maintenance: the PostgreSQL and MySQL CI legs now run the suite under every `primary_key_type` (`bigint`, `uuid`, `ulid`), and the migrations are applied on both engines under each.
+
+### Fixed
+
+- A fresh `php artisan migrate` with `workflows.primary_key_type` set to `uuid` or `ulid` on PostgreSQL no longer fails in `create_workflow_instances_table` with `SQLSTATE[42830]: there is no unique constraint matching given keys for referenced table "workflow_instances"`. The migration now creates the primary key before the `parent_instance_id` foreign key that points back at the table. `bigint` ids and MySQL were not affected.
+  **Already published the migrations?** Your copy in `database/migrations` is the broken one. Copy the fixed file over it and keep your file's name: `cp vendor/roundly-consulting/workflows-for-laravel/database/migrations/0003_create_workflow_instances_table.php database/migrations/<timestamp>_create_workflow_instances_table.php`. Then run `php artisan migrate`. Don't fix it with `vendor:publish --tag=workflows-migrations`: your copy no longer matches the package file, so it would publish a second copy with a new timestamp. If you already moved the self-reference into its own `Schema::table()` call, keep it; the schema is the same. Details are in the upgrade notes of the [documentation](https://roundly-consulting.com/open-source/docs/workflows-for-laravel).
+
 ## 1.2.0 - 2026-11-08
 
 ### Added

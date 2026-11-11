@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use RoundlyConsulting\Testing\Assertions\Migrations\MigrationRunner;
 use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
 use RoundlyConsulting\Workflows\Models\StepRun;
@@ -38,17 +39,55 @@ it('runs its migrations in an order all 13 foreign keys can follow', function ()
     expect(__DIR__.'/../../database/migrations')->toHaveRunnableMigrationOrder(foreignKeys: 13, tableResolvers: $tables);
 });
 
-it('applies on postgres and refuses a broken order there', function (): void {
+// Every key type, not just the bigint default: a uuid/ulid id is a fluent primary key, which
+// Laravel compiles after the closure's own commands. On Postgres that put the instances table's
+// self-referencing foreign key ahead of its primary key, and a fresh migrate failed (1.2.1).
+it('applies on postgres and refuses a broken order there', function (string $keyType): void {
+    config()->set('workflows.primary_key_type', $keyType);
+
     expect(__DIR__.'/../../database/migrations')
         ->toApplyOnConnection('pgsql', 8)
         ->toRejectBrokenOrderOnConnection(static fn (array $files): array => array_reverse($files), 'pgsql');
-})->skip(fn (): bool => ! MigrationRunner::connectionIsAvailable('pgsql'), 'no PostgreSQL connection')->group('real-engine');
+})->with(['bigint', 'uuid', 'ulid'])
+    ->skip(fn (): bool => ! MigrationRunner::connectionIsAvailable('pgsql'), 'no PostgreSQL connection')->group('real-engine');
 
-it('applies on mysql and refuses a broken order there', function (): void {
+it('applies on mysql and refuses a broken order there', function (string $keyType): void {
+    config()->set('workflows.primary_key_type', $keyType);
+
     expect(__DIR__.'/../../database/migrations')
         ->toApplyOnConnection('mysql', 8)
         ->toRejectBrokenOrderOnConnection(static fn (array $files): array => array_reverse($files), 'mysql');
-})->skip(fn (): bool => ! MigrationRunner::connectionIsAvailable('mysql'), 'no MySQL connection')->group('real-engine');
+})->with(['bigint', 'uuid', 'ulid'])
+    ->skip(fn (): bool => ! MigrationRunner::connectionIsAvailable('mysql'), 'no MySQL connection')->group('real-engine');
+
+// Engine-free pin of the same bug, so the default sqlite run catches it too: compiled for
+// Postgres (pretend mode, no server needed), every key type creates the instances table's
+// primary key before the foreign key that points back at it.
+it('creates the instances primary key before its self-reference on postgres', function (string $keyType): void {
+    config()->set('workflows.primary_key_type', $keyType);
+    config()->set('database.connections.pgsql_compile', [
+        'driver' => 'pgsql', 'host' => '127.0.0.1', 'port' => 1, 'database' => 'none',
+        'username' => 'none', 'password' => '', 'prefix' => '', 'search_path' => 'public',
+    ]);
+    $default = config('database.default');
+    config()->set('database.default', 'pgsql_compile');
+
+    try {
+        $migration = require __DIR__.'/../../database/migrations/0003_create_workflow_instances_table.php';
+        $statements = array_column(DB::connection('pgsql_compile')->pretend(static fn () => $migration->up()), 'query');
+    } finally {
+        config()->set('database.default', $default);
+    }
+
+    $create = array_search(true, array_map(static fn (string $sql): bool => str_starts_with($sql, 'create table'), $statements), true);
+    $primary = array_search(true, array_map(static fn (string $sql): bool => str_contains($sql, 'primary key'), $statements), true);
+    $selfReference = array_search(true, array_map(static fn (string $sql): bool => str_contains($sql, 'winst_parent_fk'), $statements), true);
+
+    expect($create)->toBe(0)
+        ->and($primary)->toBeInt()
+        ->and($selfReference)->toBeInt()
+        ->and($primary)->toBeLessThan($selfReference);
+})->with(['bigint', 'uuid', 'ulid']);
 
 it('declares every model swappable through its config key', function (string $model, string $key): void {
     expect($model)->toBeSwappableVia($key);
@@ -103,3 +142,9 @@ it('stores timestamps as whole UTC seconds equal to what it reads back', functio
 
     CarbonImmutable::setTestNow();
 });
+
+// The CI key-type legs set WORKFLOWS_PRIMARY_KEY_TYPE: a leg whose env stopped reaching the config
+// would run bigint and report green under a uuid/ulid name.
+it('runs on the primary key type the leg asks for', function (): void {
+    expect(WorkflowsConfig::primaryKeyType()->value)->toBe(env('WORKFLOWS_PRIMARY_KEY_TYPE'));
+})->skip(fn (): bool => ! is_string(env('WORKFLOWS_PRIMARY_KEY_TYPE')), 'no key-type leg')->group('real-engine');
