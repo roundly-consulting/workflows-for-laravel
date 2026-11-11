@@ -107,6 +107,9 @@ function recipeDrivers(): array
 }
 
 it('publishes and runs recipe :name', function (string $name): void {
+    // Publish on the drivers' fixed calendar, not the real clock: a version published after the
+    // instant a driver travels to has its schedule cursor past every slot it expects.
+    recipeAt('2026-11-09 08:00:00 UTC');
     $this->fakeStep('approval', static fn (StepContext $context): StepResult => StepResult::complete($context->visit() === 1 && $context->definitionKey() === 'rework-loop' ? 'rejected' : 'approved'), outcomes: ['approved', 'rejected', 'expired']);
     $this->fakeStep('notify', 'next', outcomes: ['next']);
     published('welcome', graph([node('start', 'trigger', ['trigger' => 'manual']), node('done', 'end')], [['start', 'done']]), null, null);
