@@ -6,6 +6,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 
 ## Unreleased
 
+## 1.3.0 - 2026-11-15
+
+### Added
+
+- Per-owner subject fields. `SubjectTypeBuilder::dynamicFields(Closure(?Model $owner): iterable<FieldDefinition>)` adds fields per owner (a company's custom fields) beside the registered ones. Publish validation, run scopes, condition and `for_each` evaluation and the field picker (`Workflows::subjects()->export($key, $owner)`, new optional `$owner`) use the owner's fields, so one company's field validates for that company and is `unknown_field` for another or app-wide. A model reads its own dynamic fields through the new `Contracts\ResolvesWorkflowFields::resolveWorkflowField(FieldDefinition)`, else by path. Dynamic fields are read-only (`field_not_writable` for `set_field`), never shadow a registered field, and a resolver returning anything but valid fields throws `InvalidWorkflowsConfigurationException`. New: `SubjectTypeDefinition::forOwner()`, `hasDynamicFields()`, `FieldDefinition::$dynamic`.
+- Approval exclusions. The `approval` step takes `exclude`, a party list (`triggered_by`, a `party` field such as the subject's creator, users, roles) of actors who may never decide. They go to approvals' `excluding()` (refused as deciders and delegates) and are dropped from every approver list, reassignments included; a list left empty fails `no_approvers`. Publish validates the list and refuses an approver list whose every party is excluded (`approvers_excluded`). Works with flat, staged and preset rounds. The graph builder writes it: `->approval(..., exclude: [Party::triggeredBy()])`.
+- Notification contexts. `notify` steps and `notify` escalations pass the instance owner as the notifications-for-laravel context, so inbox items of a multi-tenant app are filed under the owner. `workflows.bridges.notifications.context` (`WORKFLOWS_NOTIFICATIONS_CONTEXT`): `owner` (default), `off`, or a class-string of the new `Contracts\ResolvesNotificationContext`. An owner whose key the notifications context columns can't hold is sent without a context.
+- Paused owners. `workflows.owners.state` names a `Contracts\OwnerState` (`isPaused(Model $owner): bool`). While an owner is paused, `workflows:wake` leaves its due timers, retries, timeouts, condition polls and escalations pending (each fires once after the pause ends), its schedule slots are skipped and never replayed, and every start path (manual, emit, webhook, schedule, child) and a manual retry throw the new `OwnerPausedException` (`owner_paused`, HTTP 423). A `start_workflow` step that runs while its owner is paused is retried (new failure code `owner_paused`). `Workflows::owners()->isPaused($owner)`.
+- Owner export. `Workflows::owners()->export($owner)` (`Actions\Owners\ExportOwnerAction`) returns an `OwnerExport` (`roundly.workflows.owner-export/v1`): every definition of the owner, deleted ones included, with every version as a template payload (`templates()` imports back with `versions()->import()`), and a `RunSummary` of every instance it owns — status, trigger, timestamps, subject and starter references, parent, failure code and each step's outcome. No inputs, outputs, payloads, failure messages or class names. New DTOs `OwnerExport`, `ExportedDefinition`, `ExportedVersion`, `RunSummary`; new accessor `Handles\OwnersAccessor` (`Workflows::owners()`).
+- Translations (en, sk) for `approvers_excluded`, `owner_paused` (exception and failure).
+
+### Changed
+
+- With notifications-for-laravel installed, `notify` steps and escalations now file inbox items under the instance owner by default (before: no context). Set `WORKFLOWS_NOTIFICATIONS_CONTEXT=off` to keep the 1.2 behaviour.
+- approvals-for-laravel is now required at `>=2.2` when installed (`conflict <2.2`, for `excluding()`). Its additive `0008_add_decision_guards_to_approvals_tables` migration must run before you publish an approval step with `exclude`; rounds without it never write those columns.
+
 ## 1.2.1 - 2026-11-11
 
 ### Changed
