@@ -17,6 +17,7 @@ use RoundlyConsulting\Workflows\Enums\Severity;
 use RoundlyConsulting\Workflows\Enums\TriggerType;
 use RoundlyConsulting\Workflows\Enums\ValidationCode;
 use RoundlyConsulting\Workflows\Exceptions\InstanceNotCancellableException;
+use RoundlyConsulting\Workflows\Exceptions\OwnerPausedException;
 use RoundlyConsulting\Workflows\Exceptions\WorkflowsException;
 use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowVersion;
@@ -234,6 +235,10 @@ final class StartWorkflowStep extends BuiltinStep
                 parent: $context->stepRun(),
                 internalKey: true,
             ));
+        } catch (OwnerPausedException) {
+            // The owner was paused mid-run: retry with backoff — the retry waits on wake, which
+            // holds it until the pause ends — instead of failing the parent for good.
+            throw RetryableStepException::because(FailureCode::OwnerPaused, Messages::get('failures.owner_paused'));
         } catch (WorkflowsException $exception) {
             throw StepFailedException::because($exception->errorCode(), $exception->getMessage());
         }

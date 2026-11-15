@@ -30,7 +30,9 @@ use RoundlyConsulting\Workflows\Commands\ValidateCommand;
 use RoundlyConsulting\Workflows\Commands\WakeCommand;
 use RoundlyConsulting\Workflows\Contracts\AuthorizesSteps;
 use RoundlyConsulting\Workflows\Contracts\ChecksOwnerMembership;
+use RoundlyConsulting\Workflows\Contracts\OwnerState;
 use RoundlyConsulting\Workflows\Contracts\RestoresOwnerContext;
+use RoundlyConsulting\Workflows\Support\ActiveOwnerState;
 use RoundlyConsulting\Workflows\Support\AllowMembership;
 use RoundlyConsulting\Workflows\Support\Bridges;
 use RoundlyConsulting\Workflows\Support\Engine\ExceptionMap;
@@ -124,6 +126,13 @@ final class WorkflowsServiceProvider extends PackageServiceProvider
             $membership = $app->make($class ?? TeamsBridge::defaultMembership());
 
             return $membership instanceof ChecksOwnerMembership ? $membership : new AllowMembership;
+        });
+
+        $this->app->bind(OwnerState::class, static function (Application $app): OwnerState {
+            $class = WorkflowsConfig::ownerState();
+            $state = $class === null ? null : $app->make($class);
+
+            return $state instanceof OwnerState ? $state : new ActiveOwnerState;
         });
     }
 

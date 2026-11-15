@@ -95,7 +95,7 @@ final readonly class DryRunAction
 
         $graph = GraphParser::parse($data->graph);
         $trigger = $graph->trigger();
-        $subjectType = $data->definition->subject_key === null ? null : $this->subjects->find($data->definition->subject_key);
+        $subjectType = $data->definition->subject_key === null ? null : $this->subjects->find($data->definition->subject_key)?->forOwner($owner);
         $subject = $this->subject($data, $subjectType);
         $now = $data->at === null ? Clock::now() : Clock::utc($data->at);
 
@@ -119,7 +119,7 @@ final readonly class DryRunAction
             subject: $subject,
             subjectType: $subjectType,
             owner: $owner,
-            ownerType: $owner === null ? null : $this->subjects->forModel($owner),
+            ownerType: $owner === null ? null : $this->subjects->forModel($owner)?->forOwner($owner),
             input: $input,
             trigger: $data->event === null ? $data->payload : ['event' => $data->event, 'payload' => $data->payload],
             outputs: static fn (string $node): ?array => $outputs->get($node),

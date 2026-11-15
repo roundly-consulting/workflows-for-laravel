@@ -58,4 +58,5 @@ enum ValidationCode: string
     case UnknownForm = 'unknown_form';
     case UnknownWebhookEvent = 'unknown_webhook_event';
     case WebhookEndpointTaken = 'webhook_endpoint_taken';
+    case ApproversExcluded = 'approvers_excluded';
 }

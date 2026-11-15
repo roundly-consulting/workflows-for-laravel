@@ -125,9 +125,9 @@ final class Runtime
 
         return new ValueScope(
             subject: $subject,
-            subjectType: $instance->subject_key !== null ? $registry->find($instance->subject_key) : null,
+            subjectType: $instance->subject_key !== null ? $registry->find($instance->subject_key)?->forOwner($owner) : null,
             owner: $owner,
-            ownerType: $owner !== null ? $registry->forModel($owner) : null,
+            ownerType: $owner !== null ? $registry->forModel($owner)?->forOwner($owner) : null,
             input: $input,
             trigger: $trigger,
             outputs: self::outputs($instance),

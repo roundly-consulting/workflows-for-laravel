@@ -20,6 +20,7 @@ use RoundlyConsulting\Workflows\WorkflowsManager;
  * @method static \RoundlyConsulting\Workflows\Handles\DefinitionsAccessor definitions()
  * @method static \RoundlyConsulting\Workflows\Handles\VersionsAccessor versions()
  * @method static \RoundlyConsulting\Workflows\Handles\InstancesAccessor instances()
+ * @method static \RoundlyConsulting\Workflows\Handles\OwnersAccessor owners()
  * @method static \RoundlyConsulting\Workflows\Handles\CatalogueAccessor catalogue()
  * @method static \RoundlyConsulting\Workflows\Handles\SubjectsAccessor subjects()
  * @method static \RoundlyConsulting\Workflows\Builders\SubjectTypeBuilder subject(string $key, string $model)

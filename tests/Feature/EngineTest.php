@@ -696,6 +696,8 @@ it('throws the package configuration exception for every invalid key', function 
     'limits.max_depth' => ['workflows.limits.max_depth', -1, fn () => WorkflowsConfig::maxDepth()],
     'limits.max_starts_per_minute' => ['workflows.limits.max_starts_per_minute', 'lots', fn () => WorkflowsConfig::maxStartsPerMinute()],
     'limits.max_loop_iterations' => ['workflows.limits.max_loop_iterations', 0, fn () => WorkflowsConfig::maxLoopIterations()],
+    'owners.state' => ['workflows.owners.state', stdClass::class, fn () => WorkflowsConfig::ownerState()],
+    'bridges.notifications.context' => ['workflows.bridges.notifications.context', stdClass::class, fn () => WorkflowsConfig::notificationsContext()],
     'graph.max_nodes' => ['workflows.graph.max_nodes', 1, fn () => WorkflowsConfig::graphMaxNodes()],
     'graph.max_edges' => ['workflows.graph.max_edges', 0, fn () => WorkflowsConfig::graphMaxEdges()],
     'graph.max_bytes' => ['workflows.graph.max_bytes', 10, fn () => WorkflowsConfig::graphMaxBytes()],

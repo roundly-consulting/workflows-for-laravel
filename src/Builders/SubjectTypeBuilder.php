@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Builders;
 
 use BackedEnum;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\DataTransferObjects\FieldDefinition;
 use RoundlyConsulting\Workflows\DataTransferObjects\SubjectTypeDefinition;
@@ -29,6 +30,9 @@ final class SubjectTypeBuilder
     private bool $ownerType = false;
 
     private string $ability = 'update';
+
+    /** @var (Closure(?Model): iterable<mixed>)|null */
+    private ?Closure $dynamicFields = null;
 
     /**
      * @param  class-string<Model>  $model
@@ -104,6 +108,22 @@ final class SubjectTypeBuilder
         return $this;
     }
 
+    /**
+     * Per-owner fields beside the registered ones (a company's custom fields): the resolver gets
+     * the owner (null for an app-wide definition) and returns its FieldDefinitions. They count in
+     * publish validation, the field pickers (`subjects()->export($key, $owner)`) and runs of that
+     * owner; they are read through the model's `ResolvesWorkflowFields` when it implements it
+     * (else by their path), and are never writable. Called once per validation or run scope.
+     *
+     * @param  Closure(?Model): iterable<FieldDefinition>  $resolver
+     */
+    public function dynamicFields(Closure $resolver): self
+    {
+        $this->dynamicFields = $resolver;
+
+        return $this;
+    }
+
     public function key(): string
     {
         return $this->key;
@@ -119,6 +139,7 @@ final class SubjectTypeBuilder
             ownedBy: $this->ownedBy,
             ownerType: $this->ownerType,
             ability: $this->ability,
+            dynamicFields: $this->dynamicFields,
         );
     }
 

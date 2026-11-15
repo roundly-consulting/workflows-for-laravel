@@ -281,12 +281,14 @@ final class GraphBuilder implements Arrayable, JsonSerializable, Stringable
 
     /**
      * An approval (approvals bridge): single-stage `approvers` + `rule`, or `stages`, or a
-     * `preset`. Outcomes `approved` / `rejected` / `expired`.
+     * `preset`, plus `exclude`: parties who may never decide (`Party::triggeredBy()`, the
+     * subject's creator field). Outcomes `approved` / `rejected` / `expired`.
      *
      * @param  list<Party>  $approvers
      * @param  list<Stage>  $stages
+     * @param  list<Party>  $exclude
      */
-    public function approval(string $id, array $approvers = [], string $rule = 'any', array $stages = [], ?After $expiresIn = null, ?string $preset = null): static
+    public function approval(string $id, array $approvers = [], string $rule = 'any', array $stages = [], ?After $expiresIn = null, ?string $preset = null, array $exclude = []): static
     {
         $config = [];
 
@@ -305,6 +307,10 @@ final class GraphBuilder implements Arrayable, JsonSerializable, Stringable
 
         if ($expiresIn !== null) {
             $config['expires_in'] = $expiresIn->toValue();
+        }
+
+        if ($exclude !== []) {
+            $config['exclude'] = Party::list($exclude);
         }
 
         return $this->node($id, 'approval', $config);

@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace RoundlyConsulting\Workflows\Handles;
 
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Database\Eloquent\Model;
 use RoundlyConsulting\Workflows\Builders\SubjectTypeBuilder;
 use RoundlyConsulting\Workflows\DataTransferObjects\SubjectTypeDefinition;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
 
 /**
  * The subject (and owner) types: register them, read them, and export a field schema for
- * condition builders and pickers (registry keys only, never class names).
+ * condition builders and pickers (registry keys only, never class names). Pass the owner to
+ * `export()` to include that owner's dynamic fields.
  */
 final readonly class SubjectsAccessor
 {
@@ -29,9 +31,13 @@ final readonly class SubjectsAccessor
         return $this->registry()->find($key);
     }
 
-    public function export(string $key): SubjectTypeDefinition
+    /**
+     * The type's field schema with the owner's dynamic fields (`dynamicFields()`) added — those
+     * of app-wide definitions without an owner — exactly what publish validation accepts.
+     */
+    public function export(string $key, ?Model $owner = null): SubjectTypeDefinition
     {
-        return $this->registry()->get($key);
+        return $this->registry()->get($key)->forOwner($owner);
     }
 
     /**

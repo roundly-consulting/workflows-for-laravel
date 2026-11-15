@@ -45,4 +45,5 @@ return [
     'unknown_form' => 'The form ":form" does not exist.',
     'unknown_webhook_event' => 'The webhook event type ":event" is not in the allowed event types.',
     'webhook_endpoint_taken' => 'The webhook endpoint ":endpoint" already starts the workflow ":definition".',
+    'approvers_excluded' => 'Every approver at :path is also excluded, so nobody could decide.',
 ];

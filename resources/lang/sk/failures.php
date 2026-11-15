@@ -31,6 +31,7 @@ return [
     'no_result' => 'Krok nevrátil žiadny výsledok.',
     'notification_refused' => 'Notifikácia bola odmietnutá.',
     'owner_mismatch' => 'Subjekt už nepatrí vlastníkovi pracovného postupu.',
+    'owner_paused' => 'Vlastník pracovného postupu je pozastavený: spustí sa po skončení pozastavenia.',
     'payload_too_large' => 'Obsah webhooku je príliš veľký.',
     'resume_unsupported' => 'Typ kroku „:type“ nemôže pokračovať.',
     'roles_unavailable' => 'Rolu „:role“ nie je možné určiť.',

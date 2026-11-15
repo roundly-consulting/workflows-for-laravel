@@ -169,6 +169,7 @@ return [
         'unknown_form' => 'Neznámy formulár',
         'unknown_webhook_event' => 'Neznáma webhooková udalosť',
         'webhook_endpoint_taken' => 'Webhookový koncový bod je obsadený',
+        'approvers_excluded' => 'Všetci schvaľovatelia sú vylúčení',
     ],
     'doctor_level' => [
         'ok' => 'V poriadku',

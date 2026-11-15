@@ -45,6 +45,7 @@ enum FailureCode: string
     case NoResult = 'no_result';
     case NotificationRefused = 'notification_refused';
     case OwnerMismatch = 'owner_mismatch';
+    case OwnerPaused = 'owner_paused';
     case PayloadTooLarge = 'payload_too_large';
     case ResumeUnsupported = 'resume_unsupported';
     case RolesUnavailable = 'roles_unavailable';
@@ -91,7 +92,7 @@ enum FailureCode: string
             self::Exception, self::LeaseExpired, self::WorkerTimeout, self::TransitionConflict,
             self::AdapterMissing, self::CalendarMissing, self::RolesUnavailable, self::AuthorizationDenied,
             self::NoApprovers, self::DelayFieldEmpty, self::SubjectMissing, self::OwnerMismatch,
-            self::UnknownStepType, self::ChildNotStarted, self::EndpointNotAccepting,
+            self::UnknownStepType, self::ChildNotStarted, self::EndpointNotAccepting, self::OwnerPaused,
         ], true);
     }
 

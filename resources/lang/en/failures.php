@@ -31,6 +31,7 @@ return [
     'no_result' => 'The step returned no result.',
     'notification_refused' => 'The notification was refused.',
     'owner_mismatch' => 'The subject no longer belongs to the workflow owner.',
+    'owner_paused' => 'The workflow owner is paused: this runs once the pause ends.',
     'payload_too_large' => 'The webhook payload is too large.',
     'resume_unsupported' => 'The step type ":type" cannot resume.',
     'roles_unavailable' => 'Role ":role" cannot be resolved.',

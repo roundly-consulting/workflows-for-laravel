@@ -7,6 +7,7 @@ namespace RoundlyConsulting\Workflows\Actions\Wake;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Cache\Repository;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use RoundlyConsulting\Workflows\DataTransferObjects\WakeReport;
 use RoundlyConsulting\Workflows\Enums\EscalationStatus;
@@ -15,10 +16,12 @@ use RoundlyConsulting\Workflows\Enums\StepRunStatus;
 use RoundlyConsulting\Workflows\Enums\WaitKind;
 use RoundlyConsulting\Workflows\Enums\WaitStatus;
 use RoundlyConsulting\Workflows\Models\WorkflowEscalation;
+use RoundlyConsulting\Workflows\Models\WorkflowInstance;
 use RoundlyConsulting\Workflows\Models\WorkflowWait;
 use RoundlyConsulting\Workflows\Support\Clock;
 use RoundlyConsulting\Workflows\Support\Engine\EngineQueue;
 use RoundlyConsulting\Workflows\Support\Keys;
+use RoundlyConsulting\Workflows\Support\Pauses;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 
@@ -28,6 +31,8 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  * (which restores the owner context — wake never evaluates anything about a subject itself),
  * then the schedule triggers. Every claim is a compare-and-set, so overlapping wakes are safe.
  * A given `$now` is the time of the whole pass: what is reclaimed, the claim stamps, the slots.
+ * The due rows of a paused owner (`Contracts\OwnerState`) are left pending, so they fire once on
+ * the first pass after the pause ends; its schedule slots are skipped.
  */
 final readonly class WakeAction
 {
@@ -38,6 +43,7 @@ final readonly class WakeAction
         private EvaluateSchedulesAction $schedules,
         private EngineQueue $queue,
         private Repository $cache,
+        private Pauses $pauses,
     ) {}
 
     public function execute(?CarbonInterface $now = null, ?int $limit = null): WakeReport
@@ -47,8 +53,9 @@ final readonly class WakeAction
 
         $reclaimed = $this->reclaim->execute($now);
         $counts = ['timer' => 0, 'retry' => 0, 'timeout' => 0, 'condition' => 0];
+        $paused = $this->pauses->pausedInstances($this->dueWaits($now)->select('instance_id'), $this->dueEscalations($now)->select('instance_id'));
 
-        foreach ($this->claimWaits($now, $batch) as $wait) {
+        foreach ($this->claimWaits($now, $batch, $paused) as $wait) {
             $counts[$wait->kind->value] = ($counts[$wait->kind->value] ?? 0) + 1;
 
             match ($wait->kind) {
@@ -61,7 +68,7 @@ final readonly class WakeAction
 
         $escalations = 0;
 
-        foreach ($this->claimEscalations($now, $batch) as $escalation) {
+        foreach ($this->claimEscalations($now, $batch, $paused) as $escalation) {
             $escalations++;
             $this->queue->escalate(Keys::of($escalation));
         }
@@ -83,16 +90,40 @@ final readonly class WakeAction
     }
 
     /**
-     * @return list<WorkflowWait>
+     * @return Builder<WorkflowWait>
      */
-    private function claimWaits(CarbonImmutable $now, int $batch): array
+    private function dueWaits(CarbonImmutable $now): Builder
     {
         $model = WorkflowModels::wait();
 
-        $ids = $model::query()
+        return $model::query()
             ->where('status', WaitStatus::Pending->value)
             ->whereIn('kind', [WaitKind::Timer->value, WaitKind::Retry->value, WaitKind::Timeout->value, WaitKind::Condition->value])
-            ->where('due_at', '<=', Clock::format($now))
+            ->where('due_at', '<=', Clock::format($now));
+    }
+
+    /**
+     * @return Builder<WorkflowEscalation>
+     */
+    private function dueEscalations(CarbonImmutable $now): Builder
+    {
+        $model = WorkflowModels::escalation();
+
+        return $model::query()
+            ->where('status', EscalationStatus::Pending->value)
+            ->where('due_at', '<=', Clock::format($now));
+    }
+
+    /**
+     * @param  Builder<WorkflowInstance>|null  $paused
+     * @return list<WorkflowWait>
+     */
+    private function claimWaits(CarbonImmutable $now, int $batch, ?Builder $paused): array
+    {
+        $model = WorkflowModels::wait();
+
+        $ids = $this->dueWaits($now)
+            ->when($paused !== null, static fn (Builder $query): Builder => $query->whereNotIn('instance_id', $paused))
             ->orderBy('due_at')
             ->limit($batch)
             ->pluck('id')
@@ -113,15 +144,15 @@ final readonly class WakeAction
     }
 
     /**
+     * @param  Builder<WorkflowInstance>|null  $paused
      * @return list<WorkflowEscalation>
      */
-    private function claimEscalations(CarbonImmutable $now, int $batch): array
+    private function claimEscalations(CarbonImmutable $now, int $batch, ?Builder $paused): array
     {
         $model = WorkflowModels::escalation();
 
-        $ids = $model::query()
-            ->where('status', EscalationStatus::Pending->value)
-            ->where('due_at', '<=', Clock::format($now))
+        $ids = $this->dueEscalations($now)
+            ->when($paused !== null, static fn (Builder $query): Builder => $query->whereNotIn('instance_id', $paused))
             ->orderBy('due_at')
             ->limit($batch)
             ->pluck('id')

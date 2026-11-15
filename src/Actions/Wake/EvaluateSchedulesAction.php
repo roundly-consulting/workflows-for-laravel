@@ -22,6 +22,7 @@ use RoundlyConsulting\Workflows\Support\Definitions;
 use RoundlyConsulting\Workflows\Support\Engine\Runtime;
 use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\Owners;
+use RoundlyConsulting\Workflows\Support\Pauses;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
 use RoundlyConsulting\Workflows\Support\ValueScope;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
@@ -34,7 +35,8 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  * runs once, a skipped one not at all, and a version published mid-minute never double-starts.
  * A `for_each` schedule starts one instance per matching subject of the definition's subject
  * type per slot (keyed by the slot and the subject), owner-scoped and bounded by `wake.batch`; the
- * subjects are read, and `where` evaluated, inside the owner's context.
+ * subjects are read, and `where` evaluated, inside the owner's context. A paused owner's slots are
+ * skipped (the cursor still moves), so nothing is replayed when the pause ends.
  *
  * @internal
  */
@@ -45,6 +47,7 @@ final readonly class EvaluateSchedulesAction
         private SubjectRegistry $subjects,
         private Owners $owners,
         private RestoresOwnerContext $context,
+        private Pauses $pauses,
     ) {}
 
     public function execute(CarbonImmutable $now): int
@@ -98,7 +101,10 @@ final readonly class EvaluateSchedulesAction
             $version->schedule_cursor_at = $now;
             $version->save();
 
-            if ($cron === null) {
+            $owner = Definitions::owner($locked);
+
+            // The cursor has moved on: a paused owner's slots are skipped, never replayed.
+            if ($cron === null || $this->pauses->isPaused($owner)) {
                 return 0;
             }
 
@@ -110,7 +116,6 @@ final readonly class EvaluateSchedulesAction
 
             $key = 'schedule:'.Keys::string($locked).':'.$slot->format('Y-m-d\TH:i').' '.$timezone;
             $payload = ['slot' => $slot->format('Y-m-d\TH:i'), 'timezone' => $timezone, 'at' => Clock::utc($slot)->toIso8601String()];
-            $owner = Definitions::owner($locked);
 
             if (! is_array($version->trigger['for_each'] ?? null)) {
                 return $this->start($locked->key, $owner, null, $key, $payload);
@@ -158,7 +163,7 @@ final readonly class EvaluateSchedulesAction
      */
     private function subjects(WorkflowDefinition $definition, WorkflowVersion $version, ?Model $owner, CarbonImmutable $now, string $timezone): array
     {
-        $type = $definition->subject_key === null ? null : $this->subjects->find($definition->subject_key);
+        $type = $definition->subject_key === null ? null : $this->subjects->find($definition->subject_key)?->forOwner($owner);
         $forEach = is_array($version->trigger['for_each'] ?? null) ? $version->trigger['for_each'] : [];
         $where = is_array($forEach['where'] ?? null) ? $forEach['where'] : null;
         $limit = min(is_int($forEach['limit'] ?? null) ? $forEach['limit'] : PHP_INT_MAX, WorkflowsConfig::wakeBatch());
@@ -167,6 +172,7 @@ final readonly class EvaluateSchedulesAction
             return [];
         }
 
+        $ownerType = $owner === null ? null : $this->subjects->forModel($owner)?->forOwner($owner);
         $class = $type->model;
         $matches = [];
 
@@ -175,7 +181,7 @@ final readonly class EvaluateSchedulesAction
                 continue;
             }
 
-            $scope = new ValueScope($subject, $type, $owner, $owner === null ? null : $this->subjects->forModel($owner), [], [], static fn (string $node): ?array => null, $now, $timezone);
+            $scope = new ValueScope($subject, $type, $owner, $ownerType, [], [], static fn (string $node): ?array => null, $now, $timezone);
 
             if ($where !== null && ! Evaluator::evaluate($where, $scope)) {
                 continue;

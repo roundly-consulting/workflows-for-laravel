@@ -9,6 +9,8 @@ use RoundlyConsulting\Workflows\Enums\FieldType;
 /**
  * One registered field of a subject type: what conditions, pickers and set_field may use.
  * `path` (attribute or dotted relation) is how it is read; only registered fields are ever read.
+ * A `dynamic` field came from the type's `dynamicFields()` resolver for one owner: it is read
+ * through the model's `ResolvesWorkflowFields` when it has one, and is never writable.
  */
 final readonly class FieldDefinition
 {
@@ -22,6 +24,7 @@ final readonly class FieldDefinition
         public bool $writable = false,
         public array $options = [],
         public ?string $path = null,
+        public bool $dynamic = false,
     ) {}
 
     public function path(): string

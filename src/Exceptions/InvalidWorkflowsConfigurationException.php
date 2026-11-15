@@ -51,4 +51,13 @@ final class InvalidWorkflowsConfigurationException extends PackageToolkitExcepti
     {
         return new self(sprintf('The %s key does not match configuration value [%s] (%s). Set [%s] to the key type of %s.', $model, $key, $type, $key, $model));
     }
+
+    /**
+     * A subject type's `dynamicFields()` resolver returned something that is not a field: a
+     * value other than a FieldDefinition, or a field whose name is not a field key.
+     */
+    public static function invalidDynamicFields(string $type): self
+    {
+        return new self(sprintf('The dynamicFields() resolver of subject type [%s] must return a list of FieldDefinition objects named like field() names (a-z, 0-9, _).', $type));
+    }
 }

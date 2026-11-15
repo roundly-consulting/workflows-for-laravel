@@ -20,6 +20,9 @@ use RoundlyConsulting\Workflows\Tests\Fixtures\App\Models\User;
 use RoundlyConsulting\Workflows\Tests\Readme\ReadmeTestCase;
 use RoundlyConsulting\Workflows\Tests\Sentinel\SentinelTestCase;
 use RoundlyConsulting\Workflows\Tests\TestCase;
+use RoundlyConsulting\Workflows\Tests\UlidOwners\Fixtures\Tenant;
+use RoundlyConsulting\Workflows\Tests\UlidOwners\Fixtures\Ticket;
+use RoundlyConsulting\Workflows\Tests\UlidOwners\UlidOwnersTestCase;
 use RoundlyConsulting\Workflows\Tests\Webhooks\WebhooksTestCase;
 use RoundlyConsulting\Workflows\Tests\WebhooksTeams\WebhooksTeamsTestCase;
 
@@ -181,6 +184,42 @@ function missingId(): int|string
 function workflowJson(string $name): array
 {
     return json_decode((string) file_get_contents(__DIR__.'/Fixtures/workflows/'.$name.'.json'), true, flags: JSON_THROW_ON_ERROR);
+}
+
+// ULID-keyed owners and subjects (tenants and tickets): core only, no bridge package.
+uses(UlidOwnersTestCase::class)->in('UlidOwners');
+
+/**
+ * @param  list<array{name: string, type: string, label: string}>  $fields
+ * @param  array<string, mixed>  $attributes
+ */
+function tenant(string $name = 'Acme', array $fields = [], array $attributes = []): Tenant
+{
+    return Tenant::query()->create(['name' => $name, 'custom_fields' => $fields, ...$attributes]);
+}
+
+/**
+ * @param  array<string, mixed>  $attributes
+ */
+function ticket(Tenant $tenant, array $attributes = []): Ticket
+{
+    return Ticket::query()->create(['tenant_id' => $tenant->id, 'title' => 'Broken printer', ...$attributes]);
+}
+
+/**
+ * A manual flow branching on a condition: `high` when it holds, `low` otherwise.
+ *
+ * @param  array<string, mixed>  $when
+ * @return array<string, mixed>
+ */
+function branching(array $when): array
+{
+    return graph([
+        node('start', 'trigger', ['trigger' => 'manual']),
+        node('check', 'condition', ['when' => $when]),
+        node('high', 'end'),
+        node('low', 'end'),
+    ], [['start', 'check'], ['check', 'high', 'true'], ['check', 'low', 'false']]);
 }
 
 uses(SentinelTestCase::class)->group('bridges')->in('Sentinel');

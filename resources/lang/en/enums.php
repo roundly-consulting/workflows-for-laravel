@@ -169,6 +169,7 @@ return [
         'unknown_form' => 'Unknown form',
         'unknown_webhook_event' => 'Unknown webhook event',
         'webhook_endpoint_taken' => 'Webhook endpoint taken',
+        'approvers_excluded' => 'Every approver excluded',
     ],
     'doctor_level' => [
         'ok' => 'OK',

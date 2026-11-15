@@ -38,6 +38,7 @@ use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\KeyTypes;
 use RoundlyConsulting\Workflows\Support\Messages;
 use RoundlyConsulting\Workflows\Support\Owners;
+use RoundlyConsulting\Workflows\Support\Pauses;
 use RoundlyConsulting\Workflows\Support\StepInputs;
 use RoundlyConsulting\Workflows\Support\SubjectRegistry;
 use RoundlyConsulting\Workflows\Support\TriggerForms;
@@ -49,7 +50,7 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 /**
  * Starts one instance of a definition's current version, inside the instance owner's context:
  * the trigger type must be this start path's, the subject must be of the definition's subject
- * type and belong to its owner, the input is validated, the trigger condition is evaluated, then —
+ * type and belong to its owner (who must not be paused), the input is validated, the trigger condition is evaluated, then —
  * under the definition row lock — the idempotency key (one instance per key), the start-rate
  * limit, the instance, its completed trigger step and the first queued step.
  */
@@ -66,6 +67,7 @@ final readonly class StartInstanceAction
         private Owners $owners,
         private Advancer $advancer,
         private TriggerForms $forms,
+        private Pauses $pauses,
     ) {}
 
     public function execute(StartData $data): StartResult
@@ -73,6 +75,9 @@ final readonly class StartInstanceAction
         $definition = Definitions::find($data->key, $data->owner);
         $definitionOwner = Definitions::owner($definition);
         $instanceOwner = $definitionOwner ?? ($data->subject === null ? null : $this->owners->ownerOf($data->subject));
+
+        // Every start path (manual, event, webhook, schedule, child) comes through here.
+        $this->pauses->assertActive($instanceOwner, $definition->key);
 
         return $this->context->run($instanceOwner, fn (): StartResult => $this->start($definition, $data, $definitionOwner, $instanceOwner));
     }
@@ -226,9 +231,9 @@ final readonly class StartInstanceAction
 
         $scope = new ValueScope(
             subject: $data->subject,
-            subjectType: $data->subject === null ? null : $this->subjects->forModel($data->subject),
+            subjectType: $data->subject === null ? null : $this->subjects->forModel($data->subject)?->forOwner($owner),
             owner: $owner,
-            ownerType: $owner === null ? null : $this->subjects->forModel($owner),
+            ownerType: $owner === null ? null : $this->subjects->forModel($owner)?->forOwner($owner),
             input: $input,
             trigger: $data->payload,
             outputs: static fn (string $node): ?array => null,

@@ -69,7 +69,9 @@ final readonly class ValidateGraphAction
             }
         }
 
-        $ownerDefinition = $owner === null ? null : $this->subjects->forModel($owner);
+        // Per-owner (dynamic) fields count for the owner the graph is validated for.
+        $subjectDefinition = $subjectDefinition?->forOwner($owner);
+        $ownerDefinition = $owner === null ? null : $this->subjects->forModel($owner)?->forOwner($owner);
         $trigger = $parsed->trigger();
 
         $scope = new ValidationScope(

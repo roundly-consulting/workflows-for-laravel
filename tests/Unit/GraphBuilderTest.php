@@ -166,6 +166,7 @@ it('writes every built-in step type', function (): void {
         ->startWorkflow('child', 'helper', subject: ['field' => 'subject.requester'], input: ['reason' => 'x'], wait: true)
         ->startWorkflow('same', 'helper')
         ->approval('board', stages: [Stage::named('Board')->from(Party::role('board'))->any()], preset: 'board')
+        ->approval('own', approvers: [Party::role('cfo')], exclude: [Party::triggeredBy(), Party::field('subject.requester')])
         ->notify('tell', 'doc.ready', Party::triggeredBy(), data: ['n' => 1])
         ->webhook('send', 12, 'doc.ready', ['priority' => Ref::input('priority')])->webhook('ping', 'erp', 'doc.ping')
         ->end('fail', 'failed', 'No budget')
@@ -188,6 +189,7 @@ it('writes every built-in step type', function (): void {
             'child' => ['definition' => 'helper', 'subject' => ['field' => 'subject.requester'], 'input' => ['reason' => 'x'], 'wait' => true],
             'same' => ['definition' => 'helper'],
             'board' => ['stages' => [['name' => 'Board', 'approvers' => [['kind' => 'role', 'role' => 'board']], 'rule' => 'any']], 'preset' => 'board'],
+            'own' => ['approvers' => [['kind' => 'role', 'role' => 'cfo']], 'rule' => 'any', 'exclude' => [['kind' => 'triggered_by'], ['kind' => 'field', 'field' => 'subject.requester']]],
             'tell' => ['notification' => 'doc.ready', 'recipients' => [['kind' => 'triggered_by']], 'data' => ['n' => 1]],
             'send' => ['endpoint' => 12, 'event' => 'doc.ready', 'payload' => ['priority' => ['ref' => 'input.priority']]],
             'ping' => ['endpoint' => 'erp', 'event' => 'doc.ping'],

@@ -28,7 +28,8 @@ final class ConditionWaits
     {
         $type = app(SubjectRegistry::class)->forModel($subject);
 
-        if ($type === null) {
+        // A dynamic field is read through the model's own resolver: any change may move it.
+        if ($type === null || $type->hasDynamicFields()) {
             return true;
         }
 

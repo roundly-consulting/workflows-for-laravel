@@ -45,4 +45,5 @@ return [
     'unknown_form' => 'Formulár „:form“ neexistuje.',
     'unknown_webhook_event' => 'Typ webhookovej udalosti „:event“ nie je medzi povolenými typmi udalostí.',
     'webhook_endpoint_taken' => 'Webhookový koncový bod „:endpoint“ už spúšťa pracovný postup „:definition“.',
+    'approvers_excluded' => 'Každý schvaľovateľ v :path je zároveň vylúčený, takže by nikto nemohol rozhodnúť.',
 ];

@@ -43,6 +43,7 @@ return [
     'unknown_definition_app_wide' => 'The workflow ":key" was not found among the app-wide workflows.',
     'unknown_definition_endpoint' => 'No active workflow starts from the webhook endpoint ":endpoint".',
     'endpoint_owner_mismatch' => 'The webhook endpoint and the workflow belong to different owners.',
+    'owner_paused' => 'The workflow ":key" cannot start: its owner is paused.',
     'unknown_step_type_suggest' => 'The step type ":key" is not registered. Did you mean ":suggestion"?',
     'unknown_step_type_package' => 'The step type ":key" needs :package.',
     'unknown_subject_type_suggest' => 'The subject type ":key" is not registered. Did you mean ":suggestion"?',

@@ -15,6 +15,7 @@ use RoundlyConsulting\Workflows\Support\Engine\Advancer;
 use RoundlyConsulting\Workflows\Support\Engine\EngineQueue;
 use RoundlyConsulting\Workflows\Support\Engine\Runtime;
 use RoundlyConsulting\Workflows\Support\Events;
+use RoundlyConsulting\Workflows\Support\Pauses;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 
 /**
@@ -22,6 +23,7 @@ use RoundlyConsulting\Workflows\Support\WorkflowModels;
  * the same idempotency key (so an effect recorded with `once()` is not repeated). A step whose
  * `resume()` failed is resumed again with the signal it received; one whose `handle()` failed runs
  * `handle()` again. The attempt cap does not apply; on success the instance resumes from that node.
+ * A paused owner's instance is not retried (OwnerPausedException).
  */
 final readonly class RetryInstanceAction
 {
@@ -29,11 +31,16 @@ final readonly class RetryInstanceAction
         private RestoresOwnerContext $context,
         private Advancer $advancer,
         private EngineQueue $queue,
+        private Pauses $pauses,
     ) {}
 
     public function execute(WorkflowInstance $instance): WorkflowInstance
     {
-        return $this->context->run(Runtime::owner($instance), fn (): WorkflowInstance => $this->retry($instance));
+        $owner = Runtime::owner($instance);
+
+        $this->pauses->assertActive($owner, $instance->definition->key ?? '');
+
+        return $this->context->run($owner, fn (): WorkflowInstance => $this->retry($instance));
     }
 
     private function retry(WorkflowInstance $instance): WorkflowInstance

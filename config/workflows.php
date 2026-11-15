@@ -174,6 +174,9 @@ return [
         'context' => null,
         // class-string<Contracts\ChecksOwnerMembership>; null = teams when installed, else allow.
         'membership' => null,
+        // class-string<Contracts\OwnerState>: pauses an owner's runs (wake holds its waits and
+        // escalations, skips its schedules; starts throw OwnerPausedException). null = never paused.
+        'state' => null,
     ],
 
     'parties' => [
@@ -212,6 +215,13 @@ return [
         'lifecycle' => [
             // Emit `lifecycle.<lifecycle>.<transition>` for every lifecycle state change.
             'emit_transitions' => env('WORKFLOWS_LIFECYCLE_EMIT_TRANSITIONS', 'off'),
+        ],
+        'notifications' => [
+            // The context `notify` steps and escalations file inbox items under: 'owner' (the
+            // instance owner), 'off' (none, as before 1.3) or a class-string of
+            // Contracts\ResolvesNotificationContext. An owner whose key the notifications
+            // context columns cannot hold is sent without a context.
+            'context' => env('WORKFLOWS_NOTIFICATIONS_CONTEXT', 'owner'),
         ],
         'webhooks' => [
             // The inbound handler alias registered with webhooks-for-laravel: point an inbound

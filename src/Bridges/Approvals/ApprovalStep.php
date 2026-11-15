@@ -32,13 +32,16 @@ use RoundlyConsulting\Workflows\Support\Engine\Runtime;
 use RoundlyConsulting\Workflows\Support\Engine\Waits;
 use RoundlyConsulting\Workflows\Support\Keys;
 use RoundlyConsulting\Workflows\Support\Messages;
+use RoundlyConsulting\Workflows\Support\PartyResolver;
 use RoundlyConsulting\Workflows\Support\PartyValidator;
 use RoundlyConsulting\Workflows\Support\WorkflowModels;
 use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 
 /**
  * `{stages: [{name, approvers, rule, quorum?, required?}]}`, `{approvers, rule, quorum?}` or
- * `{preset, approvers: [parties per stage]}`, plus `expires_in?` and `continue_on_rejection?`:
+ * `{preset, approvers: [parties per stage]}`, plus `expires_in?`, `continue_on_rejection?` and
+ * `exclude?` (parties that may never decide — the starter, the subject's creator — passed to
+ * approvals' `excluding()` and dropped from every approver list, reassignments included):
  * opens an approvals-for-laravel round (once per visit) and waits for it to resolve. Parties that
  * resolve to nobody fail `no_approvers` — never "anyone may decide". A timer at the expiry plus
  * `approval.expiry_grace` is the safety net for a lost resolution event.
@@ -111,6 +114,7 @@ final class ApprovalStep extends BuiltinStep
                 'preset' => ['type' => 'string', 'minLength' => 1, 'maxLength' => 100],
                 'expires_in' => ['$ref' => '#/$defs/duration'],
                 'continue_on_rejection' => ['type' => 'boolean'],
+                'exclude' => ['$ref' => '#/$defs/parties'],
             ],
         ];
     }
@@ -130,10 +134,15 @@ final class ApprovalStep extends BuiltinStep
         }
 
         $errors = [];
+        $exclude = $config['exclude'] ?? null;
+
+        if ($exclude !== null) {
+            $errors = PartyValidator::validate($exclude, $scope, '/exclude');
+        }
 
         if (is_array($config['stages'] ?? null)) {
             foreach ($config['stages'] as $index => $stage) {
-                $errors = [...$errors, ...PartyValidator::validate(is_array($stage) ? ($stage['approvers'] ?? null) : null, $scope, '/stages/'.$index.'/approvers')];
+                $errors = [...$errors, ...$this->approvers(is_array($stage) ? ($stage['approvers'] ?? null) : null, $exclude, $scope, '/stages/'.$index.'/approvers')];
             }
 
             return $errors;
@@ -141,13 +150,50 @@ final class ApprovalStep extends BuiltinStep
 
         if (isset($config['preset'])) {
             foreach (is_array($config['approvers'] ?? null) ? $config['approvers'] : [] as $index => $parties) {
-                $errors = [...$errors, ...PartyValidator::validate($parties, $scope, '/approvers/'.$index)];
+                $errors = [...$errors, ...$this->approvers($parties, $exclude, $scope, '/approvers/'.$index)];
             }
 
             return $errors;
         }
 
-        return PartyValidator::validate($config['approvers'] ?? null, $scope, '/approvers');
+        return [...$errors, ...$this->approvers($config['approvers'] ?? null, $exclude, $scope, '/approvers')];
+    }
+
+    /**
+     * An approver list's checks, plus: a list whose every party is also excluded could never be
+     * decided by anyone, which publish refuses rather than failing `no_approvers` at run time.
+     *
+     * @return list<ValidationError>
+     */
+    private function approvers(mixed $parties, mixed $exclude, ValidationScope $scope, string $path): array
+    {
+        $errors = PartyValidator::validate($parties, $scope, $path);
+
+        if ($errors !== [] || ! is_array($parties) || $parties === [] || ! is_array($exclude)) {
+            return $errors;
+        }
+
+        $excluded = array_filter(array_map(self::partyKey(...), $exclude), is_string(...));
+
+        foreach ($parties as $party) {
+            $key = self::partyKey($party);
+
+            if ($key === null || ! in_array($key, $excluded, true)) {
+                return [];
+            }
+        }
+
+        return [ValidationError::make(ValidationCode::ApproversExcluded, node: $scope->node?->id, path: $path)];
+    }
+
+    /**
+     * One party reference as a comparable string (`kind|id|field|role`), or null for a non-party.
+     */
+    private static function partyKey(mixed $party): ?string
+    {
+        $reference = PartyReference::fromPayload($party);
+
+        return $reference === null ? null : implode('|', [$reference->kind, (string) $reference->id, (string) $reference->field, (string) $reference->role]);
     }
 
     public function handle(StepContext $context): StepResult
@@ -240,7 +286,7 @@ final class ApprovalStep extends BuiltinStep
             $name = $stage->name;
 
             $context->once('replace:'.Keys::of($old).':'.Keys::of($stage), function () use ($context, $subject, $old, $name, $to): bool {
-                $this->approvals->for($subject)->within($old)->replaceApprovers($name, $this->resolve($context, $to));
+                $this->approvals->for($subject)->within($old)->replaceApprovers($name, $this->resolve($context, $to, $this->excluded($context, $context->config())));
 
                 return true;
             });
@@ -288,14 +334,21 @@ final class ApprovalStep extends BuiltinStep
     private function open(StepContext $context, Model $subject, array $config, ?CarbonImmutable $expiresAt, ?array $replace): ApprovalRequest
     {
         $pending = $this->approvals->request($subject);
+        $excluded = $this->excluded($context, $config);
 
         if ($expiresAt !== null) {
             $pending->expiringAt($expiresAt);
         }
 
+        // Only when someone is excluded: an exclusion list is written to approvals' guard columns
+        // (its 0008 migration), which a round without one never touches.
+        if ($excluded !== []) {
+            $pending->excluding($excluded);
+        }
+
         try {
             if (is_array($config['stages'] ?? null) || ($replace !== null && $replace['from']->staged)) {
-                $stages = $this->stages($context, $config, $replace);
+                $stages = $this->stages($context, $config, $replace, $excluded);
 
                 if (($config['continue_on_rejection'] ?? false) === true) {
                     $pending->continueOnRejection();
@@ -308,13 +361,13 @@ final class ApprovalStep extends BuiltinStep
                 $lists = [];
 
                 foreach (is_array($config['approvers'] ?? null) ? $config['approvers'] : [] as $parties) {
-                    $lists[] = $this->resolve($context, PartyReference::listFrom($parties));
+                    $lists[] = $this->resolve($context, PartyReference::listFrom($parties), $excluded);
                 }
 
                 return $pending->workflow($config['preset'])->open($lists);
             }
 
-            $approvers = $this->resolve($context, $replace['parties'] ?? PartyReference::listFrom($config['approvers'] ?? []));
+            $approvers = $this->resolve($context, $replace['parties'] ?? PartyReference::listFrom($config['approvers'] ?? []), $excluded);
             $rule = ApprovalRule::tryFrom(is_string($config['rule'] ?? null) ? $config['rule'] : 'any') ?? ApprovalRule::Any;
             $quorum = is_int($config['quorum'] ?? null) ? min($config['quorum'], count($approvers)) : null;
 
@@ -327,9 +380,10 @@ final class ApprovalStep extends BuiltinStep
     /**
      * @param  array<string, mixed>  $config
      * @param  array{parties: list<PartyReference>, from: ApprovalRequest}|null  $replace
+     * @param  list<Model>  $excluded
      * @return list<StageDefinition>
      */
-    private function stages(StepContext $context, array $config, ?array $replace): array
+    private function stages(StepContext $context, array $config, ?array $replace, array $excluded): array
     {
         $configured = is_array($config['stages'] ?? null) ? array_values($config['stages']) : [];
         $start = 0;
@@ -354,7 +408,7 @@ final class ApprovalStep extends BuiltinStep
             }
 
             $parties = $replace !== null && $index === 0 ? $replace['parties'] : PartyReference::listFrom($stage['approvers'] ?? []);
-            $approvers = $this->resolve($context, $parties);
+            $approvers = $this->resolve($context, $parties, $excluded);
             $rule = ApprovalRule::tryFrom(is_string($stage['rule'] ?? null) ? $stage['rule'] : 'any') ?? ApprovalRule::Any;
             $quorum = is_int($stage['quorum'] ?? null) ? min($stage['quorum'], count($approvers)) : null;
             $required = is_int($stage['required'] ?? null) ? min($stage['required'], count($approvers)) : null;
@@ -366,18 +420,39 @@ final class ApprovalStep extends BuiltinStep
     }
 
     /**
+     * The approvers, without anyone excluded from deciding (approvals refuses naming one).
+     *
      * @param  list<PartyReference>  $parties
+     * @param  list<Model>  $excluded
      * @return list<Model>
      */
-    private function resolve(StepContext $context, array $parties): array
+    private function resolve(StepContext $context, array $parties, array $excluded): array
     {
-        $approvers = $context->parties($parties);
+        $out = array_map(PartyResolver::identity(...), $excluded);
+        $approvers = array_values(array_filter(
+            $context->parties($parties),
+            static fn (Model $approver): bool => ! in_array(PartyResolver::identity($approver), $out, true),
+        ));
 
         if ($approvers === []) {
             throw StepFailedException::because(FailureCode::NoApprovers, Messages::get('failures.no_approvers'));
         }
 
         return $approvers;
+    }
+
+    /**
+     * The actors `exclude` names. Unlike approvers they are not filtered by owner membership: a
+     * non-member requester must stay excluded all the same.
+     *
+     * @param  array<string, mixed>  $config
+     * @return list<Model>
+     */
+    private function excluded(StepContext $context, array $config): array
+    {
+        $parties = PartyReference::listFrom($config['exclude'] ?? []);
+
+        return $parties === [] ? [] : app(PartyResolver::class)->resolve($parties, $context->scope(), members: false);
     }
 
     private function spec(int|string $id, ?CarbonImmutable $expiresAt): WaitSpec

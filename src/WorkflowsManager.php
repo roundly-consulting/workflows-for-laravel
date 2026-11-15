@@ -29,6 +29,7 @@ use RoundlyConsulting\Workflows\Handles\CatalogueAccessor;
 use RoundlyConsulting\Workflows\Handles\DefinitionHandle;
 use RoundlyConsulting\Workflows\Handles\DefinitionsAccessor;
 use RoundlyConsulting\Workflows\Handles\InstancesAccessor;
+use RoundlyConsulting\Workflows\Handles\OwnersAccessor;
 use RoundlyConsulting\Workflows\Handles\SchemaAccessor;
 use RoundlyConsulting\Workflows\Handles\SubjectHandle;
 use RoundlyConsulting\Workflows\Handles\SubjectsAccessor;
@@ -123,6 +124,14 @@ class WorkflowsManager
     public function instances(): InstancesAccessor
     {
         return new InstancesAccessor($this);
+    }
+
+    /**
+     * Owner-wide: the GDPR / company export and the pause state.
+     */
+    public function owners(): OwnersAccessor
+    {
+        return new OwnersAccessor($this);
     }
 
     public function catalogue(): CatalogueAccessor

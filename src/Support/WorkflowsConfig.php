@@ -15,6 +15,8 @@ use RoundlyConsulting\PackageToolkit\Support\ConfigValidator;
 use RoundlyConsulting\Workflows\Contracts\AuthorizesSteps;
 use RoundlyConsulting\Workflows\Contracts\ChecksOwnerMembership;
 use RoundlyConsulting\Workflows\Contracts\DeliversWebhooks;
+use RoundlyConsulting\Workflows\Contracts\OwnerState;
+use RoundlyConsulting\Workflows\Contracts\ResolvesNotificationContext;
 use RoundlyConsulting\Workflows\Contracts\ResolvesRoles;
 use RoundlyConsulting\Workflows\Contracts\RestoresOwnerContext;
 use RoundlyConsulting\Workflows\Contracts\TransitionAdapter;
@@ -422,6 +424,14 @@ final class WorkflowsConfig
         return self::implementation('workflows.owners.membership', ChecksOwnerMembership::class);
     }
 
+    /**
+     * @return class-string<OwnerState>|null
+     */
+    public static function ownerState(): ?string
+    {
+        return self::implementation('workflows.owners.state', OwnerState::class);
+    }
+
     public static function partiesUserModel(): ?string
     {
         $model = self::reader()->optionalString('workflows.parties.user_model');
@@ -534,6 +544,35 @@ final class WorkflowsConfig
         }
 
         return $alias;
+    }
+
+    /**
+     * What the notify step and the `notify` escalation file inbox items under: `owner` (the
+     * instance owner, the default), null (no context, as before 1.3) or a
+     * ResolvesNotificationContext class. A host that published its config before this key existed
+     * keeps the default; null, false, `off` or `none` switches it off; a blank value is the default.
+     *
+     * @return 'owner'|class-string<ResolvesNotificationContext>|null
+     */
+    public static function notificationsContext(): ?string
+    {
+        $bridges = config('workflows.bridges');
+
+        if (! is_array($bridges) || ! is_array($bridges['notifications'] ?? null) || ! array_key_exists('context', $bridges['notifications'])) {
+            return 'owner';
+        }
+
+        $value = config('workflows.bridges.notifications.context');
+
+        if ($value === null || $value === false || (is_string($value) && in_array(strtolower(trim($value)), ['off', 'none'], true))) {
+            return null;
+        }
+
+        if (is_string($value) && in_array(strtolower(trim($value)), ['', 'owner'], true)) {
+            return 'owner';
+        }
+
+        return self::implementation('workflows.bridges.notifications.context', ResolvesNotificationContext::class);
     }
 
     public static function dryRunLog(): bool

@@ -9,6 +9,7 @@ use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use RoundlyConsulting\Workflows\Contracts\ResolvesWorkflowFields;
 use RoundlyConsulting\Workflows\DataTransferObjects\FieldDefinition;
 use RoundlyConsulting\Workflows\Enums\FieldType;
 use Throwable;
@@ -17,7 +18,8 @@ use Throwable;
  * Reads a registered field off a model: its registered path (an attribute or a dotted relation),
  * normalised by type — enums as their backed value, dates in the version timezone (a date at
  * midnight keeps its stored calendar day), decimals as
- * exact strings, parties as models. An unregistered path is never read.
+ * exact strings, parties as models. An unregistered path is never read. A dynamic field (from a
+ * type's `dynamicFields()`) is read through the model's `ResolvesWorkflowFields` when it has one.
  *
  * @internal
  */
@@ -25,6 +27,10 @@ final class FieldReader
 {
     public static function read(Model $model, FieldDefinition $field, string $timezone): mixed
     {
+        if ($field->dynamic && $model instanceof ResolvesWorkflowFields) {
+            return self::normalize($model->resolveWorkflowField($field), $field->type, $timezone);
+        }
+
         $current = $model;
         $segments = explode('.', $field->path());
         $last = array_pop($segments);

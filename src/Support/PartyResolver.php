@@ -27,15 +27,16 @@ final readonly class PartyResolver
 
     /**
      * @param  list<PartyReference>  $parties
+     * @param  bool  $members  false: keep non-members too (who to exclude, not who to ask)
      * @return list<Model>
      */
-    public function resolve(array $parties, ValueScope $scope): array
+    public function resolve(array $parties, ValueScope $scope, bool $members = true): array
     {
         $resolved = [];
 
         foreach ($parties as $party) {
-            foreach ($this->one($party, $scope) as $model) {
-                $resolved[$model->getMorphClass().':'.Keys::of($model)] = $model;
+            foreach ($this->one($party, $scope, $members) as $model) {
+                $resolved[self::identity($model)] = $model;
             }
         }
 
@@ -43,15 +44,25 @@ final readonly class PartyResolver
     }
 
     /**
+     * A model's identity across morph types: `morph-class:key`.
+     */
+    public static function identity(Model $model): string
+    {
+        return $model->getMorphClass().':'.Keys::of($model);
+    }
+
+    /**
      * @return list<Model>
      */
-    private function one(PartyReference $party, ValueScope $scope): array
+    private function one(PartyReference $party, ValueScope $scope, bool $members): array
     {
+        $only = fn (?Model $user): array => $members ? $this->members($scope, $user) : ($user === null ? [] : [$user]);
+
         return match ($party->kind) {
-            'user' => $this->members($scope, $this->user($party->id)),
-            'field' => $this->members($scope, $this->field((string) $party->field, $scope)),
+            'user' => $only($this->user($party->id)),
+            'field' => $only($this->field((string) $party->field, $scope)),
             'role' => $this->role((string) $party->role, $scope),
-            'triggered_by' => $this->members($scope, $scope->starter),
+            'triggered_by' => $only($scope->starter),
             default => [],
         };
     }

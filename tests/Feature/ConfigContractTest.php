@@ -13,7 +13,7 @@ const TOOLKIT_21_READS = [
     'workflows.actor.system_user', 'workflows.adapters.transition', 'workflows.adapters.webhooks',
     'workflows.authorization.abilities', 'workflows.authorization.authorizer', 'workflows.business_time.calendar_owner',
     'workflows.business_time.weekdays', 'workflows.limits.max_starts_per_minute', 'workflows.owners.context',
-    'workflows.owners.membership', 'workflows.parties.roles', 'workflows.parties.user_model',
+    'workflows.owners.membership', 'workflows.owners.state', 'workflows.parties.roles', 'workflows.parties.user_model',
     'workflows.queue.connection', 'workflows.queue.queue', 'workflows.resources.owner',
     'workflows.resources.subject', 'workflows.resources.user', 'workflows.retry.default.backoff', 'workflows.timezone',
 ];
