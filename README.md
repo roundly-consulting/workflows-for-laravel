@@ -92,21 +92,6 @@ $result->instance->status;   // InstanceStatus::Running — a queue worker runs 
 Approval, notify, transition, opening-hours and form steps light up when the matching Roundly
 package is installed; everything else works on its own.
 
-### Multi-tenant owners
-
-Fields per owner, deciders an approval must skip, inbox items filed under the owner (the default),
-paused owners (`workflows.owners.state`, an `OwnerState`) and an owner-wide export:
-
-```php
-Workflows::subject('purchase_request', PurchaseRequest::class)
-    ->dynamicFields(fn (?Model $team) => $team?->workflowFields() ?? []);   // list<FieldDefinition>
-
-Workflows::graph()->approval('approve', approvers: [Party::role('manager')],
-    exclude: [Party::triggeredBy(), Party::field('subject.requester')]);    // never decide your own
-
-Workflows::owners()->export($team);   // OwnerExport: definitions (template payloads) + run summaries
-```
-
 <!-- roundly-docs:start -->
 ## Documentation
 
