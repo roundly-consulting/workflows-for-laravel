@@ -6,6 +6,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 
 ## Unreleased
 
+## 1.4.0 - 2026-11-16
+
+### Added
+
+- Failure details. A failing step can attach a JSON object to its failure, such as an agent run's id and stop reason. This replaces encoding them into the code string. `StepResult::fail(string $code, string $message, ?array $details = null)`, `StepFailedException::because(...)->withDetails(array $details)` and `RetryableStepException::because(...)->withDetails(array $details)` (with `details(): ?array` to read them back).
+  - Stored on the attempt (`workflow_step_runs.error_details`, `StepRun::errorDetails()`) and, when the failure fails the instance, on the instance (`workflow_instances.failure_details`, `WorkflowInstance::failureDetails()`). A manual retry clears the instance's details.
+  - Exposed as `InstanceResource` `failure.details` and `StepRunResource` `error.details`, and on the events as `StepFailed::$details` and `InstanceFailed::$details`.
+  - Optional and backward compatible: a failure without details, every earlier failure and every package failure code read `details: null`.
+  - Normalised once, where the details are given. Values that are not plain JSON (objects, models, closures, `INF`/`NAN`, more than 32 levels of nesting, a list at the top) are refused with the new `InvalidFailureDetailsException` (`invalid_failure_details`, 500). Inside a handler that fails the step permanently with code `invalid_failure_details`. Values under secret-looking keys are redacted to `"[redacted]"` at any depth (`password`, `secret`, `credentials`, `cookie`, `authorization`, `*_token`, `api_key`/`private_key`/…, `*_auth`, `session_id`; `input_tokens` and `token_count` are kept). Details larger than the new `workflows.failure_details.max_bytes` (default 4096) become `{"truncated": true, "bytes": n}` and never throw. Invalid UTF-8 is repaired.
+  - The owner export leaves failure details out, like failure messages.
+  - `toHaveFailedWith($code, ?array $details = null)` also compares the details.
+  - `workflows:doctor` warns (`schema`) while the new columns are missing.
+- Host JSON-schema extension prefixes. `workflows.schema.extension_prefixes` (for example `['x-acme-']`) lets step config schemas carry your own annotations beside `x-workflows-*`. Each prefix is `x-…-`; any other is refused as an `InvalidWorkflowsConfigurationException`.
+- Translations (en, sk) for `invalid_failure_details` and `invalid_failure_details_list`.
+
+### Changed
+
+- `InstanceResource` `failure` and `StepRunResource` `error` always carry a `details` key (`null` when there are none).
+
+### Upgrade
+
+- Publish and run the additive migration `0009_add_failure_details_to_workflow_tables`, which adds two nullable `json` columns: `php artisan vendor:publish --tag=workflows-migrations`, then `php artisan migrate`. Until it runs, failures without details still record as before. A step that gives details needs the columns, and `workflows:doctor` warns while they are missing.
+
 ## 1.3.0 - 2026-11-15
 
 ### Added
