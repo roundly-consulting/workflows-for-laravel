@@ -52,6 +52,7 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  * @property string|null $failure_code
  * @property string|null $failure_message
  * @property string|null $failed_node_id
+ * @property array<array-key, mixed>|null $failure_details
  * @property CarbonImmutable|null $started_at
  * @property CarbonImmutable|null $ended_at
  * @property int $lock_version
@@ -89,6 +90,23 @@ class WorkflowInstance extends Model
     public function failure(): FailureCode|string|null
     {
         return $this->failure_code === null ? null : FailureCode::fromStored($this->failure_code);
+    }
+
+    /**
+     * The failing step's structured details (redacted and capped when recorded), or null — also
+     * when the 1.4 `failure_details` column has not been migrated or was not selected.
+     *
+     * @return array<array-key, mixed>|null
+     */
+    public function failureDetails(): ?array
+    {
+        if (! array_key_exists('failure_details', $this->getAttributes())) {
+            return null;
+        }
+
+        $details = $this->getAttribute('failure_details');
+
+        return is_array($details) && $details !== [] ? $details : null;
     }
 
     public function getTable(): string
@@ -206,6 +224,7 @@ class WorkflowInstance extends Model
         return [
             'trigger_type' => TriggerType::class,
             'trigger_payload' => 'array',
+            'failure_details' => 'array',
             'status' => InstanceStatus::class,
             'steps_count' => 'integer',
             'depth' => 'integer',

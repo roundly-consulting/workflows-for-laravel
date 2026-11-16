@@ -43,13 +43,25 @@ final class SchemaValidator
 
     /**
      * Refuse a schema with an unsupported keyword, a remote `$ref`, an unknown format or an
-     * invalid pattern, naming the type key and the keyword.
+     * invalid pattern, naming the type key and the keyword. Annotations under `x-workflows-` and
+     * the `workflows.schema.extension_prefixes` the host adds are kept.
      *
      * @param  array<array-key, mixed>  $schema
      *
      * @throws InvalidStepTypeException
      */
     public static function assertSupported(array $schema, string $typeKey, string $path = '', int $depth = 0): void
+    {
+        self::walk($schema, $typeKey, $path, $depth, WorkflowsConfig::schemaExtensionPrefixes());
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $schema
+     * @param  list<string>  $extensions  the accepted `x-…-` annotation prefixes
+     *
+     * @throws InvalidStepTypeException
+     */
+    private static function walk(array $schema, string $typeKey, string $path, int $depth, array $extensions): void
     {
         if ($depth > self::MAX_DEPTH) {
             throw InvalidStepTypeException::keyword($typeKey, 'depth', $path);
@@ -58,7 +70,7 @@ final class SchemaValidator
         foreach ($schema as $keyword => $value) {
             $keyword = (string) $keyword;
 
-            if (str_starts_with($keyword, 'x-workflows-')) {
+            if (self::extension($keyword, $extensions)) {
                 continue;
             }
 
@@ -76,23 +88,39 @@ final class SchemaValidator
             if (in_array($keyword, ['properties', '$defs'], true) && is_array($value)) {
                 foreach ($value as $name => $child) {
                     if (is_array($child)) {
-                        self::assertSupported($child, $typeKey, $path.'/'.$keyword.'/'.$name, $depth + 1);
+                        self::walk($child, $typeKey, $path.'/'.$keyword.'/'.$name, $depth + 1, $extensions);
                     }
                 }
             }
 
             if (in_array($keyword, ['items', 'additionalProperties'], true) && is_array($value)) {
-                self::assertSupported($value, $typeKey, $path.'/'.$keyword, $depth + 1);
+                self::walk($value, $typeKey, $path.'/'.$keyword, $depth + 1, $extensions);
             }
 
             if (in_array($keyword, ['oneOf', 'anyOf', 'allOf'], true) && is_array($value)) {
                 foreach ($value as $index => $child) {
                     if (is_array($child)) {
-                        self::assertSupported($child, $typeKey, $path.'/'.$keyword.'/'.$index, $depth + 1);
+                        self::walk($child, $typeKey, $path.'/'.$keyword.'/'.$index, $depth + 1, $extensions);
                     }
                 }
             }
         }
+    }
+
+    /**
+     * An annotation under an accepted extension prefix: kept, never validated.
+     *
+     * @param  list<string>  $extensions
+     */
+    private static function extension(string $keyword, array $extensions): bool
+    {
+        foreach ($extensions as $prefix) {
+            if (str_starts_with($keyword, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

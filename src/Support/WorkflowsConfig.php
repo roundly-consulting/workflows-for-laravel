@@ -370,6 +370,29 @@ final class WorkflowsConfig
         return self::reader()->integer('workflows.steps_input.max_bytes', 65536, min: 1024, max: 1048576);
     }
 
+    public static function failureDetailsMaxBytes(): int
+    {
+        return self::reader()->integer('workflows.failure_details.max_bytes', 4096, min: 256, max: 65536);
+    }
+
+    /**
+     * The JSON-schema extension prefixes a step config schema may use beside `x-workflows-`
+     * (always accepted): each `x-`, lowercase letters, digits and dashes, ending in a dash
+     * (`x-acme-`).
+     *
+     * @return list<string>
+     */
+    public static function schemaExtensionPrefixes(): array
+    {
+        $prefixes = self::reader()->list(
+            'workflows.schema.extension_prefixes',
+            [],
+            static fn (string $prefix): bool => preg_match('/^x-[a-z0-9]+(?:-[a-z0-9]+)*-$/', $prefix) === 1,
+        );
+
+        return array_values(array_unique(['x-workflows-', ...$prefixes]));
+    }
+
     public static function escalationsMaxLevels(): int
     {
         return self::reader()->integer('workflows.escalations.max_levels', 5, min: 1, max: 20);

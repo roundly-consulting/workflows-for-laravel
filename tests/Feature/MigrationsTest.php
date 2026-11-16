@@ -29,10 +29,10 @@ $tables = [
     "WorkflowsConfig::table('dry_runs')" => 'workflow_dry_runs',
 ];
 
-it('publishes its eight migrations instead of auto-loading them', function (): void {
+it('publishes its nine migrations instead of auto-loading them', function (): void {
     expect(WorkflowsServiceProvider::class)
         ->toNotAutoLoadMigrations()
-        ->toPublishMigrationsTimestamped('workflows-migrations', 8);
+        ->toPublishMigrationsTimestamped('workflows-migrations', 9);
 });
 
 it('runs its migrations in an order all 13 foreign keys can follow', function () use ($tables): void {
@@ -46,7 +46,7 @@ it('applies on postgres and refuses a broken order there', function (string $key
     config()->set('workflows.primary_key_type', $keyType);
 
     expect(__DIR__.'/../../database/migrations')
-        ->toApplyOnConnection('pgsql', 8)
+        ->toApplyOnConnection('pgsql', 9)
         ->toRejectBrokenOrderOnConnection(static fn (array $files): array => array_reverse($files), 'pgsql');
 })->with(['bigint', 'uuid', 'ulid'])
     ->skip(fn (): bool => ! MigrationRunner::connectionIsAvailable('pgsql'), 'no PostgreSQL connection')->group('real-engine');
@@ -55,7 +55,7 @@ it('applies on mysql and refuses a broken order there', function (string $keyTyp
     config()->set('workflows.primary_key_type', $keyType);
 
     expect(__DIR__.'/../../database/migrations')
-        ->toApplyOnConnection('mysql', 8)
+        ->toApplyOnConnection('mysql', 9)
         ->toRejectBrokenOrderOnConnection(static fn (array $files): array => array_reverse($files), 'mysql');
 })->with(['bigint', 'uuid', 'ulid'])
     ->skip(fn (): bool => ! MigrationRunner::connectionIsAvailable('mysql'), 'no MySQL connection')->group('real-engine');

@@ -141,6 +141,20 @@ return [
         'max_bytes' => 65536,
     ],
 
+    // A failing step may carry structured details (StepResult::fail(..., details: [...]),
+    // StepFailedException::because(...)->withDetails([...])). Values under secret-looking keys
+    // are stored as "[redacted]"; larger details are stored as {"truncated": true, "bytes": n}.
+    'failure_details' => [
+        'max_bytes' => 4096,
+    ],
+
+    'schema' => [
+        // JSON-schema annotation prefixes a step config schema may use beside `x-workflows-`
+        // (always accepted), e.g. ['x-acme-']: `x-`, lowercase letters, digits and dashes,
+        // ending in a dash. Annotations are kept in the catalogue and never validated.
+        'extension_prefixes' => [],
+    ],
+
     'escalations' => [
         'max_levels' => 5,
     ],

@@ -38,6 +38,7 @@ use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
  * @property string|null $error_code
  * @property string|null $error_message
  * @property bool|null $error_retryable
+ * @property array<array-key, mixed>|null $error_details
  * @property string|null $claim_token
  * @property CarbonImmutable|null $lease_until
  * @property CarbonImmutable|null $scheduled_for
@@ -81,6 +82,23 @@ class StepRun extends Model
     }
 
     /**
+     * The attempt's structured failure details (redacted and capped when recorded), or null —
+     * also when the 1.4 `error_details` column has not been migrated or was not selected.
+     *
+     * @return array<array-key, mixed>|null
+     */
+    public function errorDetails(): ?array
+    {
+        if (! array_key_exists('error_details', $this->getAttributes())) {
+            return null;
+        }
+
+        $details = $this->getAttribute('error_details');
+
+        return is_array($details) && $details !== [] ? $details : null;
+    }
+
+    /**
      * @return BelongsTo<WorkflowInstance, $this>
      */
     public function instance(): BelongsTo
@@ -117,6 +135,7 @@ class StepRun extends Model
             'output' => 'array',
             'resume_signal' => 'array',
             'error_retryable' => 'boolean',
+            'error_details' => 'array',
             'lease_until' => UtcDateTime::class,
             'scheduled_for' => UtcDateTime::class,
             'dispatched_at' => UtcDateTime::class,

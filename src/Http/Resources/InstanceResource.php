@@ -11,7 +11,8 @@ use RoundlyConsulting\Workflows\Support\Messages;
 
 /**
  * An instance: definition key, version number, status, subject / owner / starter references,
- * trigger, current node, step count, depth and failure — plus, when loaded (see
+ * trigger, current node, step count, depth and failure (code, message, node and the step's
+ * structured `details`, null when it gave none) — plus, when loaded (see
  * `Workflows::instances()->detail()`), the step log, the pending waits and the pending escalations. An unknown exception's message is never
  * rendered (it routinely carries class names): the generic translated line is.
  *
@@ -48,6 +49,7 @@ final class InstanceResource extends JsonResource
                 'code' => $instance->failure_code,
                 'message' => self::message($instance->failure_code, $instance->failure_message),
                 'node' => $instance->failed_node_id,
+                'details' => $instance->failureDetails(),
             ],
             'started_at' => $instance->started_at?->toIso8601String(),
             'ended_at' => $instance->ended_at?->toIso8601String(),

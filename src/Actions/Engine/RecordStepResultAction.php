@@ -180,13 +180,13 @@ final readonly class RecordStepResultAction
                 : StepFailure::permanent(FailureCode::VersionMissing, Messages::get('failures.version_missing'));
 
             $this->failRun($run, $failure);
-            $this->advancer->fail($instance, $failure->code, $failure->message, $run->node_id, $after);
+            $this->advancer->fail($instance, $failure->code, $failure->message, $run->node_id, $after, $failure->details);
 
             return;
         }
 
         if ($result instanceof StepResult && $result->isFail()) {
-            $result = StepFailure::permanent((string) $result->failureCode, (string) $result->failureMessage);
+            $result = StepFailure::permanent((string) $result->failureCode, (string) $result->failureMessage, $result->failureDetails);
         }
 
         if ($result instanceof StepResult && ! Output::valid($result->output)) {
@@ -324,16 +324,16 @@ final readonly class RecordStepResultAction
             $instance->lock_version++;
             $instance->save();
 
-            Events::dispatch(new StepFailed($instance, $run, $failure->code, true, $instance, Runtime::actor($instance)));
+            Events::dispatch(new StepFailed($instance, $run, $failure->code, true, $instance, Runtime::actor($instance), $failure->details));
 
             return;
         }
 
         Advancer::retireEscalations($run);
 
-        Events::dispatch(new StepFailed($instance, $run, $failure->code, false, $instance, Runtime::actor($instance)));
+        Events::dispatch(new StepFailed($instance, $run, $failure->code, false, $instance, Runtime::actor($instance), $failure->details));
 
-        $this->advancer->fail($instance, $failure->code, $failure->message, $node->id, $after);
+        $this->advancer->fail($instance, $failure->code, $failure->message, $node->id, $after, $failure->details);
     }
 
     private function failRun(StepRun $run, StepFailure $failure): void
@@ -343,6 +343,13 @@ final readonly class RecordStepResultAction
         $run->error_message = $failure->message;
         $run->error_retryable = $failure->retryable;
         $run->finished_at = Clock::now();
+
+        // Written only when there are details, so a host that has not run the 1.4 migration
+        // keeps recording plain failures.
+        if ($failure->details !== null) {
+            $run->error_details = $failure->details;
+        }
+
         $run->save();
     }
 

@@ -44,6 +44,8 @@ return [
     'unknown_definition_endpoint' => 'No active workflow starts from the webhook endpoint ":endpoint".',
     'endpoint_owner_mismatch' => 'The webhook endpoint and the workflow belong to different owners.',
     'owner_paused' => 'The workflow ":key" cannot start: its owner is paused.',
+    'invalid_failure_details' => 'The failure details must hold only plain JSON values (strings, numbers, booleans, null, lists and maps, at most 32 levels deep): :path is not.',
+    'invalid_failure_details_list' => 'The failure details must be a JSON object (named keys), not a list.',
     'unknown_step_type_suggest' => 'The step type ":key" is not registered. Did you mean ":suggestion"?',
     'unknown_step_type_package' => 'The step type ":key" needs :package.',
     'unknown_subject_type_suggest' => 'The subject type ":key" is not registered. Did you mean ":suggestion"?',

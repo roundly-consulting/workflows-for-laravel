@@ -84,6 +84,11 @@ final readonly class RetryInstanceAction
             $locked->failure_code = null;
             $locked->failure_message = null;
             $locked->failed_node_id = null;
+
+            if ($locked->failureDetails() !== null) {
+                $locked->failure_details = null;
+            }
+
             $locked->ended_at = null;
             $locked->current_node_id = $node->id;
             $locked->lock_version++;

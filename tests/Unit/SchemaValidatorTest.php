@@ -3,8 +3,14 @@
 declare(strict_types=1);
 
 use RoundlyConsulting\Workflows\Exceptions\InvalidStepTypeException;
+use RoundlyConsulting\Workflows\Exceptions\InvalidWorkflowsConfigurationException;
+use RoundlyConsulting\Workflows\Steps\StepContext;
+use RoundlyConsulting\Workflows\Steps\StepResult;
+use RoundlyConsulting\Workflows\Steps\StepType;
 use RoundlyConsulting\Workflows\Support\Schema\SchemaError;
 use RoundlyConsulting\Workflows\Support\Schema\SchemaValidator;
+use RoundlyConsulting\Workflows\Support\StepCatalogue;
+use RoundlyConsulting\Workflows\Support\WorkflowsConfig;
 
 /**
  * @param  array<string, mixed>  $schema
@@ -92,4 +98,68 @@ it('bounds validation depth and work', function (): void {
     }
 
     expect(fn () => SchemaValidator::assertSupported($deep, 'acme.deep'))->toThrow(InvalidStepTypeException::class, 'depth');
+});
+
+// 1.4: a host registers its own annotation prefixes beside x-workflows-.
+it('accepts the extension prefixes a host registers, and only those', function (): void {
+    $schema = ['type' => 'object', 'properties' => ['agent' => ['type' => 'string', 'x-opernity-agent-picker' => true, 'x-workflows-owner-specific' => true]]];
+
+    expect(fn () => SchemaValidator::assertSupported($schema, 'acme.agent'))->toThrow(InvalidStepTypeException::class, 'x-opernity-agent-picker');
+
+    config()->set('workflows.schema.extension_prefixes', ['x-opernity-', 'x-acme-ui-']);
+
+    SchemaValidator::assertSupported($schema, 'acme.agent');
+    SchemaValidator::assertSupported(['type' => 'object', 'items' => ['x-acme-ui-widget' => 'select']], 'acme.agent');
+
+    expect(fn () => SchemaValidator::assertSupported(['x-other-thing' => 1], 'acme.agent'))->toThrow(InvalidStepTypeException::class, 'x-other-thing')
+        ->and(SchemaValidator::validate($schema, ['agent' => 'a1']))->toBe([])
+        ->and(WorkflowsConfig::schemaExtensionPrefixes())->toBe(['x-workflows-', 'x-opernity-', 'x-acme-ui-']);
+});
+
+it('reads the extension prefixes from an env comma list too', function (): void {
+    config()->set('workflows.schema.extension_prefixes', 'x-opernity-, x-workflows-');
+
+    expect(WorkflowsConfig::schemaExtensionPrefixes())->toBe(['x-workflows-', 'x-opernity-']);
+});
+
+it('refuses an extension prefix that is not x-…-', function (string $prefix): void {
+    config()->set('workflows.schema.extension_prefixes', [$prefix]);
+
+    expect(fn () => WorkflowsConfig::schemaExtensionPrefixes())->toThrow(InvalidWorkflowsConfigurationException::class, 'workflows.schema.extension_prefixes');
+})->with(['opernity-', 'x-opernity', 'x-', 'x-Opernity-', 'x--', 'type']);
+
+it('registers a host step type whose schema uses a registered prefix', function (): void {
+    config()->set('workflows.schema.extension_prefixes', ['x-opernity-']);
+
+    $type = new class extends StepType
+    {
+        public function key(): string
+        {
+            return 'opernity.agent';
+        }
+
+        public function label(): string
+        {
+            return 'Agent';
+        }
+
+        public function hasSideEffects(): bool
+        {
+            return false;
+        }
+
+        public function configSchema(): array
+        {
+            return ['type' => 'object', 'properties' => ['agent' => ['type' => 'string', 'x-opernity-agent-picker' => true]]];
+        }
+
+        public function handle(StepContext $context): StepResult
+        {
+            return StepResult::complete();
+        }
+    };
+
+    app(StepCatalogue::class)->register($type);
+
+    expect(app(StepCatalogue::class)->find('opernity.agent'))->toBe($type);
 });

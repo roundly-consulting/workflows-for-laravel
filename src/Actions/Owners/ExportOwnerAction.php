@@ -29,7 +29,7 @@ use RoundlyConsulting\Workflows\Support\WorkflowModels;
  * `versions()->export()` gives, so each imports back), and a summary of every instance it owns,
  * app-wide definitions' runs on its subjects included: status, trigger, timestamps, subject and
  * starter references, and each step's outcome. Inputs, outputs, trigger payloads, failure
- * messages and class names stay out.
+ * messages, failure details and class names stay out.
  */
 final readonly class ExportOwnerAction
 {

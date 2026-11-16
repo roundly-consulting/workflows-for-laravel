@@ -10,8 +10,8 @@ use RoundlyConsulting\Workflows\Models\StepRun;
 
 /**
  * One attempt in the step log: node, type, visit, attempt, status, outcome, input, output, error
- * (code, message, retryable — never an exception class; an unknown exception renders the generic
- * line) and timing. `output.request_id` of an approval step is the round to decide `within()`.
+ * (code, message, retryable, the step's structured `details` or null — never an exception class;
+ * an unknown exception renders the generic line) and timing. `output.request_id` of an approval step is the round to decide `within()`.
  *
  * @property StepRun $resource
  */
@@ -37,6 +37,7 @@ final class StepRunResource extends JsonResource
                 'code' => $run->error_code,
                 'message' => InstanceResource::message($run->error_code, $run->error_message),
                 'retryable' => $run->error_retryable,
+                'details' => $run->errorDetails(),
             ],
             'scheduled_for' => $run->scheduled_for?->toIso8601String(),
             'started_at' => $run->started_at?->toIso8601String(),

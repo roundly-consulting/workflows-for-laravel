@@ -153,7 +153,7 @@ it('never renders an unknown exception message', function (): void {
     $run = Workflows::instances()->steps($instance->refresh())->firstWhere('node_id', 'spy') ?? throw new LogicException;
 
     expect($run->error_message)->toContain('App\\Models\\User')
-        ->and((new StepRunResource($run))->resolve()['error'])->toBe(['code' => 'exception', 'message' => 'The step failed unexpectedly.', 'retryable' => $run->error_retryable])
+        ->and((new StepRunResource($run))->resolve()['error'])->toBe(['code' => 'exception', 'message' => 'The step failed unexpectedly.', 'retryable' => $run->error_retryable, 'details' => null])
         ->and(json(new StepRunResource($run)))->not->toContain('App')
         ->and(json(new InstanceResource($instance)))->not->toContain('App');
 });

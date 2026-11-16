@@ -16,6 +16,7 @@ use RoundlyConsulting\Workflows\Models\WorkflowInstance;
  * expect($instance)->toBeWaitingAt('approve');
  * expect($instance)->toHaveCompletedVia(['start', 'approve', 'done']);
  * expect($instance)->toHaveFailedWith('transition_denied:guard_failed');
+ * expect($instance)->toHaveFailedWith('agent_run_failed', ['run_id' => $run->id, 'stop_reason' => 'max_turns']);
  * ```
  */
 final class WorkflowExpectations implements Bootable
@@ -57,13 +58,18 @@ final class WorkflowExpectations implements Bootable
             return $this;
         });
 
-        expect()->extend('toHaveFailedWith', function (string $code): mixed {
+        // With `$details`, the failure details must equal them too (as stored: redacted, capped).
+        expect()->extend('toHaveFailedWith', function (string $code, ?array $details = null): mixed {
             $instance = $this->value;
             Assert::assertInstanceOf(WorkflowInstance::class, $instance);
             $instance->refresh();
 
             Assert::assertSame(InstanceStatus::Failed, $instance->status, sprintf('Expected the instance to have failed, it is %s.', $instance->status->value));
             Assert::assertSame($code, $instance->failure_code);
+
+            if ($details !== null) {
+                Assert::assertEquals($details, $instance->failureDetails(), 'Expected other failure details.');
+            }
 
             return $this;
         });

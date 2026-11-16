@@ -705,6 +705,8 @@ it('throws the package configuration exception for every invalid key', function 
     'conditions.max_clauses' => ['workflows.conditions.max_clauses', 0, fn () => WorkflowsConfig::conditionsMaxClauses()],
     'steps_output.max_bytes' => ['workflows.steps_output.max_bytes', 10, fn () => WorkflowsConfig::stepOutputMaxBytes()],
     'steps_input.max_bytes' => ['workflows.steps_input.max_bytes', 10, fn () => WorkflowsConfig::stepInputMaxBytes()],
+    'failure_details.max_bytes' => ['workflows.failure_details.max_bytes', 10, fn () => WorkflowsConfig::failureDetailsMaxBytes()],
+    'schema.extension_prefixes' => ['workflows.schema.extension_prefixes', ['opernity'], fn () => WorkflowsConfig::schemaExtensionPrefixes()],
     'escalations.max_levels' => ['workflows.escalations.max_levels', 0, fn () => WorkflowsConfig::escalationsMaxLevels()],
     'idempotency.ttl' => ['workflows.idempotency.ttl', 'soon', fn () => WorkflowsConfig::idempotencyTtl()],
     'schedule.catch_up' => ['workflows.schedule.catch_up', 'soon', fn () => WorkflowsConfig::scheduleCatchUp()],

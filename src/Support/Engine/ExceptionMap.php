@@ -82,11 +82,12 @@ final class ExceptionMap
         }
 
         return match (true) {
-            $exception instanceof StepFailedException => StepFailure::permanent($exception->failureCode(), $exception->getMessage()),
+            $exception instanceof StepFailedException => StepFailure::permanent($exception->failureCode(), $exception->getMessage(), $exception->details()),
             $exception instanceof RetryableStepException => StepFailure::transient(
                 $exception->failureCode(),
                 $exception->getMessage(),
                 $exception->retryAfter() === null ? null : Clock::utc($exception->retryAfter()),
+                $exception->details(),
             ),
             $exception instanceof StepAuthorizationDeniedException => StepFailure::permanent(FailureCode::AuthorizationDenied, $exception->getMessage()),
             $exception instanceof BusinessCalendarNeverOpenException => StepFailure::permanent(FailureCode::CalendarNeverOpen, $exception->getMessage()),

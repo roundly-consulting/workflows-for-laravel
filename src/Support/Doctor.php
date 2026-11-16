@@ -64,7 +64,35 @@ final readonly class Doctor
             ...$this->stuck(),
             ...$this->backlog(),
             $this->failures(),
+            ...$this->schema(),
         ];
+    }
+
+    /**
+     * The 1.4 failure-details columns: without them failures still record, only their details
+     * are refused by the database.
+     *
+     * @return list<DoctorFinding>
+     */
+    private function schema(): array
+    {
+        $missing = [];
+        $model = WorkflowModels::instance();
+        $schema = (new $model)->getConnection()->getSchemaBuilder();
+
+        foreach (['step_runs' => 'error_details', 'instances' => 'failure_details'] as $table => $column) {
+            $name = WorkflowsConfig::table($table);
+
+            if ($schema->hasTable($name) && ! $schema->hasColumn($name, $column)) {
+                $missing[] = $name.'.'.$column;
+            }
+        }
+
+        return $missing === [] ? [] : [new DoctorFinding(
+            DoctorLevel::Warn,
+            'schema',
+            sprintf('Missing %s: publish and run the new migration (php artisan vendor:publish --tag=workflows-migrations, then php artisan migrate).', implode(', ', $missing)),
+        )];
     }
 
     /**

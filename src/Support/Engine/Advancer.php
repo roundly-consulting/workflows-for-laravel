@@ -141,8 +141,9 @@ final readonly class Advancer
 
     /**
      * @param  list<Closure(): mixed>  $after
+     * @param  array<array-key, mixed>|null  $details  normalised (FailureDetails)
      */
-    public function fail(WorkflowInstance $instance, FailureCode|string $code, string $message, ?string $node, array &$after): void
+    public function fail(WorkflowInstance $instance, FailureCode|string $code, string $message, ?string $node, array &$after, ?array $details = null): void
     {
         $code = $code instanceof FailureCode ? $code->value : $code;
         $instance->status = InstanceStatus::Failed;
@@ -151,11 +152,18 @@ final readonly class Advancer
         $instance->failed_node_id = $node;
         $instance->ended_at = Clock::now();
         $instance->lock_version++;
+
+        // Written only when there are details, so a host that has not run the 1.4 migration
+        // keeps recording plain failures (a retry clears them).
+        if ($details !== null) {
+            $instance->failure_details = $details;
+        }
+
         $instance->save();
 
         self::retireWaitsAndEscalations($instance);
 
-        Events::dispatch(new InstanceFailed($instance, $code, $message, $node, $instance, Runtime::actor($instance)));
+        Events::dispatch(new InstanceFailed($instance, $code, $message, $node, $instance, Runtime::actor($instance), $details));
 
         $this->signalParent($instance, $after);
     }

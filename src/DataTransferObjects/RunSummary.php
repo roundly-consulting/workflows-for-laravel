@@ -6,8 +6,8 @@ namespace RoundlyConsulting\Workflows\DataTransferObjects;
 
 /**
  * One instance in an owner export: what ran, on what, when and how it ended, and each step's
- * outcome. Never a step's input or output, the trigger payload, a failure message or a class
- * name: references are `{type, id}` with a registry key or a basename as the type.
+ * outcome. Never a step's input or output, the trigger payload, a failure message, failure
+ * details or a class name: references are `{type, id}` with a registry key or a basename as the type.
  */
 final readonly class RunSummary
 {
