@@ -65,15 +65,17 @@ it('keeps a failing step\'s details on the attempt, the instance, the read API a
     $events = captureFailures();
 
     $instance = agentFlow()->refresh();
+    // Read back from a json column: MySQL reorders object keys, so stored details compare
+    // order-insensitively (toEqual); what the events carry is the step's own array (toBe).
     $run = Workflows::instances()->steps($instance)->firstWhere('node_id', 'agent') ?? throw new LogicException;
     $rendered = (new InstanceResource(Workflows::instances()->detail($instance)))->resolve();
 
     expect($instance)->toHaveFailedWith('agent_run_failed', AGENT_RUN)
-        ->and($instance->failureDetails())->toBe(AGENT_RUN)
-        ->and($run->errorDetails())->toBe(AGENT_RUN)
-        ->and($rendered['failure'])->toBe(['code' => 'agent_run_failed', 'message' => 'The agent stopped.', 'node' => 'agent', 'details' => AGENT_RUN])
-        ->and($rendered['steps'][1]['error'])->toBe(['code' => 'agent_run_failed', 'message' => 'The agent stopped.', 'retryable' => false, 'details' => AGENT_RUN])
-        ->and((new StepRunResource($run))->resolve()['error']['details'])->toBe(AGENT_RUN)
+        ->and($instance->failureDetails())->toEqual(AGENT_RUN)
+        ->and($run->errorDetails())->toEqual(AGENT_RUN)
+        ->and($rendered['failure'])->toEqual(['code' => 'agent_run_failed', 'message' => 'The agent stopped.', 'node' => 'agent', 'details' => AGENT_RUN])
+        ->and($rendered['steps'][1]['error'])->toEqual(['code' => 'agent_run_failed', 'message' => 'The agent stopped.', 'retryable' => false, 'details' => AGENT_RUN])
+        ->and((new StepRunResource($run))->resolve()['error']['details'])->toEqual(AGENT_RUN)
         ->and($events->steps)->toHaveCount(1)
         ->and($events->steps[0]->details)->toBe(AGENT_RUN)
         ->and($events->steps[0]->willRetry)->toBeFalse()
@@ -85,8 +87,8 @@ it('keeps a failing step\'s details on the attempt, the instance, the read API a
     $fresh = WorkflowInstance::query()->findOrFail($instance->id);
     $freshRun = StepRun::query()->findOrFail($run->id);
 
-    expect($fresh->failureDetails())->toBe(AGENT_RUN)
-        ->and($freshRun->errorDetails())->toBe(AGENT_RUN);
+    expect($fresh->failureDetails())->toEqual(AGENT_RUN)
+        ->and($freshRun->errorDetails())->toEqual(AGENT_RUN);
 })->with([
     'returned', 'thrown',
 ]);
@@ -113,7 +115,7 @@ it('keeps the details of each retryable attempt, and the last one on the instanc
     $runs = Workflows::instances()->steps($instance)->where('node_id', 'agent')->values();
 
     expect($instance->refresh())->toHaveFailedWith('agent_busy', ['run_id' => 'run-3', 'stop_reason' => 'rate_limited'])
-        ->and($runs->map(static fn (StepRun $run): ?array => $run->errorDetails())->all())->toBe([
+        ->and($runs->map(static fn (StepRun $run): ?array => $run->errorDetails())->all())->toEqual([
             ['run_id' => 'run-1', 'stop_reason' => 'rate_limited'],
             ['run_id' => 'run-2', 'stop_reason' => 'rate_limited'],
             ['run_id' => 'run-3', 'stop_reason' => 'rate_limited'],
@@ -250,7 +252,7 @@ it('clears the instance details on a retry and records the next failure\'s own',
     });
 
     $instance = agentFlow()->refresh();
-    expect($instance->failureDetails())->toBe(AGENT_RUN);
+    expect($instance->failureDetails())->toEqual(AGENT_RUN);
 
     Workflows::instances()->retry($instance);
 
